@@ -1,6 +1,6 @@
 // ============================================================
-// PRONO ARENA — Site (Duels, Analyse, Verdict)
-// Toutes les données viennent du moteur ; le site ne fait que lire.
+// PRONO ARENA — Site (Duels, Analyse, Verdict, Arène, Compte)
+// Toutes les données viennent du moteur. Seuls le compte et les pronostics du joueur sont envoyés.
 // ============================================================
 (() => {
   "use strict";
@@ -18,6 +18,7 @@
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } },
+    del(k) { try { localStorage.removeItem(k); } catch { /* navigation privée */ } },
   };
   const cache = new Map();
   async function api(path, ttl = 60000) {
@@ -29,6 +30,88 @@
     cache.set(path, { t: Date.now(), data });
     return data;
   }
+
+  // ---------- Compte joueur ----------
+  const session = { token: store.get("token"), pseudo: store.get("pseudo") };
+  let meCache = null, meDirty = false, pendingPick = null;
+  async function call(path, body) {
+    const headers = {};
+    if (body) headers["Content-Type"] = "application/json";
+    if (session.token) headers.Authorization = "Bearer " + session.token;
+    const res = await fetch(API + path, { method: body ? "POST" : "GET", headers, body: body ? JSON.stringify(body) : undefined });
+    let data = {};
+    try { data = await res.json(); } catch { /* réponse vide */ }
+    if (!res.ok || data.success === false) { const e = new Error(data.error || `Erreur ${res.status}`); e.status = res.status; throw e; }
+    return data;
+  }
+  function paintAccount() {
+    const a = document.getElementById("account");
+    a.innerHTML = session.token ? `<span class="avatar" aria-hidden="true">${esc(String(session.pseudo || "?")[0].toUpperCase())}</span><span class="account-name">${esc(session.pseudo)}</span>` : "Connexion";
+    a.setAttribute("aria-label", session.token ? `Mon compte : ${session.pseudo}` : "Connexion ou création de compte");
+  }
+  function setSession(token, pseudo) {
+    session.token = token || null; session.pseudo = pseudo || null; meCache = null; meDirty = false;
+    if (token) { store.set("token", token); store.set("pseudo", pseudo); } else { store.del("token"); store.del("pseudo"); }
+    paintAccount();
+  }
+  // Mon bilan de la semaine et mes pronostics (gardés 30 s)
+  async function getMe() {
+    if (!session.token) return null;
+    if (meCache && !meDirty && Date.now() - meCache.t < 30000) return meCache.data;
+    try { const d = await call("/me"); meCache = { t: Date.now(), data: d }; meDirty = false; return d; }
+    catch (e) { if (e.status === 401) setSession(null); return meCache?.data || null; }
+  }
+  const myPick = (me, leagueId, matchId) => me?.pronos.find((x) => x.leagueId === Number(leagueId) && String(x.matchId) === String(matchId)) || null;
+  let toastTimer;
+  function toast(msg, bad) {
+    const el = document.getElementById("toast");
+    el.textContent = msg; el.className = "toast show" + (bad ? " bad" : "");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (el.className = "toast"), 2800);
+  }
+
+  // ---------- Pronostic du joueur : 3 boutons (1, N, 2) ----------
+  // Points en jeu = 10 / probabilité du moteur, entre 10 et 100 (même formule que le moteur, qui fait foi)
+  const ptsFor = (p) => Math.max(10, Math.min(100, Math.round(10 / Math.max(Number(p) || 0, 0.01))));
+  const duelIndex = new Map();
+  function picks(p, leagueId, mine) {
+    duelIndex.set(`${leagueId}/${p.matchId}`, p);
+    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
+    const locked = isLive(p.status) || Date.parse(p.date) <= Date.now();
+    const opt = (k, proba, cls, label, aria) => {
+      const sel = mine?.choix === k, pts = sel ? mine.mise : ptsFor(proba);
+      return `<button type="button" class="pick" data-pick="${k}" aria-pressed="${sel}"${locked ? " disabled" : ""} aria-label="${esc(aria)}, ${pct(proba)} %, ${pts} points en jeu${sel ? ", ton pronostic" : ""}">
+          <b class="${cls}">${pct(proba)}%</b><small>${label}</small><span class="pts">${sel ? (locked ? "🔒 " : "✓ ") : "+"}${pts} pts</span></button>`;
+    };
+    return `<div class="picks${locked ? " locked" : ""}" data-league="${esc(leagueId)}" data-match="${esc(p.matchId)}" role="group" aria-label="Ton pronostic">${opt("1", P.proba1, "c1", "Victoire", `Victoire ${D.name}`)}${opt("N", P.probaN, "cN", "Nul", "Match nul")}${opt("2", P.proba2, "c2", "Victoire", `Victoire ${E.name}`)}</div>`;
+  }
+  async function sendPick(pick) {
+    const box = [...view.querySelectorAll(".picks")].find((x) => x.dataset.league === String(pick.leagueId) && x.dataset.match === String(pick.matchId));
+    if (box) box.classList.add("busy");
+    try {
+      const r = await call("/picks", pick);
+      if (meCache) { meCache.data.pronos = meCache.data.pronos.filter((x) => !(x.leagueId === r.prono.leagueId && String(x.matchId) === String(r.prono.matchId))); meCache.data.pronos.push(r.prono); }
+      meDirty = true; cache.delete("/arena");
+      const p = duelIndex.get(`${pick.leagueId}/${pick.matchId}`);
+      if (box && p) box.outerHTML = picks(p, pick.leagueId, r.prono);
+      toast(`Prono enregistré · ${r.prono.mise} pts en jeu`);
+      return true;
+    } catch (e) {
+      if (box) box.classList.remove("busy");
+      if (e.status === 401) { setSession(null); pendingPick = pick; location.hash = "#/compte"; return false; }
+      toast(e.message, true);
+      if (e.status === 409 || e.status === 404) { cache.clear(); route(); }
+      return false;
+    }
+  }
+  view.addEventListener("click", (e) => {
+    const b = e.target.closest(".pick");
+    if (!b || b.disabled) return;
+    const box = b.closest(".picks");
+    if (box.classList.contains("busy") || b.getAttribute("aria-pressed") === "true") return;
+    const pick = { leagueId: Number(box.dataset.league), matchId: box.dataset.match, choix: b.dataset.pick };
+    if (!session.token) { pendingPick = pick; location.hash = "#/compte"; return; }
+    sendPick(pick);
+  });
 
   const fmtDay = (d) => { const s = new Date(d).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" }); return s.charAt(0).toUpperCase() + s.slice(1); };
   const fmtTime = (d) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -83,7 +166,7 @@
   }
 
   function setTab(name) {
-    document.querySelectorAll(".tabbar a").forEach((a) => (a.dataset.tab === name ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+    document.querySelectorAll("[data-tab]").forEach((a) => (a.dataset.tab === name ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   }
 
   function errorBox(msg, retry) {
@@ -118,7 +201,7 @@
       <section class="hero">
         <p class="kicker">${esc(league.nom)}${league.pays ? " · " + esc(league.pays) : ""}</p>
         <h1>Choisis ton camp.</h1>
-        <p>Le moteur analyse chaque duel. Qui sortira vainqueur de l'arène ?</p>
+        <p>Touche ton prono : plus c'est risqué, plus ça rapporte de points.</p>
       </section>
       <div class="list" id="duels"><div class="skel"></div><div class="skel"></div></div>`;
 
@@ -126,7 +209,7 @@
 
     const box = document.getElementById("duels");
     try {
-      const data = await api(`/league-predictions?leagueId=${current}`);
+      const [data, mine] = await Promise.all([api(`/league-predictions?leagueId=${current}`), getMe()]);
       const preds = (data.predictions || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
       if (!preds.length) {
         box.innerHTML = data.enPreparation
@@ -141,24 +224,23 @@
         lastDay = day;
         const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
         const status = isLive(p.status) ? `<span class="live">En direct</span>` : `<span class="tag">Fiabilité ${esc(p.donnees?.fiabilite || "—")}</span>`;
+        const href = `#/duel/${current}/${encodeURIComponent(p.matchId)}`;
         return `${head}
-          <a class="duel" href="#/duel/${current}/${encodeURIComponent(p.matchId)}" aria-label="${esc(D.name)} contre ${esc(E.name)}, voir l'analyse">
-            <div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${status}</div>
-            <div class="teams">
-              <div class="team">${crest(D)}<b>${esc(D.name)}</b></div>
-              <span class="vs">VS</span>
-              <div class="team">${crest(E)}<b>${esc(E.name)}</b></div>
-            </div>
-            <div class="probs">
-              <div><b class="c1">${pct(P.proba1)}%</b><small>Victoire</small></div>
-              <div><b class="cN">${pct(P.probaN)}%</b><small>Nul</small></div>
-              <div><b class="c2">${pct(P.proba2)}%</b><small>Victoire</small></div>
-            </div>
+          <article class="duel">
+            <a class="duel-link" href="${href}" aria-label="${esc(D.name)} contre ${esc(E.name)}, voir l'analyse">
+              <div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${status}</div>
+              <div class="teams">
+                <div class="team">${crest(D)}<b>${esc(D.name)}</b></div>
+                <span class="vs">VS</span>
+                <div class="team">${crest(E)}<b>${esc(E.name)}</b></div>
+              </div>
+            </a>
+            ${picks(p, current, myPick(mine, current, p.matchId))}
             <div class="bar" aria-hidden="true"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
             <div class="badges">${badges(p)}</div>
-            <span class="more">Voir l'analyse complète
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></span>
-          </a>`;
+            <a class="more" href="${href}">Voir l'analyse complète
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+          </article>`;
       }).join("");
     } catch (e) {
       box.innerHTML = `<div class="error" role="alert">Cette compétition est momentanément indisponible.<br><small>Choisis-en une autre ci-dessus, ou réessaie dans quelques minutes.</small><br><button type="button" id="retry">Réessayer</button></div>`;
@@ -235,8 +317,8 @@
   async function renderDuel(leagueId, matchId) {
     setTab("duels");
     view.innerHTML = `<div class="list"><div class="skel"></div><div class="skel"></div></div>`;
-    let data;
-    try { data = await api(`/league-predictions?leagueId=${leagueId}`); } catch (e) { return errorBox(e.message, () => renderDuel(leagueId, matchId)); }
+    let data, mine;
+    try { [data, mine] = await Promise.all([api(`/league-predictions?leagueId=${leagueId}`), getMe()]); } catch (e) { return errorBox(e.message, () => renderDuel(leagueId, matchId)); }
     const p = (data.predictions || []).find((x) => String(x.matchId) === String(matchId));
     const list = await getLeagues();
     const lg = list.find((l) => l.id === Number(leagueId));
@@ -329,6 +411,11 @@
         <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b><small>${D.classement ? `${D.classement.rang}${D.classement.rang === 1 ? "er" : "e"} · ` : ""}Elo ${esc(D.elo)}</small></div>
         <div class="kickoff">${isLive(p.status) ? `<span class="live">En direct</span>` : `<strong>${esc(fmtTime(p.date))}</strong>`}<span>${esc(fmtDay(p.date))}</span></div>
         <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b><small>${E.classement ? `${E.classement.rang}${E.classement.rang === 1 ? "er" : "e"} · ` : ""}Elo ${esc(E.elo)}</small></div>
+      </section>
+      <section class="panel">
+        <h2>${ico("target")}Ton prono</h2>
+        ${picks(p, Number(leagueId), myPick(mine, leagueId, p.matchId))}
+        <p class="note">${isLive(p.status) || Date.parse(p.date) <= Date.now() ? "Coup d'envoi donné : les pronos sont bloqués." : "Modifiable jusqu'au coup d'envoi. Les points en jeu sont fixés au moment de ton choix."}</p>
       </section>
       <div class="tabs" role="tablist" aria-label="Sections de l'analyse" style="grid-template-columns:repeat(${tabsDef.length},minmax(0,1fr))">
         ${tabsDef.map(([k, l], i) => `<button type="button" role="tab" aria-selected="${i === 0}" data-pane="${k}">${l}</button>`).join("")}
@@ -425,6 +512,185 @@
     }
   }
 
+  // ---------- Écran Arène (classement de la semaine) ----------
+  const avatar = (pseudo, cls = "") => `<span class="avatar ${cls}" style="background:hsl(${hue(pseudo)} 55% 38%)" aria-hidden="true">${esc(String(pseudo || "?")[0].toUpperCase())}</span>`;
+  const dMonth = (iso, withMonth) => new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", withMonth ? { day: "numeric", month: "long" } : { day: "numeric" });
+  const weekLabel = (w) => `Du ${dMonth(w.debut, w.debut.slice(5, 7) !== w.fin.slice(5, 7))} au ${dMonth(w.fin, true)}`;
+
+  let arenaWeek = "courante";
+  async function renderArena() {
+    setTab("arene");
+    const which = arenaWeek;
+    view.innerHTML = `
+      <section class="hero">
+        <p class="kicker">Classement de la semaine</p>
+        <h1>L'Arène</h1>
+        <p>Chaque bon prono rapporte des points. Remise à zéro tous les lundis.</p>
+      </section>
+      <div class="chips" role="group" aria-label="Semaine">
+        <button type="button" class="chip" data-week="courante" aria-pressed="${which === "courante"}">Cette semaine</button>
+        <button type="button" class="chip" data-week="precedente" aria-pressed="${which === "precedente"}">Semaine dernière</button>
+      </div>
+      <div id="arena"><div class="list"><div class="skel"></div></div></div>`;
+    view.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { arenaWeek = b.dataset.week === "precedente" ? "precedente" : "courante"; renderArena(); }));
+
+    const box = document.getElementById("arena");
+    try {
+      const [board, me] = await Promise.all([api(`/arena${which === "precedente" ? "?semaine=precedente" : ""}`, 30000), getMe()]);
+      const rows = board.classement;
+      const inBoard = session.token ? rows.find((r) => r.pseudo === session.pseudo) : null;
+      const mine = which === "courante" && me ? { ...me.semaine } : inBoard ? { points: inBoard.points, justes: inBoard.justes, joues: inBoard.joues, attente: inBoard.attente, rang: inBoard.rang } : null;
+
+      let top;
+      if (!session.token) {
+        top = `<section class="panel cta-panel">
+            <h2>${ico("trophy")}Entre dans l'arène</h2>
+            <p class="note">Gratuit, pour le fun. Un pseudo suffit pour figurer au classement.</p>
+            <a class="cta" href="#/compte">Créer mon compte</a>
+          </section>`;
+      } else if (mine && mine.joues) {
+        top = `<section class="panel">
+            <h2>${ico("target")}${which === "courante" ? "Ma semaine" : "Ma semaine dernière"}</h2>
+            <div class="grid3">${tile("Rang", mine.rang ? `${mine.rang}<sup>${mine.rang === 1 ? "er" : "e"}</sup>` : "—")}${tile("Points", mine.points)}${tile("Pronos justes", `${mine.justes}/${mine.joues - mine.attente}`)}</div>
+            ${mine.attente ? `<p class="note">${mine.attente} prono${mine.attente > 1 ? "s" : ""} en attente du résultat.</p>` : ""}
+          </section>`;
+      } else {
+        top = which === "courante"
+          ? `<section class="panel cta-panel"><h2>${ico("target")}Ma semaine</h2><p class="note">Tu n'as pas encore pronostiqué cette semaine.</p><a class="cta" href="#/">Voir les duels</a></section>`
+          : "";
+      }
+
+      const place = (r, cls) => `<div class="pod ${cls}${inBoard === r ? " me" : ""}">${avatar(r.pseudo, "avatar-lg")}<b>${esc(r.pseudo)}</b><span class="pod-pts">${r.points} pts</span><span class="pod-step">${r.rang}</span></div>`;
+      const line = (r) => `<div class="rk${inBoard === r ? " me" : ""}"><span class="rk-n">${r.rang}</span>${avatar(r.pseudo)}<span class="rk-name"><b>${esc(r.pseudo)}</b><small>${r.justes} juste${r.justes > 1 ? "s" : ""} sur ${r.joues - r.attente}${r.attente ? ` · ${r.attente} en attente` : ""}</small></span><b class="rk-pts">${r.points}<small> pts</small></b></div>`;
+      let ranking;
+      if (!rows.length) {
+        ranking = `<div class="empty">${which === "courante" ? "Personne n'a encore pronostiqué cette semaine. Prends la première place !" : "Aucun pronostic la semaine dernière."}</div>`;
+      } else {
+        const podium = rows.length >= 3 ? `<div class="podium">${place(rows[1], "p2")}${place(rows[0], "p1")}${place(rows[2], "p3")}</div>` : "";
+        const rest = rows.length >= 3 ? rows.slice(3) : rows;
+        ranking = `<section class="panel">
+            <h2>${ico("trophy")}${esc(weekLabel(board.semaine))}</h2>
+            ${podium}
+            ${rest.length ? `<div class="rks">${rest.map(line).join("")}</div>` : ""}
+            <p class="note">${board.joueurs} joueur${board.joueurs > 1 ? "s" : ""} dans l'arène${board.joueurs > rows.length ? ` · ${rows.length} premiers affichés` : ""}.</p>
+          </section>`;
+      }
+
+      const rules = `<section class="panel">
+          <h2>${ico("bolt")}Comment ça marche</h2>
+          <div class="grid2">
+            <div class="cell">${ico("target")}<small>1 · Choisis</small><b class="rule">Victoire, nul ou victoire</b></div>
+            <div class="cell">${ico("clock")}<small>2 · Avant le match</small><b class="rule">Bloqué au coup d'envoi</b></div>
+            <div class="cell">${ico("bolt")}<small>3 · Le risque paie</small><b class="rule">Favori 10 pts, surprise jusqu'à 100</b></div>
+            <div class="cell">${ico("trophy")}<small>4 · Chaque lundi</small><b class="rule">Nouveau classement</b></div>
+          </div>
+        </section>`;
+
+      let myList = "";
+      const weekPicks = me ? me.pronos.filter((x) => x.semaine === board.semaine.cle).sort((a, b) => a.coupEnvoi - b.coupEnvoi) : [];
+      if (weekPicks.length) {
+        myList = `<section class="panel">
+            <h2>${ico("grid")}Mes pronos</h2>
+            <div class="rks">${weekPicks.map((x) => {
+              const label = x.choix === "N" ? "Nul" : x.choix === "1" ? x.domicile.nom : x.exterieur.nom;
+              const state = x.points == null ? `<span class="wait">${x.coupEnvoi > Date.now() ? "+" + x.mise + " pts en jeu" : "En attente"}</span>`
+                : x.points > 0 ? `<span class="ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>+${x.points}</span>`
+                : `<span class="ko"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>0</span>`;
+              return `<div class="mp"><span class="mp-teams">${crest({ name: x.domicile.nom, logo: x.domicile.logo }, "crest crest-xs")}${x.score ? `<b>${esc(String(x.score).replace("-", " – "))}</b>` : `<small>${esc(fmtTime(x.coupEnvoi))}</small>`}${crest({ name: x.exterieur.nom, logo: x.exterieur.logo }, "crest crest-xs")}</span>
+                <span class="mp-pick"><small>${esc(fmtDay(x.coupEnvoi))}</small><b>${esc(label)}</b></span>${state}</div>`;
+            }).join("")}</div>
+          </section>`;
+      }
+      box.innerHTML = top + ranking + myList + rules;
+    } catch (e) {
+      box.innerHTML = `<div class="error" role="alert">L'Arène est indisponible pour le moment.<br><small>${esc(e.message)}</small><br><button type="button" id="retry">Réessayer</button></div>`;
+      document.getElementById("retry").onclick = () => { cache.clear(); renderArena(); };
+    }
+  }
+
+  // ---------- Écran Compte ----------
+  async function afterAuth(d) {
+    setSession(d.token, d.pseudo);
+    const pick = pendingPick; pendingPick = null;
+    if (pick) { location.hash = "#/"; await sendPick(pick); cache.clear(); route(); }
+    else { toast(`Bienvenue dans l'arène, ${d.pseudo} !`); location.hash = "#/arene"; }
+  }
+  function bindForm(id, path, fields, done) {
+    const f = document.getElementById(id);
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const err = f.querySelector(".form-err"), btn = f.querySelector("button[type=submit]");
+      err.hidden = true; btn.disabled = true;
+      try { await done(await call(path, Object.fromEntries(fields.map((k) => [k, f.elements[k].value])))); }
+      catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
+    };
+  }
+  async function renderCompte() {
+    setTab("compte");
+    if (!session.token) {
+      const mode = store.get("compteMode") === "login" ? "login" : "signup";
+      view.innerHTML = `
+        <section class="hero">
+          <p class="kicker">Gratuit · pour le fun</p>
+          <h1>Entre dans l'arène.</h1>
+          <p>${pendingPick ? "Ton prono sera enregistré dès que tu es connecté." : "Un compte, et tes pronos comptent au classement."}</p>
+        </section>
+        <div class="tabs" role="tablist" aria-label="Compte" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+          <button type="button" role="tab" aria-selected="${mode === "signup"}" data-mode="signup">Créer un compte</button>
+          <button type="button" role="tab" aria-selected="${mode === "login"}" data-mode="login">Se connecter</button>
+        </div>
+        <form class="panel form" id="f-signup" ${mode === "signup" ? "" : "hidden"} novalidate>
+          <label>Pseudo<input name="pseudo" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="16" required><small>3 à 16 lettres ou chiffres. Visible au classement.</small></label>
+          <label>E-mail<input name="email" type="email" autocomplete="email" inputmode="email" maxlength="120" required><small>Jamais affiché, jamais partagé.</small></label>
+          <label>Mot de passe<input name="motDePasse" type="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>8 caractères minimum.</small></label>
+          <p class="form-err" role="alert" hidden></p>
+          <button type="submit" class="cta">Créer mon compte</button>
+          <p class="note">Jeu gratuit, sans mise ni gain d'argent. Tes données servent uniquement au jeu et tu peux supprimer ton compte à tout moment.</p>
+        </form>
+        <form class="panel form" id="f-login" ${mode === "login" ? "" : "hidden"} novalidate>
+          <label>Pseudo ou e-mail<input name="identifiant" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="120" required></label>
+          <label>Mot de passe<input name="motDePasse" type="password" autocomplete="current-password" maxlength="72" required></label>
+          <p class="form-err" role="alert" hidden></p>
+          <button type="submit" class="cta">Me connecter</button>
+        </form>`;
+      view.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { store.set("compteMode", b.dataset.mode); renderCompte(); }));
+      bindForm("f-signup", "/account/signup", ["pseudo", "email", "motDePasse"], afterAuth);
+      bindForm("f-login", "/account/login", ["identifiant", "motDePasse"], afterAuth);
+      return;
+    }
+    view.innerHTML = `<div class="list"><div class="skel"></div></div>`;
+    const me = await getMe();
+    if (!session.token) return renderCompte(); // session expirée entre-temps
+    const w = me?.semaine;
+    view.innerHTML = `
+      <section class="hero me-hero">
+        ${avatar(session.pseudo, "avatar-xl")}
+        <div><p class="kicker">Mon compte</p><h1>${esc(session.pseudo)}</h1></div>
+      </section>
+      ${w ? `<section class="panel">
+        <h2>${ico("target")}Ma semaine</h2>
+        <div class="grid3">${tile("Rang", w.rang ? `${w.rang}<sup>${w.rang === 1 ? "er" : "e"}</sup>` : "—")}${tile("Points", w.points)}${tile("Pronos justes", `${w.justes}/${w.joues - w.attente}`)}</div>
+        <a class="cta" href="#/arene">Voir le classement</a>
+      </section>` : ""}
+      <section class="panel">
+        <button type="button" class="btn" id="logout">Me déconnecter</button>
+        <details class="danger">
+          <summary>Supprimer mon compte</summary>
+          <form class="form" id="f-delete" novalidate>
+            <p class="note">Ton compte et tous tes pronostics seront effacés définitivement.</p>
+            <label>Mot de passe<input name="motDePasse" type="password" autocomplete="current-password" maxlength="72" required></label>
+            <p class="form-err" role="alert" hidden></p>
+            <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+          </form>
+        </details>
+      </section>`;
+    document.getElementById("logout").onclick = async () => {
+      try { await call("/account/logout", {}); } catch { /* déjà déconnecté */ }
+      setSession(null); cache.clear(); toast("À bientôt !"); location.hash = "#/";
+    };
+    bindForm("f-delete", "/account/delete", ["motDePasse"], () => { setSession(null); cache.clear(); toast("Compte supprimé."); location.hash = "#/"; });
+  }
+
   // ---------- Navigation ----------
   function route() {
     const h = location.hash.replace(/^#\/?/, "");
@@ -432,8 +698,11 @@
     window.scrollTo(0, 0);
     if (parts[0] === "duel" && parts[1] && parts[2]) return renderDuel(parts[1], decodeURIComponent(parts[2]));
     if (parts[0] === "verdict") return renderVerdict();
+    if (parts[0] === "arene") { arenaWeek = "courante"; return renderArena(); }
+    if (parts[0] === "compte") return renderCompte();
     return renderDuels();
   }
   window.addEventListener("hashchange", route);
+  paintAccount();
   route();
 })();

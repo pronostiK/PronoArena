@@ -5,14 +5,24 @@
 //   /verdict?leagueId=61|all[&days=30]             résultats vs pronostics figés + taux de réussite
 //   /leagues                                        compétitions disponibles et nombre de matchs à venir
 //   /status                                         état du robot (transparence)
+// Arène (bloc 2, base D1) :
+//   POST /account/signup | /account/login | /account/logout | /account/delete
+//   GET  /me            mon bilan de la semaine + mes pronostics
+//   POST /picks         enregistrer mon pronostic (refusé après le coup d'envoi)
+//   GET  /arena[?semaine=precedente]                classement hebdomadaire
 // ============================================================
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
 import { kvGet, refreshSource, srcKey, resetEspnBudget } from "./sources.js";
 import { predsKey, getH2H, buildVerdict } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
+import { readBody, signup, login, logout, deleteAccount, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
 
-const CORS = { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" };
+const CORS = {
+  "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400",
+};
+const PRIVATE = { "Cache-Control": "no-store" };
 // Mémoire partagée entre visiteurs (5 min) pour les calculs lourds : économise le quota de lectures
 const memo = new Map();
 async function remember(key, ttl, fn) {
@@ -118,11 +128,25 @@ export default {
         return json({ success: true, competition: lg, resultats: out });
       }
 
-      if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)) });
+      if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
+
+      // ---------- Arène ----------
+      const post = request.method === "POST";
+      if (path === "/account/signup" && post) return json(await signup(env, await readBody(request), request.headers.get("CF-Connecting-IP")), 200, PRIVATE);
+      if (path === "/account/login" && post) return json(await login(env, await readBody(request)), 200, PRIVATE);
+      if (path === "/account/logout" && post) return json(await logout(env, await auth(env, request)), 200, PRIVATE);
+      if (path === "/account/delete" && post) return json(await deleteAccount(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
+      if (path === "/me") return json(await me(env, await auth(env, request)), 200, PRIVATE);
+      if (path === "/picks" && post) return json(await savePick(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
+      if (path === "/arena") {
+        const which = q("semaine") === "precedente" ? "precedente" : "courante";
+        const board = await remember(`arena:${which}`, 60000, () => leaderboard(env, which));
+        return json(board, 200, { "Cache-Control": "public, max-age=60" });
+      }
 
       return json({ success: false, error: "Route inconnue" }, 404);
     } catch (err) {
-      return json({ success: false, error: err.message }, 400);
+      return json({ success: false, error: err.message }, err.status || 400, PRIVATE);
     }
   },
 

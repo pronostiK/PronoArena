@@ -112,3 +112,26 @@ export function makeKV() {
     put: async (k, v) => { stats.writes++; store.set(k, v); },
   } };
 }
+
+// Fausse base D1 : un vrai SQLite en mémoire (le même moteur que D1), avec le schéma du dépôt
+export async function makeD1() {
+  const { DatabaseSync } = await import("node:sqlite");
+  const fs = await import("node:fs");
+  const db = new DatabaseSync(":memory:");
+  db.exec(fs.readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const stats = { queries: 0 };
+  const stmt = (sql, args = []) => ({
+    bind: (...a) => stmt(sql, a),
+    _run() {
+      stats.queries++;
+      const s = db.prepare(sql);
+      if (/^\s*(SELECT|WITH)/i.test(sql)) return { results: s.all(...args), meta: {} };
+      const r = s.run(...args);
+      return { results: [], meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } };
+    },
+    async all() { return this._run(); },
+    async run() { return this._run(); },
+    async first() { return this._run().results[0] ?? null; },
+  });
+  return { stats, raw: db, DB: { prepare: (sql) => stmt(sql), batch: async (list) => list.map((s) => s._run()) } };
+}

@@ -1,20 +1,41 @@
-// Aperçu local : moteur + monde simulé + site, puis captures d'écran téléphone
+// Aperçu local : moteur + monde simulé + base + site, puis captures d'écran téléphone
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-import { NOW, SIM, installFetch, makeKV } from "./sim.mjs";
+import { NOW, SIM, installFetch, makeKV, makeD1 } from "./sim.mjs";
 import worker from "../src/index.js";
 import { runRobot } from "../src/robot.js";
 import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_PATH || "playwright");
 
 installFetch(); Date.now = () => SIM.now;
-const env = { FOOTBALL_DATA_KEY: "x", ...makeKV() };
-let T = NOW; for (let i = 0; i < 40 + 288; i++) { SIM.now = T; await runRobot(env, T); T += 600000; } // remplissage + 2 jours
+const d1 = await makeD1();
+const env = { FOOTBALL_DATA_KEY: "x", ...makeKV(), DB: d1.DB };
+let T = NOW;
+const robot = async (n) => { for (let i = 0; i < n; i++) { SIM.now = T; await runRobot(env, T); T += 600000; } SIM.now = T; };
+const ask = async (p, { body, token, ip } = {}) => (await worker.fetch(new Request("http://x" + p, { method: body ? "POST" : "GET", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), "CF-Connecting-IP": ip || "9.9.9.9" }, body: body ? JSON.stringify(body) : undefined }), env, { waitUntil() {} })).json();
+
+// Remplissage, puis 6 joueurs pronostiquent, 2 jours passent (matchs notés), puis nouveaux pronos en attente
+await robot(190);
+const bots = [];
+for (const [i, pseudo] of ["Zizou", "Platoche", "Titi", "LaPulga", "Kyky", "Rocheteau"].entries()) bots.push(await ask("/account/signup", { ip: "10.0.0." + i, body: { pseudo, email: `${pseudo}@exemple.fr`, motDePasse: "motdepasse" + i } }));
+const play = async () => {
+  for (const lid of [61, 39, 62]) {
+    const L = await ask(`/league-predictions?leagueId=${lid}`);
+    for (const [k, m] of L.predictions.entries()) for (const [i, b] of bots.entries()) {
+      if ((k + i) % 3 === 2) continue;
+      const P = m.poisson, fav = P.proba1 >= P.proba2 ? "1" : "2";
+      await ask("/picks", { token: b.token, body: { leagueId: lid, matchId: m.matchId, choix: [fav, fav, "N", fav === "1" ? "2" : "1", fav, "N"][(i + k) % 6] } });
+    }
+  }
+};
+await play(); await robot(288); await play();
+
 const PUB = new URL("../site/public/", import.meta.url).pathname;
 const server = http.createServer(async (req, res) => {
   if (req.url.startsWith("/api/")) {
-    const r = await worker.fetch(new Request("http://x" + req.url.slice(4)), env, { waitUntil() {} });
+    const chunks = []; for await (const c of req) chunks.push(c);
+    const r = await worker.fetch(new Request("http://x" + req.url.slice(4), { method: req.method, headers: { ...(req.headers.authorization ? { Authorization: req.headers.authorization } : {}), "CF-Connecting-IP": "7.7.7.7" }, body: chunks.length ? Buffer.concat(chunks) : undefined }), env, { waitUntil() {} });
     res.writeHead(r.status, { "content-type": "application/json" }); return res.end(await r.text());
   }
   let f = req.url.split("?")[0]; if (f === "/") f = "/index.html";
@@ -29,18 +50,70 @@ const server = http.createServer(async (req, res) => {
 const OUT = process.argv[2];
 const browser = await chromium.launch({ executablePath: "/usr/bin/google-chrome" });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "fr-FR", timezoneId: "Europe/Paris" });
-const errors = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => m.type() === "error" && !/404|ERR_/.test(m.text()) && errors.push(m.text()));
+await page.clock.setFixedTime(new Date(SIM.now)); // l'horloge du navigateur suit le monde simulé
+const errors = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => m.type() === "error" && !/404|ERR_|401|409/.test(m.text()) && errors.push(m.text()));
 await page.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
+const shot = (name, fullPage = true) => page.screenshot({ path: `${OUT}/${name}.png`, fullPage });
+const checks = [];
+const check = (name, cond, info = "") => { checks.push(cond); console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
+
+// Visiteur non connecté
 await page.goto("http://localhost:8787/"); await page.waitForSelector(".duel");
-await page.screenshot({ path: `${OUT}/1-duels.png`, fullPage: true });
-await page.click(".chip[data-league='2']"); await page.waitForSelector(".duel");
-await page.screenshot({ path: `${OUT}/2-ldc.png` });
-await page.click(".chip[data-league='62']"); await page.waitForSelector(".duel");
-await page.click(".duel"); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300);
-await page.screenshot({ path: `${OUT}/3-analyse.png`, fullPage: true });
-await page.click(".tabs button[data-pane='s']"); await page.screenshot({ path: `${OUT}/4-stats.png`, fullPage: true });
-await page.click(".tabs button[data-pane='c']"); await page.waitForTimeout(300); await page.screenshot({ path: `${OUT}/5-compos.png`, fullPage: true });
-await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await page.screenshot({ path: `${OUT}/6-verdict.png`, fullPage: true });
-console.log("chips:", await page.$$eval(".chip", (c) => c.map((x) => x.textContent).join(", ")));
-console.log("erreurs JS:", errors.length ? errors : "aucune");
+await shot("1-duels-visiteur");
+await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium");
+await shot("2-arene-visiteur");
+// Il touche un prono : on lui demande de créer un compte, puis le prono est enregistré tout seul
+await page.click(".tabbar a[data-tab='duels']"); await page.waitForSelector(".duel");
+const target = page.locator(".picks:not(.locked)").first();
+const wanted = await target.locator(".pick[data-pick='2'] .pts").textContent();
+await target.locator(".pick[data-pick='2']").click();
+await page.waitForSelector("#f-signup");
+await shot("3-inscription");
+await page.fill("#f-signup [name=pseudo]", "Zizou"); await page.fill("#f-signup [name=email]", "moi@exemple.fr"); await page.fill("#f-signup [name=motDePasse]", "motdepasse9");
+await page.click("#f-signup button[type=submit]"); await page.waitForSelector("#f-signup .form-err:not([hidden])");
+check("Pseudo déjà pris : message clair", (await page.textContent("#f-signup .form-err")) === "Ce pseudo est déjà pris.");
+await page.fill("#f-signup [name=pseudo]", "Hitch"); await page.click("#f-signup button[type=submit]");
+await page.waitForSelector(".pick[aria-pressed='true']");
+const saved = await page.locator(".pick[aria-pressed='true'] .pts").first().textContent();
+check("Prono enregistré après création du compte", saved.replace(/\D/g, "") === wanted.replace(/\D/g, ""), `affiché « ${wanted} » → enregistré « ${saved} »`);
+check("Compte affiché en haut", (await page.textContent("#account")).includes("Hitch"));
+await page.waitForTimeout(3200);
+// Deux autres pronos, changement d'avis sur le premier
+const open = page.locator(".picks:not(.locked)");
+await open.nth(1).locator(".pick[data-pick='1']").click(); await page.waitForSelector(".picks >> nth=1 >> .pick[data-pick='1'][aria-pressed='true']").catch(() => {});
+await page.waitForTimeout(400);
+await open.nth(0).locator(".pick[data-pick='N']").click(); await page.waitForTimeout(600);
+check("Changer d'avis : un seul choix actif par duel", (await open.nth(0).locator(".pick[aria-pressed='true']").count()) === 1 && (await open.nth(0).locator(".pick[data-pick='N']").getAttribute("aria-pressed")) === "true");
+await page.waitForTimeout(3000);
+await shot("4-duels-connecte");
+check("Base : 2 pronos pour Hitch", d1.raw.prepare("SELECT COUNT(*) n FROM pronos p JOIN joueurs j ON j.id = p.joueur_id WHERE j.pseudo = 'Hitch'").get().n === 2);
+// Analyse : le prono se retrouve dans la fiche du match
+await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300);
+check("Analyse : mon prono affiché", (await page.locator(".pick[aria-pressed='true']").count()) === 1);
+await shot("5-analyse", false);
+// Arène et compte
+await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium"); await page.waitForSelector(".mp");
+await shot("6-arene-connecte");
+await page.click(".chip[data-week='precedente']"); await page.waitForSelector(".empty, .podium, .rks"); await shot("7-arene-semaine-derniere");
+await page.click("#account"); await page.waitForSelector("#logout"); await shot("8-compte");
+// Rechargement : toujours connecté ; déconnexion puis reconnexion
+await page.reload(); await page.waitForSelector("#logout");
+check("Toujours connecté après rechargement", (await page.textContent("#account")).includes("Hitch"));
+await page.click("#logout"); await page.waitForSelector(".duel");
+check("Déconnexion", (await page.textContent("#account")).trim() === "Connexion" && (await page.locator(".pick[aria-pressed='true']").count()) === 0);
+await page.click("#account"); await page.click(".tabs button[data-mode='login']");
+await page.fill("#f-login [name=identifiant]", "moi@exemple.fr"); await page.fill("#f-login [name=motDePasse]", "mauvais"); await page.click("#f-login button[type=submit]");
+await page.waitForSelector("#f-login .form-err:not([hidden])"); await shot("9-connexion-erreur", false);
+await page.fill("#f-login [name=motDePasse]", "motdepasse9"); await page.click("#f-login button[type=submit]"); await page.waitForSelector(".mp");
+check("Reconnexion par e-mail : mes pronos sont là", (await page.locator(".mp").count()) === 2);
+// Verdict inchangé
+await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await shot("10-verdict", false);
+// Suppression du compte
+await page.click("#account"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse9"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
+check("Suppression du compte : plus rien en base", d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Hitch'").get().n === 0);
+// Débordement horizontal (téléphone étroit)
+await page.setViewportSize({ width: 320, height: 640 });
+for (const h of ["#/", "#/arene", "#/compte"]) { await page.goto("http://localhost:8787/" + h); await page.waitForTimeout(500); const w = await page.evaluate(() => document.documentElement.scrollWidth); check(`Pas de débordement à 320 px (${h})`, w <= 320, `${w} px`); }
+check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
 await browser.close(); server.close();
+process.exit(checks.every(Boolean) ? 0 : 1);

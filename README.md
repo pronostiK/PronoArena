@@ -13,7 +13,7 @@ Publication automatique : chaque envoi sur `main` est publié par Cloudflare.
 - **Face-à-face** : toutes compétitions, orientés vers l'équipe à domicile du match.
 
 ## Site (dossier `site/`)
-- Duels, Analyse d'un duel, Verdict — mobile d'abord, style sombre/orange.
+- Duels (avec le prono du joueur), Analyse d'un duel, Verdict, Arène (classement de la semaine), Compte — mobile d'abord, style sombre/orange.
 - Publié sur le worker `prono-arena` (Cloudflare, répertoire racine `site`).
 
 ## Routes

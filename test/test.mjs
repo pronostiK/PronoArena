@@ -1,9 +1,10 @@
 // Tests Prono Arena V7 : robot, pronostics, stats, coupes, face-à-face, état, limites Cloudflare gratuites
-import { NOW, SIM, STRENGTH, installFetch, makeKV, calls } from "./sim.mjs";
+import { NOW, SIM, STRENGTH, installFetch, makeKV, makeD1, calls, DB as WORLD } from "./sim.mjs";
 import worker from "../src/index.js";
 import { runRobot } from "../src/robot.js";
 import { robotSources } from "../src/config.js";
 import { calculate_poisson_match } from "../src/model.js";
+import { weekOf, pointsFor } from "../src/arena.js";
 
 let ok = 0, ko = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : ko++; console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
@@ -14,6 +15,8 @@ const tick = async (env, t) => { SIM.now = t; return runRobot(env, t); };
 
 const env = { FOOTBALL_DATA_KEY: "x", ...makeKV() };
 const get = async (path) => { const r = await worker.fetch(new Request("https://w" + path), env, { waitUntil: () => {} }); return r.json(); };
+
+const get61 = async (e) => (await worker.fetch(new Request("https://w/league-predictions?leagueId=61"), e, { waitUntil() {} })).json();
 
 // ---- 1. Le robot remplit tout tout seul ----
 console.log("\n— Robot —");
@@ -156,6 +159,111 @@ globalThis.fetch = saved;
 check("API en panne : le robot note l'erreur sans planter", rep.filter((x) => x.includes("@")).every((x) => x.includes("ERREUR")));
 const s = calculate_poisson_match(1.4, 1.1);
 check("Probabilités 1N2 = 100 %", Math.abs(s.proba1 + s.probaN + s.proba2 - 1) < 0.003);
+
+
+// ---- 8. Arène : comptes, pronostics des joueurs, notation, classement ----
+console.log("\n— Arène —");
+{
+  const d1 = await makeD1();
+  const A = { FOOTBALL_DATA_KEY: "x", ...makeKV(), DB: d1.DB };
+  // Lundi 9 nov. 2026, 9 h (Paris) : début de semaine
+  let t = Date.UTC(2026, 10, 9, 8, 0);
+  const run = async (until) => { for (; t <= until; t += 600000) { SIM.now = t; await runRobot(A, t); } SIM.now = t; };
+  await run(t + 40 * 600000);
+  const call = async (path, { body, token, method } = {}) => {
+    const r = await worker.fetch(new Request("https://w" + path, { method: method || (body ? "POST" : "GET"), headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "CF-Connecting-IP": "1.2.3.4" }, body: body ? JSON.stringify(body) : undefined }), A, { waitUntil() {} });
+    return { status: r.status, ...(await r.json()) };
+  };
+
+  // Comptes
+  const s1 = await call("/account/signup", { body: { pseudo: "Zizou", email: "Zizou@Exemple.fr", motDePasse: "motdepasse1" } });
+  check("Inscription : compte créé et connecté", s1.status === 200 && s1.token?.length === 64 && s1.pseudo === "Zizou");
+  const stored = d1.raw.prepare("SELECT * FROM joueurs").all()[0];
+  check("Mot de passe jamais stocké en clair", stored.mdp.startsWith("pbkdf2$100000$") && !stored.mdp.includes("motdepasse1") && stored.email === "zizou@exemple.fr");
+  check("Jeton de connexion jamais stocké en clair", !d1.raw.prepare("SELECT jeton FROM sessions").all().some((x) => x.jeton === s1.token));
+  check("Pseudo déjà pris refusé (même en majuscules)", (await call("/account/signup", { body: { pseudo: "ZIZOU", email: "a@b.fr", motDePasse: "motdepasse1" } })).status === 409);
+  check("E-mail déjà utilisé refusé", (await call("/account/signup", { body: { pseudo: "Autre", email: "zizou@exemple.fr", motDePasse: "motdepasse1" } })).status === 409);
+  const bad = [{ pseudo: "ab", email: "a@b.fr", motDePasse: "motdepasse1" }, { pseudo: "<script>", email: "a@b.fr", motDePasse: "motdepasse1" }, { pseudo: "Valide", email: "pasunmail", motDePasse: "motdepasse1" }, { pseudo: "Valide", email: "a@b.fr", motDePasse: "court" }, { pseudo: "admin", email: "a@b.fr", motDePasse: "motdepasse1" }];
+  let badOk = true; for (const b of bad) badOk = badOk && (await call("/account/signup", { body: b })).status === 400;
+  check("Inscriptions invalides refusées (pseudo, e-mail, mot de passe trop court)", badOk);
+  check("Connexion par pseudo", (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "motdepasse1" } })).status === 200);
+  const l2 = await call("/account/login", { body: { identifiant: "zizou@exemple.fr", motDePasse: "motdepasse1" } });
+  check("Connexion par e-mail", l2.status === 200 && l2.pseudo === "Zizou");
+  check("Mauvais mot de passe refusé", (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "mauvais-mdp" } })).status === 401);
+  check("Sans connexion : accès refusé", (await call("/me")).status === 401 && (await call("/picks", { body: { leagueId: 61, matchId: "x", choix: "1" } })).status === 401 && (await call("/me", { token: "f".repeat(64) })).status === 401);
+  let blocked = 0; for (let i = 0; i < 12; i++) if ((await call("/account/login", { body: { identifiant: "victime", motDePasse: "essai" + i } })).status === 429) blocked++;
+  check("Anti-abus : essais de connexion à la chaîne bloqués", blocked === 2, `${blocked} essais bloqués sur 12`);
+
+  // Pronostics
+  const s2 = await call("/account/signup", { body: { pseudo: "Platoche", email: "p@exemple.fr", motDePasse: "motdepasse2" } });
+  const s3 = await call("/account/signup", { body: { pseudo: "Titi", email: "t@exemple.fr", motDePasse: "motdepasse3" } });
+  const L = await get61(A);
+  const upcoming = L.predictions.filter((x) => Date.parse(x.date) > SIM.now && x.status !== "IN_PLAY").slice(0, 4);
+  const m0 = upcoming[0];
+  const fav = (x) => (x.poisson.proba1 >= x.poisson.proba2 ? "1" : "2"), out = (x) => (x.poisson.proba1 >= x.poisson.proba2 ? "2" : "1");
+  const proba = (x, c) => (c === "1" ? x.poisson.proba1 : c === "N" ? x.poisson.probaN : x.poisson.proba2);
+  const k1 = await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: fav(m0) } });
+  check("Pronostic enregistré avec ses points en jeu", k1.status === 200 && k1.prono.mise === pointsFor(proba(m0, fav(m0))), `favori à ${Math.round(100 * proba(m0, fav(m0)))} % → ${k1.prono?.mise} pts`);
+  const k1b = await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: out(m0) } });
+  check("Surprise = plus de points que le favori", k1b.prono.mise > k1.prono.mise, `outsider → ${k1b.prono.mise} pts`);
+  check("Changement de pronostic avant le match : un seul pronostic gardé", d1.raw.prepare("SELECT COUNT(*) n FROM pronos WHERE joueur_id = 1").get().n === 1);
+  await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: fav(m0) } });
+  check("Pronostics invalides refusés", (await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: "X" } })).status === 400 && (await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: "inconnu", choix: "1" } })).status === 404);
+  // Chaque joueur pronostique les 4 prochains matchs : Zizou le favori, Platoche l'outsider, Titi le nul
+  for (const x of upcoming) {
+    await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: x.matchId, choix: fav(x) } });
+    await call("/picks", { token: s2.token, body: { leagueId: 61, matchId: x.matchId, choix: out(x) } });
+    await call("/picks", { token: s3.token, body: { leagueId: 61, matchId: x.matchId, choix: "N" } });
+  }
+  const me0 = await call("/me", { token: s1.token });
+  check("Mes pronostics : en attente, sans points", me0.pronos.length === 4 && me0.pronos.every((x) => x.points === null && x.domicile.nom && x.exterieur.nom) && me0.semaine.attente === 4);
+
+  // Coup d'envoi : verrouillage
+  const last = upcoming[upcoming.length - 1];
+  await run(Date.parse(m0.date) + 20 * 60000);
+  const late = await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: out(m0) } });
+  check("Pronostic refusé après le coup d'envoi", late.status === 409, late.error);
+  check("Pronostic inchangé après la tentative tardive", d1.raw.prepare("SELECT choix FROM pronos WHERE joueur_id = 1 AND match_id = ?").get(String(m0.matchId)).choix === fav(m0));
+
+  // Fin des matchs : notation par le robot
+  const q0 = d1.stats.queries;
+  await run(Date.parse(last.date) + 4 * 3600000);
+  const rows = d1.raw.prepare("SELECT p.*, j.pseudo FROM pronos p JOIN joueurs j ON j.id = p.joueur_id").all();
+  const truth = (id) => { const m = WORLD["fd:FL1@2026"].find((x) => String(x.id) === String(id)); return m.hg > m.ag ? "1" : m.hg < m.ag ? "2" : "N"; };
+  check("Tous les pronostics notés après les matchs", rows.length === 12 && rows.every((r) => r.points !== null));
+  check("Notation exacte : points en jeu si juste, 0 sinon", rows.every((r) => r.resultat === truth(r.match_id) && r.points === (r.choix === truth(r.match_id) ? r.mise_pts : 0)));
+  const gradedLate = await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: "N" } });
+  check("Pronostic noté intouchable", gradedLate.status !== 200);
+
+  // Classement
+  const board = await call("/arena");
+  const expect = ["Zizou", "Platoche", "Titi"].map((p) => ({ p, pts: rows.filter((r) => r.pseudo === p).reduce((a, r) => a + r.points, 0), justes: rows.filter((r) => r.pseudo === p && r.points > 0).length }))
+    .sort((a, b) => b.pts - a.pts || b.justes - a.justes || a.p.localeCompare(b.p));
+  check("Classement de la semaine trié par points", board.joueurs === 3 && board.classement.map((c) => c.pseudo).join() === expect.map((e) => e.p).join() && board.classement.every((c, i) => c.points === expect[i].pts && c.rang === i + 1), board.classement.map((c) => `${c.rang}. ${c.pseudo} ${c.points} pts (${c.justes}/${c.joues})`).join(" · "));
+  check("Classement sans donnée privée (ni e-mail ni identifiant)", !JSON.stringify(board).includes("exemple.fr") && Object.keys(board.classement[0]).join() === "rang,pseudo,points,justes,joues,attente");
+  const meZ = await call("/me", { token: s1.token });
+  check("Mon bilan : même rang et mêmes points que le classement", meZ.semaine.rang === board.classement.find((c) => c.pseudo === "Zizou").rang && meZ.semaine.points === expect.find((e) => e.p === "Zizou").pts);
+
+  // Semaine : lundi → dimanche, heure de Paris
+  check("Semaine : dimanche 23 h 59 et lundi 0 h (Paris) séparés", weekOf(Date.UTC(2026, 10, 15, 22, 59)) === "2026-11-09" && weekOf(Date.UTC(2026, 10, 15, 23, 0)) === "2026-11-16" && weekOf(Date.UTC(2026, 6, 5, 21, 59)) === "2026-06-29" && weekOf(Date.UTC(2026, 6, 5, 22, 0)) === "2026-07-06");
+  const weekNow = weekOf(SIM.now);
+  d1.raw.exec(`UPDATE pronos SET semaine = '2026-11-02'`);
+  SIM.now += 61000; // le classement est gardé 1 min en mémoire
+  const cur = await call("/arena"), prev = await call("/arena?semaine=precedente");
+  check("Nouvelle semaine : classement remis à zéro, l'ancien reste consultable", weekNow === "2026-11-09" && cur.classement.length === 0 && prev.classement.length === 3 && prev.semaine.debut === "2026-11-02" && prev.semaine.fin === "2026-11-08");
+
+  // Quotas et vie du compte
+  const perDay = (d1.stats.queries - q0) / ((Date.parse(last.date) + 4 * 3600000 - Date.parse(m0.date)) / 86400000);
+  check("Base : le robot reste très en dessous des limites gratuites", perDay < 1000, `≈ ${Math.round(perDay)} appels base/jour pendant une journée de matchs`);
+  const st = await call("/status");
+  check("/status montre l'Arène", st.arene.ouverte && st.arene.joueurs === 3 && st.arene.pronostics === 12 && st.arene.enAttenteDeResultat === 0);
+  check("Déconnexion : le jeton ne marche plus", (await call("/account/logout", { token: s3.token, method: "POST" })).status === 200 && (await call("/me", { token: s3.token })).status === 401);
+  check("Suppression de compte : mot de passe exigé", (await call("/account/delete", { token: s2.token, body: { motDePasse: "faux-mot-de-passe" } })).status === 401);
+  const del = await call("/account/delete", { token: s2.token, body: { motDePasse: "motdepasse2" } });
+  check("Suppression de compte : tout est effacé", del.status === 200 && d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Platoche'").get().n === 0 && d1.raw.prepare("SELECT COUNT(*) n FROM pronos WHERE joueur_id = 2").get().n === 0 && (await call("/me", { token: s2.token })).status === 401);
+  const noDb = await worker.fetch(new Request("https://w/account/login", { method: "POST", body: JSON.stringify({ identifiant: "zizou", motDePasse: "motdepasse1" }) }), env, {});
+  check("Base absente : réponse propre, le reste du site continue", noDb.status === 503 && (await get("/league-predictions?leagueId=61")).success);
+}
 
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;

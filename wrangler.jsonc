@@ -8,6 +8,10 @@
   "kv_namespaces": [
     { "binding": "PRONO_CACHE", "id": "3aa538a17aa74a9190372cfe9799fa84" }
   ],
+  // Base de l'Arène (comptes joueurs, pronostics, classement) : tables décrites dans schema.sql
+  "d1_databases": [
+    { "binding": "DB", "database_name": "prono-arena", "database_id": "44108fa4-5b70-4731-a0e4-33605e47a1dc" }
+  ],
   // Robot : passage toutes les 10 minutes (mise à jour des données et des pronostics)
   "triggers": { "crons": ["*/10 * * * *"] },
   "observability": { "enabled": true, "logs": { "invocation_logs": true } }

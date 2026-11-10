@@ -7,6 +7,7 @@ import { currentSeason, robotSources, leaguesUsing } from "./config.js";
 import { kvGet, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
+import { gradePicks, cleanArena } from "./arena.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const MAX_PER_RUN = 3;
@@ -110,6 +111,13 @@ export async function runRobot(env, now = Date.now()) {
     try { if (await saveLeague(env, id, season, now, index)) report.push(`pronostics ${id}: recalculés`); }
     catch (e) { report.push(`pronostics ${id}: ERREUR ${e.message}`); }
   }
+
+  // Arène : les pronostics des joueurs sont notés dès que le score final est connu
+  try {
+    const n = await gradePicks(env, now);
+    if (n) report.push(`arène : ${n} match(s) noté(s)`);
+    if (env.DB && now - (index._arenaClean || 0) > DAY) { await cleanArena(env, now); index._arenaClean = now; }
+  } catch (e) { report.push(`arène : ERREUR ${e.message}`); }
 
   index._lastRun = { at: now, report };
   await env.PRONO_CACHE.put(INDEX_KEY, JSON.stringify(index));

@@ -27,7 +27,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - 40 derniers matchs par équipe, les 5 plus récents comptent double (règle de l'utilisateur).
 - Forces attaque/défense dom/ext, Elo reporté d'une saison à l'autre, Poisson + Dixon-Coles.
 - Coupes d'Europe renforcées par les championnats nationaux (coefficients de niveau).
-- Sources : football-data (principale) ; ESPN (Ligue 2, Europa, Conference, Nations, championnats pour les coupes, **secours automatique** si football-data en panne > 12 h).
+- Sources : football-data (principale) ; ESPN (UN JOUR PAR APPEL, toute période = erreur 400, budget 40 appels par passage) (Ligue 2, Europa, Conference, Nations, championnats pour les coupes, **secours automatique** si football-data en panne > 12 h).
 - Compositions : onze du dernier match (ESPN, méthode PronostiK), correspondance d'identifiants football-data ↔ ESPN par matchs communs.
 - Routes : /league-predictions, /match-details, /verdict, /leagues, /status.
 

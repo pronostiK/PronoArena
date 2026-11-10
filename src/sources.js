@@ -50,30 +50,22 @@ export async function fetchFootballData(code, season, key) {
   return { teams, finished, upcoming, complete: true, cursor: null };
 }
 
-// ---------- ESPN (fenêtres de 30 jours pour rester léger) ----------
+// ---------- ESPN (un jour par appel) ----------
 const ESPN_SKIP = ["STATUS_CANCELED", "STATUS_POSTPONED", "STATUS_ABANDONED", "STATUS_FORFEIT"];
 const ymd = (ts) => new Date(ts).toISOString().slice(0, 10).replace(/-/g, "");
 
-// ESPN refuse parfois les longues périodes (erreur 400) : on découpe automatiquement
-// (période complète → semaines → jours, comme PronostiK), dans la limite de 40 appels.
-const espnBudget = { left: 40 };
-export const resetEspnBudget = () => { espnBudget.left = 40; };
-async function espnFetch(league, from, to) {
-  if (espnBudget.left-- <= 0) throw new Error("ESPN : trop d'appels pour ce passage");
-  const range = ymd(from) === ymd(to) ? ymd(from) : `${ymd(from)}-${ymd(to)}`;
-  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${range}&limit=500`, { headers: { "User-Agent": "Mozilla/5.0 (Prono Arena)" } });
-  if (res.ok) return (await res.json()).events || [];
-  if (res.status === 400 && to - from >= DAY) {
-    const step = to - from > 7 * DAY ? 7 * DAY : DAY;
-    const out = [];
-    for (let t = from; t <= to; t += step) out.push(...(await espnFetch(league, t, Math.min(to, t + step - DAY))));
-    return out;
-  }
-  throw new Error(`ESPN ${league} [${res.status}]`);
-}
+// ESPN n'accepte qu'un seul jour par appel (vérifié en réel : toute période renvoie 400).
+// Budget par passage du robot : Cloudflare gratuit limite à 50 appels sortants par exécution.
+export const ESPN_BUDGET = 40;
+const espnBudget = { left: ESPN_BUDGET };
+export const resetEspnBudget = () => { espnBudget.left = ESPN_BUDGET; };
+export const espnBudgetLeft = () => espnBudget.left;
 
-async function espnWindow(league, from, to) {
-  const data = { events: await espnFetch(league, from, to) };
+async function espnDay(league, ts) {
+  if (espnBudget.left-- <= 0) throw new Error("ESPN : budget d'appels du passage épuisé");
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${ymd(ts)}`, { headers: { "User-Agent": "Mozilla/5.0 (Prono Arena)" } });
+  if (!res.ok) throw new Error(`ESPN ${league} [${res.status}]`);
+  const data = await res.json();
   const teams = {}, finished = [], upcoming = [];
   for (const ev of data.events || []) {
     const c = ev.competitions?.[0];
@@ -84,63 +76,72 @@ async function espnWindow(league, from, to) {
     if (ESPN_SKIP.includes(type.name)) continue;
     teams[h.id] = [h.team?.displayName || "Domicile", h.team?.logo || null];
     teams[a.id] = [a.team?.displayName || "Extérieur", a.team?.logo || null];
-    const ts = Date.parse(ev.date);
+    const t = Date.parse(ev.date);
     if (type.completed) {
       const hg = parseInt(h.score, 10), ag = parseInt(a.score, 10);
-      if (Number.isFinite(hg) && Number.isFinite(ag)) finished.push([ev.id, String(h.id), String(a.id), hg, ag, ts]);
-    } else upcoming.push([ev.id, String(h.id), String(a.id), ts, type.name || "STATUS_SCHEDULED"]);
+      if (Number.isFinite(hg) && Number.isFinite(ag)) finished.push([ev.id, String(h.id), String(a.id), hg, ag, t]);
+    } else upcoming.push([ev.id, String(h.id), String(a.id), t, type.name || "STATUS_SCHEDULED"]);
   }
   return { teams, finished, upcoming };
 }
 
-// Remplit la saison par morceaux de 30 jours, puis se contente de mettre à jour les derniers jours
-export async function fetchEspnIncremental(league, season, prev, now = Date.now()) {
+// Coût d'une mise à jour ESPN (en appels)
+export const ESPN_RECENT_DAYS = 4;   // J-2 à J+1 : résultats et matchs en direct, à chaque mise à jour
+export const ESPN_EXTRA_DAYS = 10;   // remplissage de la saison ou calendrier à venir
+
+export async function fetchEspnIncremental(league, season, prev, now = Date.now(), extra = ESPN_EXTRA_DAYS) {
   const start = Date.UTC(season, 6, 1);
   const end = Math.min(now, Date.UTC(season + 1, 6, 1));
-  const state = prev || { teams: {}, finished: [], upcoming: [], cursor: start, complete: false };
-  const fin = new Map(state.finished.map((f) => [String(f[0]), f]));
-  let teams = { ...state.teams }, upcoming = state.upcoming, cursor = state.cursor ?? start, complete = state.complete;
+  const current = end === now;
+  const st = prev || { teams: {}, finished: [], upcoming: [], cursor: start, complete: false, dayAt: {} };
+  const fin = new Map(st.finished.map((f) => [String(f[0]), f]));
+  const up = new Map((st.upcoming || []).map((u) => [String(u[0]), u]));
+  const teams = { ...st.teams }, dayAt = { ...(st.dayAt || {}) };
+  let cursor = st.cursor ?? start, complete = !!st.complete;
 
-  let from, to;
-  if (!complete) { from = cursor; to = Math.min(cursor + 30 * DAY, end); }
-  else { from = Math.max(start, end - 3 * DAY); to = Math.min(end + DAY, Date.UTC(season + 1, 6, 1)); }
-  const w = await espnWindow(league, from, to);
-  for (const f of w.finished) fin.set(String(f[0]), f);
-  Object.assign(teams, w.teams);
-  if (!complete) { cursor = to; complete = to >= end - 3 * DAY; }
+  const days = [];
+  if (current) for (let d = -2; d <= 1; d++) days.push(now + d * DAY);
+  let budget = extra;
+  // Remplissage de la saison, 10 jours par mise à jour
+  while (!complete && budget > 0) {
+    if (cursor >= end - 2 * DAY) { complete = true; break; }
+    days.push(cursor); cursor += DAY; budget--;
+  }
+  if (cursor >= end - 2 * DAY) complete = true;
+  // Calendrier des 2 semaines à venir : chaque jour revu toutes les 12 h
+  if (current) for (let d = 2; d <= 14 && budget > 0; d++) {
+    const t = now + d * DAY;
+    if (now - (dayAt[ymd(t)] || 0) > 12 * 3600000) { days.push(t); budget--; }
+  }
 
-  let upAt = state.upAt || 0;
-  if (end === now) {
-    if (now - upAt > 3 * 3600000) {
-      // Calendrier complet des 3 prochaines semaines : toutes les 3 h seulement
-      const up = await espnWindow(league, now - DAY, now + 21 * DAY);
-      Object.assign(teams, up.teams);
-      for (const f of up.finished) fin.set(String(f[0]), f);
-      upcoming = up.upcoming; upAt = now;
-    } else {
-      // Mise à jour éclair : statuts (en direct) et matchs terminés des derniers jours
-      const done = new Set(w.finished.map((f) => String(f[0])));
-      const map = new Map((upcoming || []).filter((u) => !done.has(String(u[0]))).map((u) => [String(u[0]), u]));
-      for (const u of w.upcoming) map.set(String(u[0]), u);
-      upcoming = [...map.values()];
-    }
-  } else upcoming = [];
+  for (const t of days) {
+    const w = await espnDay(league, t);
+    dayAt[ymd(t)] = now;
+    Object.assign(teams, w.teams);
+    for (const f of w.finished) { fin.set(String(f[0]), f); up.delete(String(f[0])); }
+    for (const u of w.upcoming) up.set(String(u[0]), u);
+  }
+  for (const [id, u] of up) if (u[3] < now - 6 * 3600000 || fin.has(id)) up.delete(id);
+  for (const k of Object.keys(dayAt)) if (dayAt[k] < now - 2 * DAY && k < ymd(now)) delete dayAt[k];
 
-  return { teams, finished: [...fin.values()].sort((a, b) => a[5] - b[5]), upcoming, complete, cursor, upAt };
+  return {
+    teams, finished: [...fin.values()].sort((a, b) => a[5] - b[5]),
+    upcoming: current ? [...up.values()] : [], complete, cursor, dayAt,
+  };
 }
 
-export async function fetchSource(src, season, env, prev, now = Date.now()) {
+export async function fetchSource(src, season, env, prev, now = Date.now(), extra = ESPN_EXTRA_DAYS) {
   const [provider, code] = src.split(":");
   if (provider === "fd") return fetchFootballData(code, season, env.FOOTBALL_DATA_KEY);
-  if (provider === "espn") return fetchEspnIncremental(code, season, prev, now);
+  if (provider === "espn") return fetchEspnIncremental(code, season, prev, now, extra);
   throw new Error(`Source inconnue ${src}`);
 }
 
 // Met à jour une source et l'enregistre. Renvoie { changed, data }
-export async function refreshSource(env, src, season, now = Date.now()) {
+export async function refreshSource(env, src, season, now = Date.now(), extra = ESPN_EXTRA_DAYS) {
   const key = srcKey(src, season);
   const prev = await kvGet(env, key);
-  const fresh = await fetchSource(src, season, env, prev, now);
+  const fresh = await fetchSource(src, season, env, prev, now, extra);
   const data = { src, season, updatedAt: now, ...fresh };
   const changed = await kvPutIfChanged(env, key, data, (o) => [o.finished, o.upcoming, o.complete, o.cursor]);
   return { changed, data };

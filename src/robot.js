@@ -4,7 +4,7 @@
 // puis recalcule les pronostics des compétitions concernées.
 // ============================================================
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
-import { kvGet, refreshSource, resetEspnBudget } from "./sources.js";
+import { kvGet, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 
@@ -73,8 +73,16 @@ export async function runRobot(env, now = Date.now()) {
   const toRebuild = new Set();
 
   for (const s of due) {
+    // ESPN : un appel par jour ; on garde la mise à jour dans le budget du passage
+    let extra = ESPN_EXTRA_DAYS;
+    if (s.src.startsWith("espn:")) {
+      const left = espnBudgetLeft() - (s.kind === "live" ? ESPN_RECENT_DAYS : 0);
+      if (left < (s.kind === "live" ? 0 : 1)) { report.push(`${s.k}: reporté (budget du passage)`); continue; }
+      const filling = !index[s.k] || index[s.k].complete === false;
+      extra = filling ? left : Math.min(ESPN_EXTRA_DAYS, left); // remplissage : tout le budget du passage
+    }
     try {
-      const { changed, data } = await refreshSource(env, s.src, s.season, now);
+      const { changed, data } = await refreshSource(env, s.src, s.season, now, extra);
       const next = (data.upcoming || []).map((u) => u[3]).filter((t) => t > now - 3 * 3600000).sort((a, b) => a - b)[0] || null;
       const live = (data.upcoming || []).some((u) => /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/.test(u[4]));
       index[s.k] = { updatedAt: now, lastOk: now, complete: data.complete, nextTs: next, live, finished: data.finished.length, upcoming: data.upcoming.length, changed };
@@ -84,8 +92,10 @@ export async function runRobot(env, now = Date.now()) {
         index[`names:${s.src.slice(5)}`] = Object.fromEntries(Object.entries(data.teams).map(([id, t]) => [id, t[0]]));
       }
       // Saison en cours OU saison précédente : les pronostics qui en dépendent sont recalculés
+      // (pendant le remplissage, on attend que les données soient complètes : économise les écritures)
       for (const id of leaguesUsing(s.src)) {
-        if (changed || (s.kind === "live" && !(await env.PRONO_CACHE.get(predsKey(id, season))))) toRebuild.add(id);
+        const missing = s.kind === "live" && !(await env.PRONO_CACHE.get(predsKey(id, season)));
+        if ((changed && data.complete !== false) || missing) toRebuild.add(id);
       }
       report.push(`${s.k}: ok (${data.finished.length} terminés, ${data.upcoming.length} à venir${changed ? ", mis à jour" : ""})`);
     } catch (e) {

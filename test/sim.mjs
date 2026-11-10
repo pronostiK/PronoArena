@@ -97,7 +97,7 @@ export function installFetch() {
       calls.espn++;
       const parts = u.searchParams.get("dates").split("-").map((d) => Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8)));
       const [f, t] = [parts[0], parts[1] ?? parts[0]];
-      if (t - f > 7 * DAY) return { ok: false, status: 400 }; // comme le vrai ESPN : longues périodes refusées
+      if (parts.length > 1) return { ok: false, status: 400 }; // comme le vrai ESPN : un seul jour par appel
       const list = [...(DB[`espn:${m[1]}@2025`] || []), ...(DB[`espn:${m[1]}@2026`] || [])].filter((x) => x.ts >= f && x.ts < t + DAY);
       return { ok: true, json: async () => ({ events: list.map((x) => ({ id: x.id, date: new Date(x.ts).toISOString(), status: { type: { name: isDone(x) ? "STATUS_FULL_TIME" : isLive(x) ? "STATUS_IN_PROGRESS" : "STATUS_SCHEDULED", completed: isDone(x) } }, competitions: [{ competitors: [{ id: x.h, homeAway: "home", score: isDone(x) ? String(x.hg) : "0", team: { displayName: `Équipe ${x.h}`, logo: `${x.h}.png` } }, { id: x.a, homeAway: "away", score: isDone(x) ? String(x.ag) : "0", team: { displayName: `Équipe ${x.a}`, logo: `${x.a}.png` } }] }] })) }) };
     }

@@ -5,7 +5,9 @@
 export const VERSION = "v7";
 
 export const MODEL = {
-  halfLifeDays: 120,     // un match d'il y a 4 mois compte moitié moins
+  windowMatches: 40,     // règle du projet : les 40 derniers matchs de chaque équipe…
+  recentMatches: 5,      // …dont les 5 plus récents…
+  recentWeight: 2,       // …comptent double
   priorMatches: 3,       // lissage vers la moyenne (évite les extrêmes)
   specificWeight: 0.3,   // part domicile/extérieur spécifique vs global
   defaultAvgHome: 1.45,

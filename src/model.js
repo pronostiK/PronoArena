@@ -38,8 +38,34 @@ export function calculate_poisson_match(lD, lE, rho = MODEL.rho) {
     if (i > 0 && j > 0) btts += p;
     if (p > best.p) best = { i, j, p };
   }
+  // Marchés supplémentaires, tous déduits de la même grille de scores
+  let dom05 = 0, dom15 = 0, ext05 = 0, ext15 = 0, wnDom = 0, wnExt = 0, wbDom = 0, wbExt = 0, by2Dom = 0, by2Ext = 0;
+  const scores = [];
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+    const p = m[i][j];
+    if (i >= 1) dom05 += p; if (i >= 2) dom15 += p;
+    if (j >= 1) ext05 += p; if (j >= 2) ext15 += p;
+    if (i > j && j === 0) wnDom += p; if (j > i && i === 0) wnExt += p;
+    if (i > j && j > 0) wbDom += p; if (j > i && i > 0) wbExt += p;
+    if (i - j >= 2) by2Dom += p; if (j - i >= 2) by2Ext += p;
+    scores.push({ dom: i, ext: j, p });
+  }
+  // Mi-temps : environ 45 % des buts sont marqués avant la pause
+  const h1 = lD * 0.45, h2 = lE * 0.45;
+  let mt1 = 0, mtN = 0, mt2 = 0;
+  for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) { const p = pois(h1, i) * pois(h2, j); if (i > j) mt1 += p; else if (i === j) mtN += p; else mt2 += p; }
+  const mtT = mt1 + mtN + mt2;
+
   const M = MODEL.maxGoalsMatrix;
   return {
+    miTemps: { proba1: r3(mt1 / mtT), probaN: r3(mtN / mtT), proba2: r3(mt2 / mtT) },
+    rembourseSiNul: { dom: r3(p1 / (p1 + p2)), ext: r3(p2 / (p1 + p2)) },
+    butsDomicile: { plus05: r3(dom05), plus15: r3(dom15) },
+    butsExterieur: { plus05: r3(ext05), plus15: r3(ext15) },
+    victoireSansEncaisser: { dom: r3(wnDom), ext: r3(wnExt) },
+    victoireEtBTTS: { dom: r3(wbDom), ext: r3(wbExt) },
+    victoireDe2ButsOuPlus: { dom: r3(by2Dom), ext: r3(by2Ext) },
+    scoresExacts: scores.sort((a, b) => b.p - a.p).slice(0, 6).map((x) => ({ dom: x.dom, ext: x.ext, proba: r3(x.p) })),
     matrix: m.slice(0, M + 1).map((row) => row.slice(0, M + 1).map((p) => Math.round(p * 10000) / 10000)),
     proba1: r3(p1), probaN: r3(pN), proba2: r3(p2),
     proba1X: r3(p1 + pN), probaX2: r3(pN + p2), proba12: r3(p1 + p2),
@@ -52,23 +78,28 @@ export function calculate_poisson_match(lD, lE, rho = MODEL.rho) {
 }
 
 // ---------- Forces attaque / défense ----------
-export function computeTeamRatings(finished, now = Date.now()) {
-  const w = (ts) => Math.pow(0.5, Math.max(0, (now - ts) / 86400000) / MODEL.halfLifeDays);
-  let sW = 0, sH = 0, sA = 0;
-  for (const f of finished) { const x = w(f.ts); sW += x; sH += x * f.hg; sA += x * f.ag; }
-  const blend = Math.min(1, finished.length / MODEL.minLeagueMatches);
-  const avgHome = Math.max(0.5, blend * (sW ? sH / sW : MODEL.defaultAvgHome) + (1 - blend) * MODEL.defaultAvgHome);
-  const avgAway = Math.max(0.4, blend * (sW ? sA / sW : MODEL.defaultAvgAway) + (1 - blend) * MODEL.defaultAvgAway);
+export function computeTeamRatings(finished) {
+  // Moyennes de la compétition sur tous les matchs utilisés
+  let sH = 0, sA = 0;
+  for (const f of finished) { sH += f.hg; sA += f.ag; }
+  const n = finished.length;
+  const blend = Math.min(1, n / MODEL.minLeagueMatches);
+  const avgHome = Math.max(0.5, blend * (n ? sH / n : MODEL.defaultAvgHome) + (1 - blend) * MODEL.defaultAvgHome);
+  const avgAway = Math.max(0.4, blend * (n ? sA / n : MODEL.defaultAvgAway) + (1 - blend) * MODEL.defaultAvgAway);
 
-  const t = {};
-  const T = (id) => (t[id] ||= { hf: 0, ha: 0, hw: 0, af: 0, aa: 0, aw: 0, played: 0, playedSeason: {} });
-  for (const f of finished) {
-    const x = w(f.ts), h = T(f.homeId), a = T(f.awayId);
-    h.hf += x * f.hg / avgHome; h.ha += x * f.ag / avgAway; h.hw += x; h.played++;
-    a.af += x * f.ag / avgAway; a.aa += x * f.hg / avgHome; a.aw += x; a.played++;
-  }
+  // Pour chaque équipe : ses 40 derniers matchs, les 5 plus récents comptent double
+  const byTeam = {};
+  for (const f of finished) { (byTeam[f.homeId] ||= []).push(f); (byTeam[f.awayId] ||= []).push(f); }
+
   const K = MODEL.priorMatches, s = MODEL.specificWeight, ratings = {};
-  for (const [id, v] of Object.entries(t)) {
+  for (const [id, list] of Object.entries(byTeam)) {
+    const recent = list.sort((a, b) => b.ts - a.ts).slice(0, MODEL.windowMatches);
+    const v = { hf: 0, ha: 0, hw: 0, af: 0, aa: 0, aw: 0 };
+    recent.forEach((f, i) => {
+      const x = i < MODEL.recentMatches ? MODEL.recentWeight : 1;
+      if (f.homeId === id) { v.hf += x * f.hg / avgHome; v.ha += x * f.ag / avgAway; v.hw += x; }
+      else { v.af += x * f.ag / avgAway; v.aa += x * f.hg / avgHome; v.aw += x; }
+    });
     const attAll = (v.hf + v.af + K) / (v.hw + v.aw + K);
     const defAll = (v.ha + v.aa + K) / (v.hw + v.aw + K);
     ratings[id] = {
@@ -76,10 +107,10 @@ export function computeTeamRatings(finished, now = Date.now()) {
       defHome: s * (v.ha + K) / (v.hw + K) + (1 - s) * defAll,
       attAway: s * (v.af + K) / (v.aw + K) + (1 - s) * attAll,
       defAway: s * (v.aa + K) / (v.aw + K) + (1 - s) * defAll,
-      attAll, defAll, played: v.played,
+      attAll, defAll, played: recent.length,
     };
   }
-  return { avgHome, avgAway, ratings, matchesAnalysed: finished.length };
+  return { avgHome, avgAway, ratings, matchesAnalysed: n };
 }
 
 // ---------- Elo (reporté d'une saison à l'autre) ----------
@@ -101,8 +132,8 @@ export function computeElo(finished) {
   return elo;
 }
 
-export function buildModel(finished, now = Date.now()) {
-  return { ...computeTeamRatings(finished, now), elo: computeElo(finished) };
+export function buildModel(finished) {
+  return { ...computeTeamRatings(finished), elo: computeElo(finished) };
 }
 
 // ---------- Forme et statistiques d'une équipe ----------

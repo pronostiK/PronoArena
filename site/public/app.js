@@ -67,6 +67,21 @@
     return t;
   }
 
+  // Badges visuels (remplacent les phrases)
+  function badges(p) {
+    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
+    const best = Math.max(P.proba1, P.probaN, P.proba2);
+    let main;
+    if (best === P.probaN && P.probaN >= 0.3) main = `<span class="badge">⚖ Duel équilibré</span>`;
+    else if (Math.abs(P.proba1 - P.proba2) < 0.08) main = `<span class="badge">⚖ Duel serré</span>`;
+    else { const fav = P.proba1 > P.proba2 ? D : E, strong = Math.max(P.proba1, P.proba2) >= 0.55; main = `<span class="badge ${P.proba1 > P.proba2 ? "b1" : "b2"}">${crest(fav, "crest crest-xxs")}${strong ? "Grand favori" : "Favori"}</span>`; }
+    let goals = "";
+    if (P.probaOver25 >= 0.6) goals = `<span class="badge">⚽ Match ouvert · +2,5 ${pct(P.probaOver25)}%</span>`;
+    else if (P.probaUnder25 >= 0.6) goals = `<span class="badge">🔒 Match fermé · −2,5 ${pct(P.probaUnder25)}%</span>`;
+    else if (P.probaBTTS >= 0.6) goals = `<span class="badge">⚽ Les deux marquent ${pct(P.probaBTTS)}%</span>`;
+    return main + goals;
+  }
+
   function setTab(name) {
     document.querySelectorAll(".tabbar a").forEach((a) => (a.dataset.tab === name ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   }
@@ -138,7 +153,7 @@
               <div><b class="c2">${pct(P.proba2)}%</b><small>Victoire</small></div>
             </div>
             <div class="bar" aria-hidden="true"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
-            <p class="avis"><b>Avis du moteur :</b> ${esc(avis(p))}</p>
+            <div class="badges">${badges(p)}</div>
             <span class="more">Voir l'analyse complète
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></span>
           </a>`;
@@ -149,6 +164,71 @@
   }
 
   // ---------- Écran Analyse ----------
+  const ICON = {
+    trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/>',
+    split: '<path d="M12 3v18M3 12h6M15 12h6"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+    ball: '<circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+    grid: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
+    bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  };
+  const ico = (k) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
+  const mini = (t) => crest(t, "crest crest-xs");
+  // Paire de pourcentages avec logos : barre partagée en deux
+  const pair = (a, ta, b, tb) => `<div class="pair"><span class="pair-side">${mini(ta)}<b class="c1">${pct(a)}%</b></span>
+      <div class="pair-bar" aria-hidden="true"><span style="width:${pct(a)}%"></span><span style="width:${pct(b)}%"></span></div>
+      <span class="pair-side"><b class="c2">${pct(b)}%</b>${mini(tb)}</span></div>`;
+  // Barre de comparaison de statistiques
+  const cmp = (label, a, b, fmt = (x) => x, lowerIsBetter = false) => {
+    // Barre : la plus longue revient toujours à la meilleure équipe (pour le classement, le plus petit chiffre)
+    const va = lowerIsBetter ? 1 / Math.max(0.5, Number(a) || 0.5) : Number(a) || 0;
+    const vb = lowerIsBetter ? 1 / Math.max(0.5, Number(b) || 0.5) : Number(b) || 0;
+    const wa = Math.round((100 * va) / (va + vb || 1));
+    const better = lowerIsBetter ? (a < b ? "a" : a > b ? "b" : "") : (a > b ? "a" : a < b ? "b" : "");
+    return `<div class="cmp"><div class="cmp-h"><b class="${better === "a" ? "c1" : ""}">${esc(fmt(a))}</b><span>${esc(label)}</span><b class="${better === "b" ? "c2" : ""}">${esc(fmt(b))}</b></div>
+      <div class="cmp-bar" aria-hidden="true"><span style="width:${wa}%"></span><span style="width:${100 - wa}%"></span></div></div>`;
+  };
+  const tile = (label, value, icon) => `<div class="cell">${icon ? ico(icon) : ""}<small>${esc(label)}</small><b>${value}</b></div>`;
+
+  function scoreGrid(P, D, E) {
+    const M = P.matrix || [];
+    const max = Math.max(...M.slice(0, 5).flatMap((r) => r.slice(0, 5)));
+    let html = `<div class="sgrid" role="table" aria-label="Probabilité de chaque score"><span class="sg-corner">${mini(D)}${mini(E)}</span>`;
+    for (let j = 0; j < 5; j++) html += `<span class="sg-h">${j}</span>`;
+    for (let i = 0; i < 5; i++) {
+      html += `<span class="sg-h">${i}</span>`;
+      for (let j = 0; j < 5; j++) {
+        const v = M[i]?.[j] || 0, a = max ? v / max : 0;
+        const col = i > j ? "255,107,0" : i < j ? "33,150,243" : "255,193,7";
+        html += `<span class="sg-c" style="background:rgba(${col},${(0.08 + 0.82 * a).toFixed(2)});color:${a > 0.55 ? "#121212" : "var(--text)"}" title="${i}-${j}">${pct(v)}%</span>`;
+      }
+    }
+    return html + `</div>`;
+  }
+
+  // Terrain : profondeur et côté déduits du poste ESPN (méthode PronostiK)
+  function pitch(cD, cE) {
+    const depth = (q) => { const x = String(q || "").toUpperCase(); if (x === "G" || x === "GK") return 0; if (/WB$/.test(x)) return 1.5; if (/^(CD|SW)|B$|^CB/.test(x)) return 1; if (/^DM|^CDM/.test(x)) return 2; if (/^AM|^CAM/.test(x)) return 4; if (/M/.test(x)) return 3; if (/W$/.test(x)) return 4.5; return 5; };
+    const lat = (q) => { const x = String(q || "").toUpperCase(); if (/-L$/.test(x)) return -1; if (/-R$/.test(x)) return 1; if (/^L/.test(x)) return -2; if (/^R/.test(x)) return 2; return 0; };
+    const last = (n) => String(n).replace(/^[A-ZÀ-Ý]\.\s*/, "");
+    const half = (c, top, cls) => {
+      if (!c) return "";
+      const pl = c.xi.map(([n, nom, q], i) => ({ n, nom, d: depth(q), s: lat(q), i })).sort((a, b) => a.d - b.d || a.i - b.i);
+      const gk = pl.filter((x) => x.d === 0).slice(0, 1), rest = pl.filter((x) => !gk.includes(x));
+      let counts = String(c.f || "").split("-").map(Number).filter((v) => v > 0);
+      if (counts.reduce((a, b) => a + b, 0) !== rest.length) { const g = {}; rest.forEach((x) => (g[x.d] = (g[x.d] || 0) + 1)); counts = Object.keys(g).sort((a, b) => a - b).map((k) => g[k]); }
+      const lines = [gk]; let k = 0; for (const n of counts) { lines.push(rest.slice(k, k + n)); k += n; }
+      const L = lines.length;
+      return lines.map((line, li) => {
+        const dy = li === 0 ? 4.5 : 14 + (li - 1) * (29 / Math.max(1, L - 2)), y = top ? dy : 100 - dy;
+        return line.sort((a, b) => (top ? b.s - a.s : a.s - b.s)).map((x, j) => `<span class="pl ${cls}" style="left:${((100 * (j + 1)) / (line.length + 1)).toFixed(1)}%;top:${y.toFixed(1)}%"><span class="pl-n">${esc(x.n)}</span><span class="pl-name">${esc(last(x.nom))}</span></span>`).join("");
+      }).join("");
+    };
+    return `<div class="pitch"><div class="pt-box t"></div><div class="pt-box b"></div><div class="pt-mid"></div><div class="pt-circle"></div>${half(cD, true, "home")}${half(cE, false, "away")}</div>`;
+  }
+
   async function renderDuel(leagueId, matchId) {
     setTab("duels");
     view.innerHTML = `<div class="list"><div class="skel"></div><div class="skel"></div></div>`;
@@ -162,70 +242,98 @@
       return;
     }
     const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur, C = p.cotesJustes || {};
-    const rank = (t) => (t.classement ? `${t.classement.rang}${t.classement.rang === 1 ? "er" : "e"} · ${t.classement.points} pts` : "");
+    const isNat = Number(leagueId) === 5;
 
+    const marches = `
+      <section class="panel">
+        <h2>${ico("trophy")}Résultat</h2>
+        <div class="probs probs-lg">
+          <div>${mini(D)}<b class="c1">${pct(P.proba1)}%</b><small>cote ${esc(C.cote1 ?? "—")}</small></div>
+          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.probaN)}%</b><small>cote ${esc(C.coteN ?? "—")}</small></div>
+          <div>${mini(E)}<b class="c2">${pct(P.proba2)}%</b><small>cote ${esc(C.cote2 ?? "—")}</small></div>
+        </div>
+        <div class="bar" aria-hidden="true" style="height:8px"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
+        <div class="badges">${badges(p)}</div>
+      </section>
+      <section class="panel">
+        <h2>${ico("split")}Double chance</h2>
+        <div class="grid3">${tile("1X", pct(P.proba1X) + "%")}${tile("X2", pct(P.probaX2) + "%")}${tile("12", pct(P.proba12) + "%")}</div>
+        <h3>${ico("shield")}Remboursé si nul</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
+        <h3>${ico("clock")}Mi-temps</h3>
+        <div class="probs">
+          <div>${mini(D)}<b class="c1">${pct(P.miTemps?.proba1)}%</b></div>
+          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.miTemps?.probaN)}%</b></div>
+          <div>${mini(E)}<b class="c2">${pct(P.miTemps?.proba2)}%</b></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>${ico("ball")}Buts</h2>
+        <div class="grid2">${tile("Buts attendus", `${dec(p.lambdas.lambdaDom)} – ${dec(p.lambdas.lambdaExt)}`, "target")}${tile("Total attendu", dec(p.lambdas.lambdaDom + p.lambdas.lambdaExt), "ball")}</div>
+        <div class="grid3">${tile("+1,5", pct(P.probaOver15) + "%")}${tile("+2,5", pct(P.probaOver25) + "%")}${tile("+3,5", pct(P.probaOver35) + "%")}</div>
+        <h3>Les deux équipes marquent</h3>
+        <div class="pair"><span class="pair-side"><b class="c1">Oui ${pct(P.probaBTTS)}%</b></span><div class="pair-bar" aria-hidden="true"><span style="width:${pct(P.probaBTTS)}%"></span><span style="width:${pct(P.probaNoBTTS)}%"></span></div><span class="pair-side"><b class="c2">Non ${pct(P.probaNoBTTS)}%</b></span></div>
+        <h3>Buts par équipe</h3>
+        <div class="teamgoals">
+          <div>${mini(D)}<span><small>+0,5</small><b>${pct(P.butsDomicile?.plus05)}%</b></span><span><small>+1,5</small><b>${pct(P.butsDomicile?.plus15)}%</b></span></div>
+          <div>${mini(E)}<span><small>+0,5</small><b>${pct(P.butsExterieur?.plus05)}%</b></span><span><small>+1,5</small><b>${pct(P.butsExterieur?.plus15)}%</b></span></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>${ico("bolt")}Victoire et plus</h2>
+        <div class="vrows">
+          <div class="vrow"><span>Victoire sans encaisser</span>${mini(D)}<b class="c1">${pct(P.victoireSansEncaisser?.dom)}%</b>${mini(E)}<b class="c2">${pct(P.victoireSansEncaisser?.ext)}%</b></div>
+          <div class="vrow"><span>Victoire + les deux marquent</span>${mini(D)}<b class="c1">${pct(P.victoireEtBTTS?.dom)}%</b>${mini(E)}<b class="c2">${pct(P.victoireEtBTTS?.ext)}%</b></div>
+          <div class="vrow"><span>Victoire par 2 buts ou +</span>${mini(D)}<b class="c1">${pct(P.victoireDe2ButsOuPlus?.dom)}%</b>${mini(E)}<b class="c2">${pct(P.victoireDe2ButsOuPlus?.ext)}%</b></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>${ico("grid")}Scores exacts</h2>
+        <div class="topscores">${(P.scoresExacts || []).slice(0, 3).map((x, i) => `<span class="ts${i === 0 ? " best" : ""}"><b>${x.dom} – ${x.ext}</b><small>${pct(x.proba)}%</small></span>`).join("")}</div>
+        ${scoreGrid(P, D, E)}
+        <p class="note">Fiabilité ${esc(p.donnees?.fiabilite || "—")} · ${esc(p.donnees?.matchsDomicile ?? "—")} et ${esc(p.donnees?.matchsExterieur ?? "—")} matchs analysés</p>
+      </section>`;
+
+    const formRow = (t) => {
+      const s = t.stats;
+      if (!s) return `<div class="form-team"><div class="form-head">${mini(t)}<b>${esc(t.name)}</b></div><p class="note">Pas encore de match joué cette saison.</p></div>`;
+      return `<div class="form-team"><div class="form-head">${mini(t)}<b>${esc(t.name)}</b>${t.classement ? `<span class="rank">${t.classement.rang}<sup>${t.classement.rang === 1 ? "er" : "e"}</sup> · ${t.classement.points} pts</span>` : ""}</div>
+        <div class="pills">${s.formeDetail.map((f) => `<span class="fpill ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}">${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xs")}<em>${esc(f.score.replace("-", "–"))}</em></span>`).join("")}</div></div>`;
+    };
+    const SD = D.stats, SE = E.stats;
+    const stats = `
+      <section class="panel">
+        <h2>${ico("bolt")}Forme · 5 derniers matchs</h2>
+        ${formRow(D)}${formRow(E)}
+        <div class="legend"><span class="lg V"></span>Victoire<span class="lg N"></span>Nul<span class="lg D"></span>Défaite</div>
+      </section>
+      ${SD && SE ? `<section class="panel">
+        <h2>${ico("target")}Face à face des stats</h2>
+        <div class="cmp-teams">${mini(D)}<span>Saison</span>${mini(E)}</div>
+        ${D.classement && E.classement ? cmp("Classement", D.classement.rang, E.classement.rang, (x) => x + (x === 1 ? "er" : "e"), true) : ""}
+        ${cmp("Elo", D.elo, E.elo)}
+        ${cmp("Buts marqués / match", SD.butsMarquesParMatch, SE.butsMarquesParMatch, dec)}
+        ${cmp("Buts encaissés / match", SD.butsEncaissesParMatch, SE.butsEncaissesParMatch, dec, true)}
+        ${cmp("Plus de 2,5 buts", SD.pctOver25, SE.pctOver25, (x) => x + "%")}
+        ${cmp("Les deux marquent", SD.pctBTTS, SE.pctBTTS, (x) => x + "%")}
+        ${cmp("Sans encaisser", SD.pctCleanSheet, SE.pctCleanSheet, (x) => x + "%")}
+        ${SD.domicile && SE.exterieur ? cmp(`Buts marqués (dom. / ext.)`, SD.domicile.butsMarques, SE.exterieur.butsMarques, dec) : ""}
+      </section>` : ""}`;
+
+    const tabsDef = [["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
     view.innerHTML = `
       <div class="back"><a href="#/" aria-label="Retour aux duels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
       <section class="match-hero">
-        <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b><small>Elo ${esc(D.elo)}</small></div>
+        <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b><small>${D.classement ? `${D.classement.rang}${D.classement.rang === 1 ? "er" : "e"} · ` : ""}Elo ${esc(D.elo)}</small></div>
         <div class="kickoff">${isLive(p.status) ? `<span class="live">En direct</span>` : `<strong>${esc(fmtTime(p.date))}</strong>`}<span>${esc(fmtDay(p.date))}</span></div>
-        <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b><small>Elo ${esc(E.elo)}</small></div>
+        <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b><small>${E.classement ? `${E.classement.rang}${E.classement.rang === 1 ? "er" : "e"} · ` : ""}Elo ${esc(E.elo)}</small></div>
       </section>
-      <div class="tabs" role="tablist" aria-label="Sections de l'analyse">
-        <button type="button" role="tab" aria-selected="true" data-pane="m">Marchés</button>
-        <button type="button" role="tab" aria-selected="false" data-pane="f">Forme</button>
-        <button type="button" role="tab" aria-selected="false" data-pane="h">Face-à-face</button>
+      <div class="tabs" role="tablist" aria-label="Sections de l'analyse" style="grid-template-columns:repeat(${tabsDef.length},minmax(0,1fr))">
+        ${tabsDef.map(([k, l], i) => `<button type="button" role="tab" aria-selected="${i === 0}" data-pane="${k}">${l}</button>`).join("")}
       </div>
-
-      <section class="panel" data-panel="m" role="tabpanel">
-        <h2>Avis du moteur</h2>
-        <div class="probs probs-lg">
-          <div><b class="c1">${pct(P.proba1)}%</b><small>${esc(D.name)}</small><small>cote juste ${esc(C.cote1 ?? "—")}</small></div>
-          <div><b class="cN">${pct(P.probaN)}%</b><small>Nul</small><small>cote juste ${esc(C.coteN ?? "—")}</small></div>
-          <div><b class="c2">${pct(P.proba2)}%</b><small>${esc(E.name)}</small><small>cote juste ${esc(C.cote2 ?? "—")}</small></div>
-        </div>
-        <div class="bar" aria-hidden="true" style="height:8px"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
-        <p class="avis">${esc(avis(p))}</p>
-        <div class="grid2">
-          <div class="cell"><small>Buts attendus</small><b>${esc(p.lambdas.lambdaDom.toFixed(1).replace(".", ","))} – ${esc(p.lambdas.lambdaExt.toFixed(1).replace(".", ","))}</b></div>
-          <div class="cell"><small>Score le plus probable</small><b>${P.scoreProbable ? `${P.scoreProbable.dom} – ${P.scoreProbable.ext} <small style="display:inline;color:var(--muted)">(${pct(P.scoreProbable.proba)} %)</small>` : "—"}</b></div>
-        </div>
-        <div class="grid3">
-          <div class="cell"><small>1X</small><b>${pct(P.proba1X)}%</b></div>
-          <div class="cell"><small>X2</small><b>${pct(P.probaX2)}%</b></div>
-          <div class="cell"><small>12</small><b>${pct(P.proba12)}%</b></div>
-          <div class="cell"><small>+1,5 buts</small><b>${pct(P.probaOver15)}%</b></div>
-          <div class="cell"><small>+2,5 buts</small><b>${pct(P.probaOver25)}%</b></div>
-          <div class="cell"><small>+3,5 buts</small><b>${pct(P.probaOver35)}%</b></div>
-        </div>
-        <div class="row"><span>Les deux équipes marquent</span><b>${pct(P.probaBTTS)}%</b></div>
-        <p class="note">Fiabilité ${esc(p.donnees?.fiabilite || "—")} · ${esc(p.donnees?.matchsDomicile ?? "—")} et ${esc(p.donnees?.matchsExterieur ?? "—")} matchs analysés</p>
-      </section>
-
-      <section class="panel" data-panel="f" role="tabpanel" hidden>
-        <h2>Forme du moment</h2>
-        ${[D, E].map((t) => {
-          const s = t.stats;
-          if (!s) return `<div class="form-team"><div class="form-head"><b>${esc(t.name)}</b></div><p class="note">Pas encore de match joué cette saison.</p></div>`;
-          return `<div class="form-team">
-            <div class="form-head"><b>${esc(t.name)}</b><span>${esc(rank(t))}</span></div>
-            <div class="pills">${s.formeDetail.map((f) => `<span class="pill ${f.r}" title="${esc(f.domicile ? "vs " : "à ")}${esc(f.adversaire)} ${esc(f.score)}">${f.r}</span>`).join("")}</div>
-          </div>`;
-        }).join("")}
-        ${D.stats && E.stats ? `<div class="stats-table">
-          <span></span><span class="h">${esc(initials(D.name))}</span><span class="h">${esc(initials(E.name))}</span>
-          <span>Buts marqués / match</span><b>${dec(D.stats.butsMarquesParMatch)}</b><b>${dec(E.stats.butsMarquesParMatch)}</b>
-          <span>Buts encaissés / match</span><b>${dec(D.stats.butsEncaissesParMatch)}</b><b>${dec(E.stats.butsEncaissesParMatch)}</b>
-          <span>Plus de 2,5 buts</span><b>${D.stats.pctOver25}%</b><b>${E.stats.pctOver25}%</b>
-          <span>Les deux marquent</span><b>${D.stats.pctBTTS}%</b><b>${E.stats.pctBTTS}%</b>
-          <span>Sans encaisser</span><b>${D.stats.pctCleanSheet}%</b><b>${E.stats.pctCleanSheet}%</b>
-        </div>` : ""}
-      </section>
-
-      <section class="panel" data-panel="h" role="tabpanel" hidden>
-        <h2>Derniers duels</h2>
-        <div id="h2h"><p class="note">Chargement…</p></div>
-      </section>`;
+      <div data-panel="m">${marches}</div>
+      <div data-panel="s" hidden>${stats}</div>
+      <div data-panel="c" hidden><section class="panel"><h2>${ico("grid")}Compositions</h2><div id="compos"><p class="note">Chargement…</p></div></section></div>
+      <div data-panel="h" hidden><section class="panel"><h2>${ico("trophy")}Derniers duels</h2><div id="h2h"><p class="note">Chargement…</p></div></section></div>`;
 
     view.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => {
       view.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
@@ -237,13 +345,22 @@
       const h = md.h2h || [];
       document.getElementById("h2h").innerHTML = h.length
         ? h.map((m) => {
-            const left = m.equipeDomicile || (m.lieu === "domicile" ? D.name : E.name), right = m.equipeExterieur || (m.lieu === "domicile" ? E.name : D.name);
-            const win = m.vainqueur === "domicile" ? [D.name, "c1"] : m.vainqueur === "exterieur" ? [E.name, "c2"] : ["Nul", "cN"];
-            return `<div class="h2h"><small>${esc(fmtShort(m.date))}</small><b>${esc(left)} ${esc(m.butsDomicile ?? m.scoreDom)} – ${esc(m.butsExterieur ?? m.scoreExt)} ${esc(right)}</b><em class="${win[1]}">${esc(win[0])}</em></div>`;
+            const homeT = m.lieu === "domicile" ? D : E, awayT = m.lieu === "domicile" ? E : D;
+            const cls = m.vainqueur === "domicile" ? "c1" : m.vainqueur === "exterieur" ? "c2" : "cN";
+            return `<div class="h2h"><small>${esc(fmtShort(m.date))}</small><span class="h2h-t">${mini(homeT)}<b class="${cls}">${esc(m.butsDomicile)} – ${esc(m.butsExterieur)}</b>${mini(awayT)}</span><em class="${cls}">${m.vainqueur === "nul" ? "Nul" : esc((m.vainqueur === "domicile" ? D : E).name)}</em></div>`;
           }).join("")
         : `<p class="note">Aucune confrontation récente entre ces deux équipes.</p>`;
+      const cp = md.compositions || {};
+      const fmtLast = (c) => (c ? `${esc(new Date(c.ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }))} · ${c.side === "D" ? "contre" : "à"} ${esc(c.opp || "—")} · ${esc(String(c.score).replace("-", " – "))}` : "Composition non disponible");
+      document.getElementById("compos").innerHTML = cp.domicile || cp.exterieur
+        ? `<div class="xi-h">${mini(D)}<b>${esc(D.name)}</b>${cp.domicile?.f ? `<span class="xi-f home">${esc(cp.domicile.f)}</span>` : ""}</div><small class="xi-last">${fmtLast(cp.domicile)}</small>
+           ${pitch(cp.domicile, cp.exterieur)}
+           <div class="xi-h">${mini(E)}<b>${esc(E.name)}</b>${cp.exterieur?.f ? `<span class="xi-f away">${esc(cp.exterieur.f)}</span>` : ""}</div><small class="xi-last">${fmtLast(cp.exterieur)}</small>
+           <p class="note">Onze aligné au dernier match. La composition officielle est publiée environ 1 h avant le coup d'envoi.</p>`
+        : `<p class="note">Compositions bientôt disponibles pour ce match.</p>`;
     } catch {
       document.getElementById("h2h").innerHTML = `<p class="note">Face-à-face indisponible pour le moment.</p>`;
+      document.getElementById("compos").innerHTML = `<p class="note">Compositions indisponibles pour le moment.</p>`;
     }
   }
 

@@ -10,6 +10,7 @@ import { LEAGUES, currentSeason, VERSION } from "./config.js";
 import { kvGet, refreshSource, srcKey } from "./sources.js";
 import { predsKey, getH2H, buildVerdict } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
+import { COMPOS_KEY, composFor } from "./compos.js";
 
 const CORS = { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" };
 // Mémoire partagée entre visiteurs (5 min) pour les calculs lourds : économise le quota de lectures
@@ -69,14 +70,16 @@ export default {
         if (!matchId || !source) throw new Error("Paramètres manquants");
         const season = parseInt(q("season")) || currentSeason();
         const leagueId = parseInt(q("leagueId")) || null;
-        const [pred, h] = await Promise.all([
+        const [pred, h, compos] = await Promise.all([
           findPrediction(env, matchId, leagueId, season),
           getH2H(env, { source, teamDomId: q("teamDomId"), teamExtId: q("teamExtId"), leagueId }, season),
+          kvGet(env, COMPOS_KEY),
         ]);
         const stats = pred
           ? { domicile: { ...(pred.teams.domicile.stats || {}), classement: pred.teams.domicile.classement }, exterieur: { ...(pred.teams.exterieur.stats || {}), classement: pred.teams.exterieur.classement } }
           : { domicile: {}, exterieur: {} };
-        return json({ success: true, stats, h2h: h.h2h }, 200, { "Cache-Control": "public, max-age=1800" });
+        const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
+        return json({ success: true, stats, h2h: h.h2h, compositions: lineups }, 200, { "Cache-Control": "public, max-age=1800" });
       }
 
       if (path === "/verdict") {

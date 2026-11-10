@@ -6,6 +6,7 @@
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
 import { kvGet, refreshSource } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY } from "./build.js";
+import { lastEvents, refreshOneCompo } from "./compos.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const MAX_PER_RUN = 3;
@@ -25,8 +26,9 @@ export function pickDue(sources, index, now) {
     .map((s) => {
       const k = `${s.src}@${s.season}`, meta = index[k];
       const overdue = (now - (meta?.updatedAt || 0)) - targetDelay(meta, s.kind, now);
-      // priorité : saison en cours avant historique
-      return { ...s, k, overdue: overdue + (s.kind === "live" ? 1 : 0) };
+      // priorité : match en cours ou imminent > saison en cours > historique
+      const urgent = s.kind === "live" && targetDelay(meta, s.kind, now) === 15 * MIN;
+      return { ...s, k, urgent, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) };
     })
     .filter((s) => s.overdue >= 0)
     .sort((a, b) => b.overdue - a.overdue);
@@ -35,7 +37,10 @@ export function pickDue(sources, index, now) {
 export async function saveLeague(env, leagueId, season, now, index = null) {
   const result = await buildLeague(env, leagueId, season, now, index);
   if (!result) return false;
-  if (index) index[`count:${leagueId}`] = result.count; // pour /leagues, sans relire les pronostics
+  if (index) {
+    index[`count:${leagueId}`] = result.count; // pour /leagues, sans relire les pronostics
+    index[`teams:${leagueId}`] = [...new Set(result.predictions.flatMap((p) => [p.teams.domicile.id, p.teams.exterieur.id]))]; // pour les compositions
+  }
   const key = predsKey(leagueId, season);
   const old = await env.PRONO_CACHE.get(key);
   const strip = (o) => JSON.stringify({ p: o.predictions, c: o.classement, m: o.modele?.matchsAnalyses, s: o.modele?.source });
@@ -52,8 +57,15 @@ export async function saveLeague(env, leagueId, season, now, index = null) {
 export async function runRobot(env, now = Date.now()) {
   const season = currentSeason(new Date(now));
   const index = (await kvGet(env, INDEX_KEY)) || {};
-  const due = pickDue(robotSources(season), index, now).slice(0, MAX_PER_RUN);
   const report = [];
+  // Compositions : une équipe par passage (prend une des 3 places du passage s'il y a du travail)
+  let compoDone = false;
+  // Pas de composition tant que des données manquent (remplissage) ou qu'un match se joue
+  const pending = pickDue(robotSources(season), index, now);
+  const busy = pending.some((x) => x.urgent || !index[x.k] || index[x.k].complete === false);
+  if (!busy) try { const r = await refreshOneCompo(env, index, season, now); if (r) { report.push(r); compoDone = true; } }
+  catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; }
+  const due = pickDue(robotSources(season), index, now).slice(0, MAX_PER_RUN - (compoDone ? 1 : 0));
   const toRebuild = new Set();
 
   for (const s of due) {
@@ -62,6 +74,11 @@ export async function runRobot(env, now = Date.now()) {
       const next = (data.upcoming || []).map((u) => u[3]).filter((t) => t > now - 3 * 3600000).sort((a, b) => a - b)[0] || null;
       const live = (data.upcoming || []).some((u) => /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/.test(u[4]));
       index[s.k] = { updatedAt: now, lastOk: now, complete: data.complete, nextTs: next, live, finished: data.finished.length, upcoming: data.upcoming.length, changed };
+      // Sources ESPN : dernier match de chaque équipe et noms (pour les compositions)
+      if (s.kind === "live" && s.src.startsWith("espn:")) {
+        index[`last:${s.k}`] = lastEvents(data);
+        index[`names:${s.src.slice(5)}`] = Object.fromEntries(Object.entries(data.teams).map(([id, t]) => [id, t[0]]));
+      }
       // Saison en cours OU saison précédente : les pronostics qui en dépendent sont recalculés
       for (const id of leaguesUsing(s.src)) {
         if (changed || (s.kind === "live" && !(await env.PRONO_CACHE.get(predsKey(id, season))))) toRebuild.add(id);

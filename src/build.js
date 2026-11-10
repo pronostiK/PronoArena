@@ -35,12 +35,13 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
 
   const finishedCur = toFinished(cur);
   const finishedAll = prev ? [...toFinished(prev), ...finishedCur] : finishedCur;
-  const model = buildModel(finishedAll, now);
+  const model = buildModel(finishedAll);
 
   // Coupes : forces en championnat de chaque équipe
   let domestic = null;
   const formePool = [...finishedCur];
   const domesticStatus = [];
+  const extraNames = {};
   if (lg.domestic && !secours) {
     domestic = new Map();
     const srcs = await Promise.all(lg.domestic.map((d) => kvGet(env, srcKey(d, season))));
@@ -48,9 +49,10 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       const s = srcs[i];
       domesticStatus.push({ source: d, disponible: !!s, matchs: s?.finished?.length || 0 });
       if (!s) return;
+      Object.assign(extraNames, s.teams);
       const f = toFinished(s);
       formePool.push(...f);
-      const rt = computeTeamRatings(f, now);
+      const rt = computeTeamRatings(f);
       for (const [id, rating] of Object.entries(rt.ratings)) {
         if (!domestic.has(id)) domestic.set(id, { rating, coef: LEAGUE_COEF[d] ?? MODEL.unknownLeagueCoef, played: rating.played, league: d });
       }
@@ -59,7 +61,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
 
   const table = leagueTable(finishedCur);
   const rank = new Map(table.map((r) => [r.id, r]));
-  const names = { ...(prev?.teams || {}), ...cur.teams };
+  const names = { ...extraNames, ...(prev?.teams || {}), ...cur.teams };
 
   const upcoming = toUpcoming(cur, provider).sort((a, b) => a.ts - b.ts).slice(0, 10);
   const predictions = upcoming.map((m) => {
@@ -67,7 +69,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     for (const side of ["domicile", "exterieur"]) {
       const team = p.teams[side];
       const st = teamStats(team.id, formePool);
-      if (st) for (const f of st.formeDetail) f.adversaire = names[f.adversaire]?.[0] || f.adversaire;
+      if (st) for (const f of st.formeDetail) { f.logo = names[f.adversaire]?.[1] || null; f.adversaire = names[f.adversaire]?.[0] || f.adversaire; }
       const row = rank.get(team.id);
       team.stats = st;
       team.classement = row ? { rang: row.rang, points: row.pts, joues: row.j, diff: row.diff } : null;

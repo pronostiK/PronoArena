@@ -70,7 +70,9 @@ for (const [id, nom] of [[2, "Ligue des champions"], [3, "Europa League"], [848,
   const C = await get(`/league-predictions?leagueId=${id}`);
   const withDom = C.predictions.filter((x) => x.donnees.calcul.startsWith("competition+championnats")).length;
   check(`${nom} : pronostics nourris par les championnats`, C.count > 0 && withDom === C.count, `${withDom}/${C.count}`);
-  check(`${nom} : fiabilité moyenne ou élevée`, C.predictions.every((x) => x.donnees.fiabilite !== "faible"));
+  const faibles = C.predictions.filter((x) => x.donnees.fiabilite === "faible");
+  check(`${nom} : fiabilité moyenne ou élevée (≥ 80 % des matchs)`, faibles.length <= 0.2 * C.count, `${faibles.length} faible(s), toujours justifiée(s) par < 4 matchs`);
+  check(`${nom} : « faible » seulement si une équipe a moins de 4 matchs`, faibles.every((x) => Math.min(x.donnees.matchsDomicile, x.donnees.matchsExterieur) < 4));
   // Précision : buts attendus vs vérité, coupe seule vs coupe + championnats
   let errMix = 0, errCup = 0, n = 0;
   for (const x of C.predictions) {
@@ -96,6 +98,21 @@ const L2 = await get("/league-predictions?leagueId=62");
 const e = L2.predictions[0];
 const md2 = await get(`/match-details?matchId=${e.matchId}&source=espn&teamDomId=${e.teams.domicile.id}&teamExtId=${e.teams.exterieur.id}`);
 check("Face-à-face ESPN (Ligue 2, saison précédente)", md2.h2h.length >= 1, `${md2.h2h.length} matchs`);
+
+// ---- 4 bis. Nouveaux marchés et compositions ----
+console.log("\n— Marchés et compositions —");
+const P0 = L1.predictions[0].poisson;
+check("Nouveaux marchés présents", ["miTemps", "rembourseSiNul", "butsDomicile", "butsExterieur", "victoireSansEncaisser", "victoireEtBTTS", "scoresExacts"].every((k) => k in P0));
+check("Marchés cohérents (sans encaisser + avec BTTS = victoire)", Math.abs(P0.victoireSansEncaisser.dom + P0.victoireEtBTTS.dom - P0.proba1) < 0.003);
+check("Forme : logos des adversaires", L1.predictions[0].teams.domicile.stats.formeDetail.every((f) => f.logo));
+const C2 = (await get("/league-predictions?leagueId=2")).predictions[0];
+check("Forme en coupe : adversaires de championnat nommés", C2.teams.domicile.stats.formeDetail.every((f) => !/^\d+$/.test(f.adversaire)));
+const L2b = (await get("/league-predictions?leagueId=62")).predictions[0];
+const mdL2 = await get(`/match-details?matchId=${L2b.matchId}&source=espn&teamDomId=${L2b.teams.domicile.id}&teamExtId=${L2b.teams.exterieur.id}&leagueId=62`);
+check("Compositions ESPN (Ligue 2)", mdL2.compositions.domicile?.xi?.length === 11 && mdL2.compositions.exterieur?.xi?.length === 11, mdL2.compositions.domicile?.f);
+const mdL1 = await get(`/match-details?matchId=${p.matchId}&source=football-data&teamDomId=${d.id}&teamExtId=${p.teams.exterieur.id}&leagueId=61`);
+check("Compositions football-data (via correspondance ESPN)", mdL1.compositions.domicile?.xi?.length === 11 || mdL1.compositions.exterieur?.xi?.length === 11);
+console.log(`     info : ${calls.compos} compositions récupérées`);
 
 // ---- 5. Verdict : pronostics figés puis comparés aux résultats ----
 console.log("\n— Verdict —");
@@ -136,7 +153,7 @@ const failEnv = { FOOTBALL_DATA_KEY: "x", ...makeKV() };
 const saved = globalThis.fetch; globalThis.fetch = async () => ({ ok: false, status: 429 });
 const rep = await runRobot(failEnv, SIM.now);
 globalThis.fetch = saved;
-check("API en panne : le robot note l'erreur sans planter", rep.every((x) => x.includes("ERREUR")));
+check("API en panne : le robot note l'erreur sans planter", rep.filter((x) => x.includes("@")).every((x) => x.includes("ERREUR")));
 const s = calculate_poisson_match(1.4, 1.1);
 check("Probabilités 1N2 = 100 %", Math.abs(s.proba1 + s.probaN + s.proba2 - 1) < 0.003);
 

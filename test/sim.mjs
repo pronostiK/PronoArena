@@ -53,6 +53,12 @@ function cup(fromLeagues, n) {
   const ids = fromLeagues.flatMap((l) => LEAGUE_TEAMS[l].slice(0, Math.ceil(n / fromLeagues.length))).slice(0, n);
   return playSeason(ids, Date.UTC(2026, 8, 15), Date.UTC(2027, 0, 30), 8 / (n - 1), NOW);
 }
+// Sources de secours ESPN : exactement les mêmes matchs que football-data, avec des identifiants ESPN
+const MIRROR = { "fd:FL1": "espn:fra.1", "fd:PL": "espn:eng.1", "fd:PD": "espn:esp.1", "fd:SA": "espn:ita.1", "fd:BL1": "espn:ger.1", "fd:PPL": "espn:por.1", "fd:DED": "espn:ned.1", "fd:ELC": "espn:eng.2", "fd:BSA": "espn:bra.1" };
+for (const [fd, es] of Object.entries(MIRROR)) {
+  LEAGUE_TEAMS[es] = LEAGUE_TEAMS[fd].map((id) => { STRENGTH["e" + id] = STRENGTH[id]; return "e" + id; });
+  for (const y of [2025, 2026]) DB[`${es}@${y}`] = DB[`${fd}@${y}`].map((m) => ({ ...m, id: "E" + m.id, h: "e" + m.h, a: "e" + m.a }));
+}
 DB["fd:CL@2026"] = cup(["fd:PL", "fd:PD", "fd:SA", "fd:BL1", "fd:FL1", "fd:PPL", "fd:DED"], 36);
 DB["espn:uefa.champions@2026"] = cup(["espn:eng.1", "espn:esp.1", "espn:ita.1", "espn:ger.1", "espn:fra.1"], 36);
 DB["espn:uefa.europa@2026"] = cup(["espn:eng.1", "espn:esp.1", "espn:ita.1", "espn:ger.1", "espn:fra.1", "espn:por.1", "espn:ned.1", "espn:bel.1", "espn:tur.1"], 36);
@@ -78,6 +84,14 @@ export function installFetch() {
       const list = DB[`fd:${m[1]}@${u.searchParams.get("season")}`];
       if (!list) return { ok: false, status: 404 };
       return { ok: true, json: async () => ({ matches: list.map((x) => ({ id: x.id, utcDate: new Date(x.ts).toISOString(), status: isDone(x) ? "FINISHED" : isLive(x) ? "IN_PLAY" : "TIMED", homeTeam: { id: x.h, name: `Équipe ${x.h}`, crest: `${x.h}.png` }, awayTeam: { id: x.a, name: `Équipe ${x.a}`, crest: `${x.a}.png` }, score: { fullTime: { home: isDone(x) ? x.hg : null, away: isDone(x) ? x.ag : null } } })) }) };
+    }
+    if ((m = u.pathname.match(/\/soccer\/([\w.]+)\/summary/))) {
+      calls.compos = (calls.compos || 0) + 1;
+      const ev = Object.values(DB).flat().find((x) => x.id === u.searchParams.get("event"));
+      if (!ev) return { ok: false, status: 404 };
+      const POS = ["G", "RB", "CD-R", "CD-L", "LB", "DM", "CM-R", "CM-L", "RW", "LW", "F"];
+      const roster = (id, side) => ({ homeAway: side, formation: "4-3-3", team: { id }, roster: POS.map((q, i) => ({ starter: true, jersey: String(i + 1), formationPlace: i + 1, position: { abbreviation: q }, athlete: { shortName: `J. Joueur${i + 1}`, displayName: `Jean Joueur${i + 1}` } })).concat([{ starter: false, jersey: "12", athlete: { shortName: "Remplaçant" } }]) });
+      return { ok: true, json: async () => ({ rosters: [roster(ev.h, "home"), roster(ev.a, "away")] }) };
     }
     if ((m = u.pathname.match(/\/soccer\/([\w.]+)\/scoreboard/))) {
       calls.espn++;

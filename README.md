@@ -12,9 +12,15 @@ Publication automatique : chaque envoi sur `main` est publié par Cloudflare.
 - **Stats** : forme (5 derniers), buts, % over 2,5, % les deux marquent, % clean sheet, classement.
 - **Face-à-face** : toutes compétitions, orientés vers l'équipe à domicile du match.
 
+## Site (dossier `site/`)
+- Duels, Analyse d'un duel, Verdict — mobile d'abord, style sombre/orange.
+- Publié sur le worker `prono-arena` (Cloudflare, répertoire racine `site`).
+
 ## Routes
 - `/league-predictions?leagueId=61` : pronostics des 10 prochains matchs + classement
 - `/match-details?matchId=…&source=…&teamDomId=…&teamExtId=…` : stats + face-à-face
+- `/verdict?leagueId=all` : résultats comparés aux pronostics figés avant le coup d'envoi + taux de réussite
+- `/leagues` : compétitions et nombre de matchs à venir
 - `/status` : état du robot et de chaque source (transparence)
 
 ## Code

@@ -42,22 +42,22 @@ const ESPN_DOMESTIC = ["espn:eng.1", "espn:esp.1", "espn:ita.1", "espn:ger.1", "
 
 // leagueId (utilisé par le site) -> source de données
 export const LEAGUES = {
-  61: { name: "Ligue 1", src: "fd:FL1" },
-  39: { name: "Premier League", src: "fd:PL" },
-  140: { name: "LaLiga", src: "fd:PD" },
-  135: { name: "Serie A", src: "fd:SA" },
-  78: { name: "Bundesliga", src: "fd:BL1" },
-  94: { name: "Liga Portugal", src: "fd:PPL" },
-  88: { name: "Eredivisie", src: "fd:DED" },
-  40: { name: "Championship", src: "fd:ELC" },
-  71: { name: "Brasileirão", src: "fd:BSA" },
-  2: { name: "Ligue des champions", src: "fd:CL", cup: true, domestic: FD_DOMESTIC },
-  62: { name: "Ligue 2", src: "espn:fra.2" },
-  3: { name: "Europa League", src: "espn:uefa.europa", cup: true, domestic: ESPN_DOMESTIC },
-  848: { name: "Conference League", src: "espn:uefa.europa.conf", cup: true, domestic: ESPN_DOMESTIC },
-  5: { name: "Ligue des Nations", src: "espn:uefa.nations", cup: true },
-  15: { name: "Coupe du monde", src: "fd:WC", cup: true, robot: false },
-  4: { name: "Euro", src: "fd:EC", cup: true, robot: false },
+  61: { name: "Ligue 1", country: "France", src: "fd:FL1", backup: "espn:fra.1" },
+  39: { name: "Premier League", country: "Angleterre", src: "fd:PL", backup: "espn:eng.1" },
+  140: { name: "LaLiga", country: "Espagne", src: "fd:PD", backup: "espn:esp.1" },
+  135: { name: "Serie A", country: "Italie", src: "fd:SA", backup: "espn:ita.1" },
+  78: { name: "Bundesliga", country: "Allemagne", src: "fd:BL1", backup: "espn:ger.1" },
+  94: { name: "Liga Portugal", country: "Portugal", src: "fd:PPL", backup: "espn:por.1" },
+  88: { name: "Eredivisie", country: "Pays-Bas", src: "fd:DED", backup: "espn:ned.1" },
+  40: { name: "Championship", country: "Angleterre", src: "fd:ELC", backup: "espn:eng.2" },
+  71: { name: "Brasileirão", country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
+  2: { name: "Ligue des champions", country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC },
+  62: { name: "Ligue 2", country: "France", src: "espn:fra.2" },
+  3: { name: "Europa League", country: "Europe", src: "espn:uefa.europa", cup: true, domestic: ESPN_DOMESTIC },
+  848: { name: "Conference League", country: "Europe", src: "espn:uefa.europa.conf", cup: true, domestic: ESPN_DOMESTIC },
+  5: { name: "Ligue des Nations", country: "Europe", src: "espn:uefa.nations", cup: true },
+  15: { name: "Coupe du monde", country: "Monde", src: "fd:WC", cup: true, robot: false },
+  4: { name: "Euro", country: "Europe", src: "fd:EC", cup: true, robot: false },
 };
 
 export function currentSeason(now = new Date()) {
@@ -72,6 +72,7 @@ export function robotSources(season) {
     if (lg.robot === false) continue;
     add(lg.src, season, "live");
     if (!lg.cup) add(lg.src, season - 1, "history"); // saison précédente : Elo + forces + face-à-face
+    if (lg.backup) add(lg.backup, season, "live");   // source de secours (ESPN) si football-data tombe
   }
   for (const d of ESPN_DOMESTIC) add(d, season, "live");
   return [...list.values()];
@@ -80,6 +81,9 @@ export function robotSources(season) {
 // Ligues dont le calcul dépend d'une source (pour recalculer après une mise à jour)
 export function leaguesUsing(src) {
   return Object.entries(LEAGUES)
-    .filter(([, lg]) => lg.robot !== false && (lg.src === src || (lg.domestic || []).includes(src)))
+    .filter(([, lg]) => lg.robot !== false && (lg.src === src || lg.backup === src || (lg.domestic || []).includes(src)))
     .map(([id]) => Number(id));
 }
+
+// Bascule sur la source de secours si la principale est en erreur depuis plus de 12 h
+export const BACKUP_AFTER_MS = 12 * 3600000;

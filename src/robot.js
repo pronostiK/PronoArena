@@ -5,10 +5,9 @@
 // ============================================================
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
 import { kvGet, refreshSource } from "./sources.js";
-import { buildLeague, predsKey } from "./build.js";
+import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY } from "./build.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
-const INDEX_KEY = "robot:index";
 const MAX_PER_RUN = 3;
 
 // Délai souhaité entre deux mises à jour d'une source
@@ -33,14 +32,20 @@ export function pickDue(sources, index, now) {
     .sort((a, b) => b.overdue - a.overdue);
 }
 
-export async function saveLeague(env, leagueId, season, now) {
-  const result = await buildLeague(env, leagueId, season, now);
+export async function saveLeague(env, leagueId, season, now, index = null) {
+  const result = await buildLeague(env, leagueId, season, now, index);
   if (!result) return false;
+  if (index) index[`count:${leagueId}`] = result.count; // pour /leagues, sans relire les pronostics
   const key = predsKey(leagueId, season);
   const old = await env.PRONO_CACHE.get(key);
-  const strip = (o) => JSON.stringify({ p: o.predictions, c: o.classement, m: o.modele?.matchsAnalyses });
+  const strip = (o) => JSON.stringify({ p: o.predictions, c: o.classement, m: o.modele?.matchsAnalyses, s: o.modele?.source });
   if (old && strip(JSON.parse(old)) === strip(result)) return false;
   await env.PRONO_CACHE.put(key, JSON.stringify(result));
+  // Archive pour le Verdict : chaque pronostic est figé au coup d'envoi
+  const aKey = archiveKey(leagueId, season);
+  const prevArchive = JSON.parse((await env.PRONO_CACHE.get(aKey)) || "{}");
+  const next = mergeArchive(prevArchive, result, now);
+  if (JSON.stringify(next) !== JSON.stringify(prevArchive)) await env.PRONO_CACHE.put(aKey, JSON.stringify(next));
   return true;
 }
 
@@ -56,7 +61,7 @@ export async function runRobot(env, now = Date.now()) {
       const { changed, data } = await refreshSource(env, s.src, s.season, now);
       const next = (data.upcoming || []).map((u) => u[3]).filter((t) => t > now - 3 * 3600000).sort((a, b) => a - b)[0] || null;
       const live = (data.upcoming || []).some((u) => /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/.test(u[4]));
-      index[s.k] = { updatedAt: now, complete: data.complete, nextTs: next, live, finished: data.finished.length, upcoming: data.upcoming.length, changed };
+      index[s.k] = { updatedAt: now, lastOk: now, complete: data.complete, nextTs: next, live, finished: data.finished.length, upcoming: data.upcoming.length, changed };
       // Saison en cours OU saison précédente : les pronostics qui en dépendent sont recalculés
       for (const id of leaguesUsing(s.src)) {
         if (changed || (s.kind === "live" && !(await env.PRONO_CACHE.get(predsKey(id, season))))) toRebuild.add(id);
@@ -64,12 +69,14 @@ export async function runRobot(env, now = Date.now()) {
       report.push(`${s.k}: ok (${data.finished.length} terminés, ${data.upcoming.length} à venir${changed ? ", mis à jour" : ""})`);
     } catch (e) {
       index[s.k] = { ...(index[s.k] || {}), updatedAt: now, error: String(e.message || e) };
+      // Source en panne : on revérifie les compétitions concernées (bascule sur le secours si besoin)
+      if (s.kind === "live") for (const id of leaguesUsing(s.src)) toRebuild.add(id);
       report.push(`${s.k}: ERREUR ${e.message}`);
     }
   }
 
   for (const id of toRebuild) {
-    try { if (await saveLeague(env, id, season, now)) report.push(`pronostics ${id}: recalculés`); }
+    try { if (await saveLeague(env, id, season, now, index)) report.push(`pronostics ${id}: recalculés`); }
     catch (e) { report.push(`pronostics ${id}: ERREUR ${e.message}`); }
   }
 

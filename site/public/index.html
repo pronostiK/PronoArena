@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Prono Arena · L'arène des pronostics foot</title>
+  <meta name="description" content="Prono Arena : chaque match devient un duel. Probabilités calculées par un modèle statistique, résultats vérifiés en toute transparence.">
+  <meta name="theme-color" content="#121212">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;900&family=Space+Grotesk:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="#/" aria-label="Prono Arena, accueil">
+        <span class="brand-mark" aria-hidden="true">PA</span>
+        <span class="brand-name">PRONO <span>ARENA</span></span>
+      </a>
+    </header>
+
+    <main id="view" tabindex="-1"></main>
+
+    <footer class="legal">
+      Probabilités calculées par un modèle statistique, sans garantie de résultat. Prono Arena est un jeu gratuit, sans mise ni gain d'argent.
+    </footer>
+
+    <nav class="tabbar" aria-label="Navigation principale">
+      <a href="#/" data-tab="duels">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/><path d="M9.5 6.5L21 18v3h-3"/></svg>
+        Duels
+      </a>
+      <a href="#/verdict" data-tab="verdict">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3 7a3 3 0 0 0 6 0z"/><path d="M19 7l-3 7a3 3 0 0 0 6 0z"/><path d="M8 21h8"/></svg>
+        Verdict
+      </a>
+    </nav>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -2,11 +2,13 @@
 // PRONO ARENA — Point d'entrée du Worker (V7)
 //   /league-predictions?leagueId=61[&season=2026]  pronostics + stats + classement
 //   /match-details?matchId=..&source=..&teamDomId=..&teamExtId=..[&leagueId=..]
+//   /verdict?leagueId=61|all[&days=30]             résultats vs pronostics figés + taux de réussite
+//   /leagues                                        compétitions disponibles et nombre de matchs à venir
 //   /status                                         état du robot (transparence)
 // ============================================================
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
 import { kvGet, refreshSource, srcKey } from "./sources.js";
-import { predsKey, getH2H } from "./build.js";
+import { predsKey, getH2H, buildVerdict } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 
 const CORS = { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" };
@@ -58,12 +60,27 @@ export default {
         const leagueId = parseInt(q("leagueId")) || null;
         const [pred, h] = await Promise.all([
           findPrediction(env, matchId, leagueId, season),
-          getH2H(env, { matchId, source, teamDomId: q("teamDomId"), teamExtId: q("teamExtId"), leagueId }, season),
+          getH2H(env, { source, teamDomId: q("teamDomId"), teamExtId: q("teamExtId") }, season),
         ]);
         const stats = pred
           ? { domicile: { ...(pred.teams.domicile.stats || {}), classement: pred.teams.domicile.classement }, exterieur: { ...(pred.teams.exterieur.stats || {}), classement: pred.teams.exterieur.classement } }
           : { domicile: {}, exterieur: {} };
         return json({ success: true, stats, h2h: h.h2h });
+      }
+
+      if (path === "/verdict") {
+        const season = parseInt(q("season")) || currentSeason();
+        const lid = q("leagueId") || "all";
+        const ids = lid === "all" ? Object.keys(LEAGUES).map(Number) : [parseInt(lid)];
+        const days = Math.min(120, Math.max(1, parseInt(q("days")) || 30));
+        return json(await buildVerdict(env, ids, season, Date.now(), days), 200, { "Cache-Control": "public, max-age=300" });
+      }
+
+      if (path === "/leagues") {
+        const season = currentSeason();
+        const index = (await kvGet(env, "robot:index")) || {};
+        const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, pays: lg.country, coupe: !!lg.cup, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
+        return json({ success: true, saison: season, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
       }
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)) });

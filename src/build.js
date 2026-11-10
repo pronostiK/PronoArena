@@ -1,22 +1,37 @@
 // ============================================================
-// PRONO ARENA — Construction des pronostics d'une compétition
-// à partir des données préparées par le robot
+// PRONO ARENA — Construction des pronostics, face-à-face et Verdict
+// à partir des données préparées par le robot (aucun appel API ici)
 // ============================================================
-import { LEAGUES, LEAGUE_COEF, MODEL, VERSION } from "./config.js";
+import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
 import { buildModel, computeTeamRatings, teamStats, leagueTable, calculate_match_prediction } from "./model.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 export const predsKey = (leagueId, season) => `preds:${leagueId}@${season}`;
+export const archiveKey = (leagueId, season) => `archive:${leagueId}@${season}`;
+export const INDEX_KEY = "robot:index";
 
-export async function buildLeague(env, leagueId, season, now = Date.now()) {
+// Source principale, ou ESPN si football-data est en panne depuis plus de 12 h
+export function chooseSource(lg, season, index, now) {
+  const meta = index?.[`${lg.src}@${season}`];
+  const broken = meta?.error && now - (meta.lastOk || 0) > BACKUP_AFTER_MS;
+  if (lg.backup && broken) {
+    const b = index?.[`${lg.backup}@${season}`];
+    if (b && !b.error) return { src: lg.backup, secours: true };
+  }
+  return { src: lg.src, secours: false };
+}
+
+export async function buildLeague(env, leagueId, season, now = Date.now(), index = null) {
   const lg = LEAGUES[leagueId];
   if (!lg) return null;
-  const provider = lg.src.split(":")[0];
+  index = index || (await kvGet(env, INDEX_KEY)) || {};
+  const { src, secours } = chooseSource(lg, season, index, now);
+  const provider = src.split(":")[0];
 
-  const cur = await kvGet(env, srcKey(lg.src, season));
+  const cur = await kvGet(env, srcKey(src, season));
   if (!cur) return null;
-  const prev = lg.cup ? null : await kvGet(env, srcKey(lg.src, season - 1));
+  const prev = lg.cup || secours ? null : await kvGet(env, srcKey(src, season - 1));
 
   const finishedCur = toFinished(cur);
   const finishedAll = prev ? [...toFinished(prev), ...finishedCur] : finishedCur;
@@ -26,7 +41,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now()) {
   let domestic = null;
   const formePool = [...finishedCur];
   const domesticStatus = [];
-  if (lg.domestic) {
+  if (lg.domestic && !secours) {
     domestic = new Map();
     const srcs = await Promise.all(lg.domestic.map((d) => kvGet(env, srcKey(d, season))));
     lg.domestic.forEach((d, i) => {
@@ -71,6 +86,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now()) {
       moyenneButsDom: r3(model.avgHome),
       moyenneButsExt: r3(model.avgAway),
       donneesMisesAJour: new Date(cur.updatedAt).toISOString(),
+      source: secours ? "secours" : "principale",
       ...(domesticStatus.length ? { championnatsUtilises: domesticStatus } : {}),
     },
     classement: table.map((r) => ({ rang: r.rang, id: r.id, nom: names[r.id]?.[0] || r.id, logo: names[r.id]?.[1] || null, joues: r.j, v: r.v, n: r.n, d: r.d, bp: r.bp, bc: r.bc, diff: r.diff, points: r.pts })),
@@ -78,11 +94,69 @@ export async function buildLeague(env, leagueId, season, now = Date.now()) {
   };
 }
 
-// ---------- Face-à-face ----------
+// ---------- Archive (pronostics figés au coup d'envoi) ----------
+// Entrée : { id, ts, h:[nom, logo], a:[nom, logo], p:[p1,pN,p2], o25, btts, l:[lD,lE], src }
+// Mise à jour tant que le match n'a pas commencé ; ensuite plus jamais modifiée.
+const ARCHIVE_DAYS = 120;
+export function mergeArchive(archive, result, now) {
+  const out = { ...(archive || {}) };
+  for (const p of result.predictions) {
+    const ts = Date.parse(p.date);
+    if (ts <= now) continue; // déjà commencé : figé
+    out[p.matchId] = {
+      id: p.matchId, ts,
+      h: [p.teams.domicile.name, p.teams.domicile.logo], a: [p.teams.exterieur.name, p.teams.exterieur.logo],
+      p: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2], o25: p.poisson.probaOver25, btts: p.poisson.probaBTTS,
+      l: [p.lambdas.lambdaDom, p.lambdas.lambdaExt], src: p.source,
+    };
+  }
+  for (const [id, e] of Object.entries(out)) if (now - e.ts > ARCHIVE_DAYS * 86400000) delete out[id];
+  return out;
+}
+
+// ---------- Verdict ----------
+const pick1N2 = (p) => (p[0] >= p[1] && p[0] >= p[2] ? "1" : p[2] >= p[1] ? "2" : "N");
+const dcOf = (p) => [["1X", p[0] + p[1]], ["X2", p[1] + p[2]], ["12", p[0] + p[2]]].sort((x, y) => y[1] - x[1])[0][0];
+
+export async function buildVerdict(env, leagueIds, season, now = Date.now(), days = 30) {
+  const out = [];
+  for (const id of leagueIds) {
+    const lg = LEAGUES[id];
+    if (!lg) continue;
+    const archive = await kvGet(env, archiveKey(id, season));
+    if (!archive) continue;
+    const scores = new Map();
+    for (const s of [lg.src, lg.backup].filter(Boolean)) {
+      const data = await kvGet(env, srcKey(s, season));
+      for (const f of data?.finished || []) scores.set(String(f[0]), [f[3], f[4]]);
+    }
+    for (const e of Object.values(archive)) {
+      const sc = scores.get(String(e.id));
+      if (!sc || now - e.ts > days * 86400000) continue;
+      const [hg, ag] = sc;
+      const res = hg > ag ? "1" : hg < ag ? "2" : "N";
+      const prono = pick1N2(e.p), dc = dcOf(e.p);
+      out.push({
+        matchId: e.id, leagueId: id, competition: lg.name, date: new Date(e.ts).toISOString(),
+        domicile: { nom: e.h[0], logo: e.h[1] }, exterieur: { nom: e.a[0], logo: e.a[1] },
+        score: { dom: hg, ext: ag },
+        moteur: { prono, proba: e.p[prono === "1" ? 0 : prono === "N" ? 1 : 2], doubleChance: dc, plus25: e.o25 },
+        juste: { "1N2": prono === res, doubleChance: dc.includes(res), plusMoins25: (e.o25 >= 0.5) === (hg + ag > 2.5) },
+      });
+    }
+  }
+  out.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  const n = out.length, pct = (k) => (n ? Math.round((100 * out.filter((x) => x.juste[k]).length) / n) : null);
+  return { success: true, periodeJours: days, bilan: { matchs: n, "1N2": pct("1N2"), doubleChance: pct("doubleChance"), plusMoins25: pct("plusMoins25") }, matchs: out.slice(0, 60) };
+}
+
+// ---------- Face-à-face (depuis les données stockées, aucun appel API) ----------
 function orient(list, teamDomId, teamExtId, names) {
+  const seen = new Set();
   return list
     .filter((f) => (f.homeId === teamDomId && f.awayId === teamExtId) || (f.homeId === teamExtId && f.awayId === teamDomId))
     .sort((a, b) => b.ts - a.ts)
+    .filter((f) => { const k = `${f.ts}-${f.hg}-${f.ag}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .slice(0, 5)
     .map((f) => {
       const domAtHome = f.homeId === teamDomId;
@@ -94,42 +168,21 @@ function orient(list, teamDomId, teamExtId, names) {
         lieu: domAtHome ? "domicile" : "exterieur",
         equipeDomicile: names?.[f.homeId]?.[0] || null,
         equipeExterieur: names?.[f.awayId]?.[0] || null,
+        butsDomicile: f.hg, butsExterieur: f.ag,
       };
     });
 }
 
-export async function getH2H(env, { matchId, source, teamDomId, teamExtId, leagueId }, season) {
-  const cacheKey = `h2h:${matchId}`;
-  const cached = await kvGet(env, cacheKey);
-  if (cached) return cached;
-
-  let h2h = [];
-  if (source === "football-data") {
-    const res = await fetch(`https://api.football-data.org/v4/matches/${matchId}/head2head?limit=10`, { headers: { "X-Auth-Token": env.FOOTBALL_DATA_KEY } });
-    if (res.ok) {
-      const data = await res.json();
-      const list = (data.matches || [])
-        .filter((m) => m.status === "FINISHED" && m.score?.fullTime?.home != null)
-        .map((m) => ({ homeId: String(m.homeTeam.id), awayId: String(m.awayTeam.id), hg: m.score.fullTime.home, ag: m.score.fullTime.away, ts: Date.parse(m.utcDate) }));
-      const names = {};
-      for (const m of data.matches || []) { names[m.homeTeam.id] = [m.homeTeam.name]; names[m.awayTeam.id] = [m.awayTeam.name]; }
-      h2h = orient(list, String(teamDomId), String(teamExtId), names);
+export async function getH2H(env, { source, teamDomId, teamExtId }, season) {
+  const provider = source === "football-data" ? "fd:" : "espn:";
+  const keys = new Set();
+  for (const lg of Object.values(LEAGUES)) {
+    for (const s of [lg.src, lg.backup, ...(lg.domestic || [])].filter((x) => x && x.startsWith(provider))) {
+      keys.add(srcKey(s, season)); keys.add(srcKey(s, season - 1));
     }
-  } else {
-    // ESPN : on cherche dans toutes les données ESPN déjà collectées par le robot
-    const keys = new Set();
-    for (const lg of Object.values(LEAGUES)) {
-      if (!lg.src.startsWith("espn:")) continue;
-      keys.add(srcKey(lg.src, season)); keys.add(srcKey(lg.src, season - 1));
-      for (const d of lg.domestic || []) keys.add(srcKey(d, season));
-    }
-    const srcs = (await Promise.all([...keys].map((k) => kvGet(env, k)))).filter(Boolean);
-    const all = [], names = {};
-    for (const s of srcs) { all.push(...toFinished(s)); Object.assign(names, s.teams); }
-    h2h = orient(all, String(teamDomId), String(teamExtId), names);
   }
-
-  const result = { h2h };
-  if (env.PRONO_CACHE) await env.PRONO_CACHE.put(cacheKey, JSON.stringify(result), { expirationTtl: h2h.length ? 86400 : 21600 });
-  return result;
+  const srcs = (await Promise.all([...keys].map((k) => kvGet(env, k)))).filter(Boolean);
+  const all = [], names = {};
+  for (const s of srcs) { all.push(...toFinished(s)); Object.assign(names, s.teams); }
+  return { h2h: orient(all, String(teamDomId), String(teamExtId), names) };
 }

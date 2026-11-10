@@ -1,0 +1,6 @@
+{
+  // Site Prono Arena (pages statiques), publié automatiquement à chaque mise à jour du dossier site/
+  "name": "prono-arena",
+  "compatibility_date": "2026-11-06",
+  "assets": { "directory": "./public" }
+}

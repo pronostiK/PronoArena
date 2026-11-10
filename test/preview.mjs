@@ -105,24 +105,48 @@ await shot("5-analyse", false);
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium"); await page.waitForSelector(".mp");
 await shot("6-arene-connecte");
 await page.click(".chip[data-week='precedente']"); await page.waitForSelector(".empty, .podium, .rks"); await shot("7-arene-semaine-derniere");
-await page.click("#account"); await page.waitForSelector("#logout"); await shot("8-compte");
+await page.click("#account"); await page.waitForSelector("#logout");
+check("Mon espace : mes 2 pronos à venir et les points en jeu", (await page.locator("[data-plist='up'] .mp").count()) === 2 && /pts en jeu/.test(await page.textContent("[data-plist='up']")));
+await page.fill("#f-profile [name=prenom]", "Hicham"); await page.fill("#f-profile [name=ville]", "Paris");
+await page.click("#club-open"); await page.waitForSelector(".club");
+await page.locator("#club-picker .chip").nth(1).click(); await page.waitForSelector(".club"); await page.waitForTimeout(300);
+await shot("8a-choix-club", false);
+const clubName = await page.locator(".club small").nth(2).textContent();
+await page.locator(".club").nth(2).click();
+await page.click("#f-profile button[type=submit]"); await page.waitForFunction(() => document.getElementById("toast").textContent === "Infos enregistrées.");
+const saved2 = d1.raw.prepare("SELECT prenom, ville, club, club_logo FROM joueurs WHERE pseudo = 'Hitch'").get();
+check("Mes infos enregistrées en base (prénom, ville, club)", saved2.prenom === "Hicham" && saved2.ville === "Paris" && saved2.club === clubName && !!saved2.club_logo, `${saved2.club}`);
+await page.reload(); await page.waitForSelector("#logout");
+check("Mes infos toujours là après rechargement", (await page.inputValue("#f-profile [name=prenom]")) === "Hicham" && (await page.textContent("#club-now")).includes(clubName));
+await page.waitForTimeout(300); await shot("8-compte");
+await page.click(".fold >> nth=1 >> summary"); await page.fill("#f-password [name=ancien]", "motdepasse9"); await page.fill("#f-password [name=nouveau]", "motdepasse10"); await page.click("#f-password button[type=submit]");
+await page.waitForFunction(() => document.getElementById("toast").textContent === "Mot de passe modifié.");
+await page.click(".fold >> nth=0 >> summary"); await page.fill("#f-email [name=email]", "moi2@exemple.fr"); await page.fill("#f-email [name=motDePasse]", "motdepasse10"); await page.click("#f-email button[type=submit]");
+await page.waitForFunction(() => document.getElementById("mail-now")?.textContent === "moi2@exemple.fr");
+check("E-mail et mot de passe modifiés depuis l'espace", true);
+SIM.now += 61000; // le classement est gardé 1 min en mémoire côté moteur
+await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".rk.me .fan, .pod.me .fan");
+check("Arène : mon blason à côté de mon pseudo", true);
+await shot("8b-arene-blason", false);
+await page.click("#account"); await page.waitForSelector("#logout");
 // Rechargement : toujours connecté ; déconnexion puis reconnexion
 await page.reload(); await page.waitForSelector("#logout");
 check("Toujours connecté après rechargement", (await page.textContent("#account")).includes("Hitch"));
 await page.click("#logout"); await page.waitForSelector(".duel");
 check("Déconnexion", (await page.textContent("#account")).trim() === "Connexion" && (await page.locator(".pick[aria-pressed='true']").count()) === 0);
 await page.click("#account"); await page.click(".tabs button[data-mode='login']");
-await page.fill("#f-login [name=identifiant]", "moi@exemple.fr"); await page.fill("#f-login [name=motDePasse]", "mauvais"); await page.click("#f-login button[type=submit]");
+await page.fill("#f-login [name=identifiant]", "moi2@exemple.fr"); await page.fill("#f-login [name=motDePasse]", "mauvais"); await page.click("#f-login button[type=submit]");
 await page.waitForSelector("#f-login .form-err:not([hidden])"); await shot("9-connexion-erreur", false);
-await page.fill("#f-login [name=motDePasse]", "motdepasse9"); await page.click("#f-login button[type=submit]"); await page.waitForSelector(".mp");
+await page.fill("#f-login [name=motDePasse]", "motdepasse10"); await page.click("#f-login button[type=submit]"); await page.waitForSelector(".mp");
 check("Reconnexion par e-mail : mes pronos sont là", (await page.locator(".mp").count()) === 2);
 // Verdict inchangé
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await shot("10-verdict", false);
 // Suppression du compte
-await page.click("#account"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse9"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
+await page.click("#account"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse10"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
 check("Suppression du compte : plus rien en base", d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Hitch'").get().n === 0);
 // Débordement horizontal (téléphone étroit)
 await page.setViewportSize({ width: 320, height: 640 });
+await page.evaluate(() => 0);
 for (const h of ["#/", "#/arene", "#/compte"]) { await page.goto("http://localhost:8787/" + h); await page.waitForTimeout(500); const w = await page.evaluate(() => document.documentElement.scrollWidth); check(`Pas de débordement à 320 px (${h})`, w <= 320, `${w} px`); }
 check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
 await browser.close(); server.close();

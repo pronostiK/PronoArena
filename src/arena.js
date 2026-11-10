@@ -109,9 +109,9 @@ export async function auth(env, request, now = Date.now()) {
   const m = /^Bearer ([a-f0-9]{64})$/.exec(request.headers.get("Authorization") || "");
   if (!m) throw new HttpError(401, "Connecte-toi pour continuer.");
   const jeton = await sha256(m[1]);
-  const row = await db.prepare("SELECT j.id, j.pseudo, j.mdp FROM sessions s JOIN joueurs j ON j.id = s.joueur_id WHERE s.jeton = ?1 AND s.expire_le > ?2").bind(jeton, now).first();
+  const row = await db.prepare("SELECT j.* FROM sessions s JOIN joueurs j ON j.id = s.joueur_id WHERE s.jeton = ?1 AND s.expire_le > ?2").bind(jeton, now).first();
   if (!row) throw new HttpError(401, "Session expirée : reconnecte-toi.");
-  return { id: row.id, pseudo: row.pseudo, mdp: row.mdp, jeton };
+  return { id: row.id, pseudo: row.pseudo, mdp: row.mdp, email: row.email, prenom: row.prenom, ville: row.ville, club: row.club, clubLogo: row.club_logo, jeton };
 }
 
 export async function logout(env, user) {
@@ -126,6 +126,53 @@ export async function deleteAccount(env, user, body) {
     db.prepare("DELETE FROM pronos WHERE joueur_id = ?1").bind(user.id),
     db.prepare("DELETE FROM sessions WHERE joueur_id = ?1").bind(user.id),
     db.prepare("DELETE FROM joueurs WHERE id = ?1").bind(user.id),
+  ]);
+  return { success: true };
+}
+
+// ---------- Espace personnel ----------
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const clean = (v, max) => String(v ?? "").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
+
+export async function saveProfile(env, user, body, now = Date.now()) {
+  const db = need(env);
+  const prenom = clean(body.prenom, 30) || null, ville = clean(body.ville, 40) || null;
+  let club = user.club, logo = user.clubLogo;
+  if ("club" in body) {
+    if (!body.club) { club = null; logo = null; }
+    else {
+      // Le club est relu dans les données du moteur : impossible d'enregistrer un nom ou une image inventés
+      const leagueId = parseInt(body.club.leagueId);
+      const raw = LEAGUES[leagueId] ? await env.PRONO_CACHE.get(predsKey(leagueId, currentSeason(new Date(now)))) : null;
+      const t = raw ? (JSON.parse(raw).classement || []).find((x) => String(x.id) === String(body.club.teamId)) : null;
+      if (!t) throw new HttpError(400, "Club introuvable.");
+      club = t.nom; logo = t.logo || null;
+    }
+  }
+  await db.prepare("UPDATE joueurs SET prenom = ?1, ville = ?2, club = ?3, club_logo = ?4 WHERE id = ?5").bind(prenom, ville, club, logo, user.id).run();
+  return { success: true, profil: { email: user.email, prenom, ville, club: club ? { nom: club, logo } : null } };
+}
+
+export async function changeEmail(env, user, body) {
+  const db = need(env);
+  const email = String(body.email || "").trim().toLowerCase();
+  if (email.length > 120 || !EMAIL.test(email)) throw new HttpError(400, "Adresse e-mail invalide.");
+  if (!(await checkPassword(String(body.motDePasse || "").slice(0, 72), user.mdp))) throw new HttpError(401, "Mot de passe incorrect.");
+  const taken = await db.prepare("SELECT id FROM joueurs WHERE email = ?1 AND id <> ?2").bind(email, user.id).first();
+  if (taken) throw new HttpError(409, "Un compte existe déjà avec cet e-mail.");
+  await db.prepare("UPDATE joueurs SET email = ?1 WHERE id = ?2").bind(email, user.id).run();
+  return { success: true, email };
+}
+
+export async function changePassword(env, user, body) {
+  const db = need(env);
+  const neuf = String(body.nouveau || "");
+  if (!(await checkPassword(String(body.ancien || "").slice(0, 72), user.mdp))) throw new HttpError(401, "Mot de passe actuel incorrect.");
+  if (neuf.length < 8 || neuf.length > 72) throw new HttpError(400, "Nouveau mot de passe : 8 caractères minimum.");
+  // Les autres appareils sont déconnectés ; celui-ci reste connecté
+  await db.batch([
+    db.prepare("UPDATE joueurs SET mdp = ?1 WHERE id = ?2").bind(await hashPassword(neuf), user.id),
+    db.prepare("DELETE FROM sessions WHERE joueur_id = ?1 AND jeton <> ?2").bind(user.id, user.jeton),
   ]);
   return { success: true };
 }
@@ -174,17 +221,19 @@ const pickRow = (r) => ({
   resultat: r.resultat, score: r.score, points: r.points,
 });
 
-const TOTALS = `SELECT j.pseudo AS pseudo, SUM(COALESCE(p.points, 0)) AS pts, SUM(CASE WHEN p.points > 0 THEN 1 ELSE 0 END) AS justes,
+const TOTALS = `SELECT j.pseudo AS pseudo, j.club AS club, j.club_logo AS club_logo, SUM(COALESCE(p.points, 0)) AS pts, SUM(CASE WHEN p.points > 0 THEN 1 ELSE 0 END) AS justes,
     SUM(CASE WHEN p.points IS NULL THEN 1 ELSE 0 END) AS attente, COUNT(*) AS joues
   FROM pronos p JOIN joueurs j ON j.id = p.joueur_id WHERE p.semaine = ?1 GROUP BY p.joueur_id`;
 
 export async function me(env, user, now = Date.now()) {
   const db = need(env);
   const week = weekOf(now);
-  const [picks, mine] = await db.batch([
-    db.prepare("SELECT * FROM pronos WHERE joueur_id = ?1 AND coup_envoi > ?2 ORDER BY coup_envoi DESC LIMIT 200").bind(user.id, now - 14 * DAY),
+  const [picks, mine, all] = await db.batch([
+    db.prepare("SELECT * FROM pronos WHERE joueur_id = ?1 AND coup_envoi > ?2 ORDER BY coup_envoi DESC LIMIT 200").bind(user.id, now - 60 * DAY),
     db.prepare(`SELECT * FROM (${TOTALS}) WHERE pseudo = ?2`).bind(week, user.pseudo),
+    db.prepare("SELECT COALESCE(SUM(points), 0) AS pts, COALESCE(SUM(CASE WHEN points > 0 THEN 1 ELSE 0 END), 0) AS justes, COALESCE(SUM(CASE WHEN points IS NOT NULL THEN 1 ELSE 0 END), 0) AS notes, COUNT(*) AS joues FROM pronos WHERE joueur_id = ?1").bind(user.id),
   ]);
+  const g = all.results[0];
   const t = mine.results[0] || null;
   let rang = null;
   if (t) {
@@ -195,7 +244,9 @@ export async function me(env, user, now = Date.now()) {
   }
   return {
     success: true, pseudo: user.pseudo,
+    profil: { email: user.email, prenom: user.prenom || null, ville: user.ville || null, club: user.club ? { nom: user.club, logo: user.clubLogo || null } : null },
     semaine: { cle: week, points: t?.pts || 0, justes: t?.justes || 0, joues: t?.joues || 0, attente: t?.attente || 0, rang },
+    total: { points: g.pts, justes: g.justes, notes: g.notes, joues: g.joues },
     pronos: picks.results.map(pickRow),
   };
 }
@@ -212,7 +263,7 @@ export async function leaderboard(env, which, now = Date.now()) {
     success: true,
     semaine: { cle: week, debut: week, fin: new Date(Date.parse(week + "T00:00:00Z") + 6 * DAY).toISOString().slice(0, 10), enCours: which !== "precedente" },
     joueurs: count.results[0]?.n || 0,
-    classement: top.results.map((r, i) => ({ rang: i + 1, pseudo: r.pseudo, points: r.pts, justes: r.justes, joues: r.joues, attente: r.attente })),
+    classement: top.results.map((r, i) => ({ rang: i + 1, pseudo: r.pseudo, club: r.club ? { nom: r.club, logo: r.club_logo } : null, points: r.pts, justes: r.justes, joues: r.joues, attente: r.attente })),
   };
 }
 

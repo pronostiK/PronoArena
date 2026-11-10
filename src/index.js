@@ -7,6 +7,7 @@
 //   /status                                         état du robot (transparence)
 // Arène (bloc 2, base D1) :
 //   POST /account/signup | /account/login | /account/logout | /account/delete
+//   POST /account/profile | /account/email | /account/password   espace personnel
 //   GET  /me            mon bilan de la semaine + mes pronostics
 //   POST /picks         enregistrer mon pronostic (refusé après le coup d'envoi)
 //   GET  /arena[?semaine=precedente]                classement hebdomadaire
@@ -16,7 +17,7 @@ import { kvGet, refreshSource, srcKey, resetEspnBudget } from "./sources.js";
 import { predsKey, getH2H, buildVerdict } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
-import { readBody, signup, login, logout, deleteAccount, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
+import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
 
 const CORS = {
   "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*",
@@ -136,6 +137,9 @@ export default {
       if (path === "/account/login" && post) return json(await login(env, await readBody(request)), 200, PRIVATE);
       if (path === "/account/logout" && post) return json(await logout(env, await auth(env, request)), 200, PRIVATE);
       if (path === "/account/delete" && post) return json(await deleteAccount(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
+      if (path === "/account/profile" && post) return json(await saveProfile(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
+      if (path === "/account/email" && post) return json(await changeEmail(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
+      if (path === "/account/password" && post) return json(await changePassword(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
       if (path === "/me") return json(await me(env, await auth(env, request)), 200, PRIVATE);
       if (path === "/picks" && post) return json(await savePick(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
       if (path === "/arena") {

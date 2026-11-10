@@ -319,3 +319,30 @@ a.more { color: var(--orange); }
 .chip-logo:has(.chip-name) { width: auto; height: 40px; padding: 0 16px; border-radius: 999px; display: inline-block; background: var(--surface); border: 1px solid var(--line); opacity: 1; box-shadow: none; }
 .chip-logo:has(.chip-name)[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); }
 .chips { padding-top: 6px; }
+
+/* Espace personnel */
+.me-hero p:last-child { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.me-hero p:last-child:empty { display: none; }
+.fan { display: inline-block; vertical-align: -3px; margin-left: 6px; }
+.tabs.seg { margin: 0; background: var(--surface-2); }
+.rks[hidden] { display: none; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text-2); }
+.club-row { display: flex; align-items: center; gap: 8px; }
+#club-now { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text); }
+#club-now b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#club-now .muted { color: var(--muted); font-weight: 400; }
+.btn-sm { min-height: 40px; padding: 0 14px; font-size: 13px; flex: none; }
+.btn-sm[hidden] { display: none; }
+#club-picker { margin-top: 6px; padding: 8px 0 10px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); }
+#club-picker[hidden] { display: none; }
+#club-picker .chips { padding: 6px 10px 10px; }
+.club-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0 10px; }
+.club-grid .note { grid-column: 1 / -1; }
+.club { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px; border-radius: 12px; border: 1px solid transparent; background: var(--surface); color: var(--text-2); cursor: pointer; min-width: 0; }
+.club:hover { border-color: var(--orange); }
+.club small { max-width: 100%; font-size: 10px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold { border-radius: 12px; background: var(--surface-2); }
+.fold summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 12px; font-size: 13px; color: var(--muted); cursor: pointer; list-style: none; }
+.fold summary::-webkit-details-marker { display: none; }
+.fold summary b { color: var(--text); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fold .form { padding: 4px 12px 14px; }

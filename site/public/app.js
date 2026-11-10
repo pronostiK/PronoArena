@@ -522,6 +522,15 @@
   const dMonth = (iso, withMonth) => new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", withMonth ? { day: "numeric", month: "long" } : { day: "numeric" });
   const weekLabel = (w) => `Du ${dMonth(w.debut, w.debut.slice(5, 7) !== w.fin.slice(5, 7))} au ${dMonth(w.fin, true)}`;
 
+  function pickLine(x) {
+    const label = x.choix === "N" ? "Nul" : x.choix === "1" ? x.domicile.nom : x.exterieur.nom;
+    const state = x.points == null ? `<span class="wait">${x.coupEnvoi > Date.now() ? x.mise + " pts en jeu" : "En attente"}</span>`
+      : x.points > 0 ? `<span class="ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>+${x.points}</span>`
+      : `<span class="ko"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>0</span>`;
+    return `<div class="mp"><span class="mp-teams">${crest({ name: x.domicile.nom, logo: x.domicile.logo }, "crest crest-xs")}${x.score ? `<b>${esc(String(x.score).replace("-", " – "))}</b>` : `<small>${esc(fmtTime(x.coupEnvoi))}</small>`}${crest({ name: x.exterieur.nom, logo: x.exterieur.logo }, "crest crest-xs")}</span>
+      <span class="mp-pick"><small>${esc(fmtDay(x.coupEnvoi))}</small><b>${esc(label)}</b></span>${state}</div>`;
+  }
+  const fan = (r) => (r.club ? crest({ name: r.club.nom, logo: r.club.logo }, "crest crest-xxs fan") : "");
   let arenaWeek = "courante";
   async function renderArena() {
     setTab("arene");
@@ -561,12 +570,14 @@
           </section>`;
       } else {
         top = which === "courante"
-          ? `<section class="panel cta-panel"><h2>${ico("target")}Ma semaine</h2><p class="note">Tu n'as pas encore pronostiqué cette semaine.</p><a class="cta" href="#/">Voir les duels</a></section>`
+          ? (me && me.pronos.some((x) => x.points == null)
+            ? `<section class="panel cta-panel"><h2>${ico("target")}Ma semaine</h2><p class="note">Aucun de tes pronos ne porte sur un match de cette semaine. Chaque prono compte pour la semaine où le match se joue.</p><a class="cta" href="#/compte">Voir mes pronos</a></section>`
+            : `<section class="panel cta-panel"><h2>${ico("target")}Ma semaine</h2><p class="note">Tu n'as pas encore pronostiqué cette semaine.</p><a class="cta" href="#/">Voir les duels</a></section>`)
           : "";
       }
 
-      const place = (r, cls) => `<div class="pod ${cls}${inBoard === r ? " me" : ""}">${avatar(r.pseudo, "avatar-lg")}<b>${esc(r.pseudo)}</b><span class="pod-pts">${r.points} pts</span><span class="pod-step">${r.rang}</span></div>`;
-      const line = (r) => `<div class="rk${inBoard === r ? " me" : ""}"><span class="rk-n">${r.rang}</span>${avatar(r.pseudo)}<span class="rk-name"><b>${esc(r.pseudo)}</b><small>${r.justes} juste${r.justes > 1 ? "s" : ""} sur ${r.joues - r.attente}${r.attente ? ` · ${r.attente} en attente` : ""}</small></span><b class="rk-pts">${r.points}<small> pts</small></b></div>`;
+      const place = (r, cls) => `<div class="pod ${cls}${inBoard === r ? " me" : ""}">${avatar(r.pseudo, "avatar-lg")}<b>${esc(r.pseudo)}${fan(r)}</b><span class="pod-pts">${r.points} pts</span><span class="pod-step">${r.rang}</span></div>`;
+      const line = (r) => `<div class="rk${inBoard === r ? " me" : ""}"><span class="rk-n">${r.rang}</span>${avatar(r.pseudo)}<span class="rk-name"><b>${esc(r.pseudo)}${fan(r)}</b><small>${r.justes} juste${r.justes > 1 ? "s" : ""} sur ${r.joues - r.attente}${r.attente ? ` · ${r.attente} en attente` : ""}</small></span><b class="rk-pts">${r.points}<small> pts</small></b></div>`;
       let ranking;
       if (!rows.length) {
         ranking = `<div class="empty">${which === "courante" ? "Personne n'a encore pronostiqué cette semaine. Prends la première place !" : "Aucun pronostic la semaine dernière."}</div>`;
@@ -596,14 +607,7 @@
       if (weekPicks.length) {
         myList = `<section class="panel">
             <h2>${ico("grid")}Mes pronos</h2>
-            <div class="rks">${weekPicks.map((x) => {
-              const label = x.choix === "N" ? "Nul" : x.choix === "1" ? x.domicile.nom : x.exterieur.nom;
-              const state = x.points == null ? `<span class="wait">${x.coupEnvoi > Date.now() ? "+" + x.mise + " pts en jeu" : "En attente"}</span>`
-                : x.points > 0 ? `<span class="ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>+${x.points}</span>`
-                : `<span class="ko"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>0</span>`;
-              return `<div class="mp"><span class="mp-teams">${crest({ name: x.domicile.nom, logo: x.domicile.logo }, "crest crest-xs")}${x.score ? `<b>${esc(String(x.score).replace("-", " – "))}</b>` : `<small>${esc(fmtTime(x.coupEnvoi))}</small>`}${crest({ name: x.exterieur.nom, logo: x.exterieur.logo }, "crest crest-xs")}</span>
-                <span class="mp-pick"><small>${esc(fmtDay(x.coupEnvoi))}</small><b>${esc(label)}</b></span>${state}</div>`;
-            }).join("")}</div>
+            <div class="rks">${weekPicks.map(pickLine).join("")}</div>
           </section>`;
       }
       box.innerHTML = top + ranking + myList + rules;
@@ -666,17 +670,64 @@
     view.innerHTML = `<div class="list"><div class="skel"></div></div>`;
     const me = await getMe();
     if (!session.token) return renderCompte(); // session expirée entre-temps
-    const w = me?.semaine;
+    if (!me) return errorBox("Espace personnel indisponible pour le moment.", renderCompte);
+    const w = me.semaine, g = me.total, pf = me.profil;
+    const upcoming = me.pronos.filter((x) => x.points == null).sort((a, b) => a.coupEnvoi - b.coupEnvoi);
+    const done = me.pronos.filter((x) => x.points != null);
+    const pending = upcoming.reduce((a, x) => a + x.mise, 0);
+    let club = pf.club ? { ...pf.club } : null, clubChoice; // clubChoice : undefined = inchangé, null = retiré, objet = nouveau club
+    const rank = (n) => (n ? `${n}<sup>${n === 1 ? "er" : "e"}</sup>` : "—");
     view.innerHTML = `
       <section class="hero me-hero">
         ${avatar(session.pseudo, "avatar-xl")}
-        <div><p class="kicker">Mon compte</p><h1>${esc(session.pseudo)}</h1></div>
+        <div><p class="kicker">Mon espace</p><h1>${esc(session.pseudo)}</h1><p id="me-sub"></p></div>
       </section>
-      ${w ? `<section class="panel">
-        <h2>${ico("target")}Ma semaine</h2>
-        <div class="grid3">${tile("Rang", w.rang ? `${w.rang}<sup>${w.rang === 1 ? "er" : "e"}</sup>` : "—")}${tile("Points", w.points)}${tile("Pronos justes", `${w.justes}/${w.joues - w.attente}`)}</div>
+      <section class="panel">
+        <h2>${ico("target")}Mon bilan</h2>
+        <div class="grid3">${tile("Rang semaine", rank(w.rang))}${tile("Points semaine", w.points)}${tile("Points en jeu", pending)}</div>
+        <div class="grid3">${tile("Total points", g.points)}${tile("Pronos justes", `${g.justes}/${g.notes}`)}${tile("Réussite", g.notes ? Math.round((100 * g.justes) / g.notes) + "%" : "—")}</div>
         <a class="cta" href="#/arene">Voir le classement</a>
-      </section>` : ""}
+      </section>
+      <section class="panel">
+        <h2>${ico("grid")}Mes pronos</h2>
+        <div class="tabs seg" role="tablist" aria-label="Mes pronos" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+          <button type="button" role="tab" aria-selected="true" data-list="up">À venir (${upcoming.length})</button>
+          <button type="button" role="tab" aria-selected="false" data-list="done">Terminés (${done.length})</button>
+        </div>
+        <div class="rks" data-plist="up">${upcoming.length ? upcoming.map(pickLine).join("") : `<p class="note">Aucun prono en cours. Choisis ton camp dans les duels.</p>`}</div>
+        <div class="rks" data-plist="done" hidden>${done.length ? done.map(pickLine).join("") : `<p class="note">Aucun match terminé pour l'instant.</p>`}</div>
+      </section>
+      <form class="panel form" id="f-profile" novalidate>
+        <h2>${ico("shield")}Mes infos</h2>
+        <label>Prénom<input name="prenom" autocomplete="given-name" maxlength="30" value="${esc(pf.prenom || "")}"></label>
+        <label>Ville<input name="ville" autocomplete="address-level2" maxlength="40" value="${esc(pf.ville || "")}"></label>
+        <div class="field"><span>Club favori</span>
+          <div class="club-row"><span id="club-now"></span><button type="button" class="btn btn-sm" id="club-open">Choisir</button><button type="button" class="btn btn-sm" id="club-none">Aucun</button></div>
+          <div id="club-picker" hidden></div>
+        </div>
+        <p class="form-err" role="alert" hidden></p>
+        <button type="submit" class="cta">Enregistrer</button>
+        <p class="note">Ton prénom et ta ville restent privés. Seul le blason de ton club apparaît au classement.</p>
+      </form>
+      <section class="panel">
+        <h2>${ico("clock")}Mes identifiants</h2>
+        <details class="fold"><summary><span>E-mail</span><b id="mail-now">${esc(pf.email)}</b></summary>
+          <form class="form" id="f-email" novalidate>
+            <label>Nouvel e-mail<input name="email" type="email" autocomplete="email" inputmode="email" maxlength="120" required></label>
+            <label>Mot de passe<input name="motDePasse" type="password" autocomplete="current-password" maxlength="72" required></label>
+            <p class="form-err" role="alert" hidden></p>
+            <button type="submit" class="btn">Changer mon e-mail</button>
+          </form>
+        </details>
+        <details class="fold"><summary><span>Mot de passe</span><b>••••••••</b></summary>
+          <form class="form" id="f-password" novalidate>
+            <label>Mot de passe actuel<input name="ancien" type="password" autocomplete="current-password" maxlength="72" required></label>
+            <label>Nouveau mot de passe<input name="nouveau" type="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>8 caractères minimum.</small></label>
+            <p class="form-err" role="alert" hidden></p>
+            <button type="submit" class="btn">Changer mon mot de passe</button>
+          </form>
+        </details>
+      </section>
       <section class="panel">
         <button type="button" class="btn" id="logout">Me déconnecter</button>
         <details class="danger">
@@ -689,6 +740,53 @@
           </form>
         </details>
       </section>`;
+
+    const paintClub = () => {
+      document.getElementById("club-now").innerHTML = club ? `${crest({ name: club.nom, logo: club.logo }, "crest crest-xs")}<b>${esc(club.nom)}</b>` : `<span class="muted">Aucun club choisi</span>`;
+      document.getElementById("club-none").hidden = !club;
+      document.getElementById("me-sub").innerHTML = club ? `${crest({ name: club.nom, logo: club.logo }, "crest crest-xxs")}${esc(club.nom)}` : "";
+    };
+    paintClub();
+    view.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => {
+      view.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+      view.querySelectorAll("[data-plist]").forEach((x) => (x.hidden = x.dataset.plist !== b.dataset.list));
+    }));
+
+    // Choix du club : un championnat (logo), puis un blason
+    const picker = document.getElementById("club-picker");
+    async function showClubs(leagueId) {
+      const list = (await getLeagues()).filter((l) => !l.coupe);
+      picker.hidden = false;
+      picker.innerHTML = `${chips(list, leagueId)}<div class="club-grid" id="club-grid"><p class="note">Chargement…</p></div>`;
+      picker.querySelectorAll(".chip").forEach((b) => (b.onclick = () => showClubs(Number(b.dataset.league))));
+      const grid = document.getElementById("club-grid");
+      try {
+        const d = await api(`/league-predictions?leagueId=${leagueId}`);
+        const teams = (d.classement || []).slice().sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+        grid.innerHTML = teams.length ? teams.map((t) => `<button type="button" class="club" data-id="${esc(t.id)}" aria-label="${esc(t.nom)}">${crest({ name: t.nom, logo: t.logo })}<small>${esc(t.nom)}</small></button>`).join("") : `<p class="note">Clubs indisponibles pour ce championnat.</p>`;
+        grid.querySelectorAll(".club").forEach((b) => (b.onclick = () => {
+          const t = teams.find((x) => String(x.id) === b.dataset.id);
+          club = { nom: t.nom, logo: t.logo }; clubChoice = { leagueId, teamId: t.id };
+          picker.hidden = true; paintClub();
+        }));
+      } catch { grid.innerHTML = `<p class="note">Clubs indisponibles pour le moment.</p>`; }
+    }
+    document.getElementById("club-open").onclick = () => (picker.hidden ? showClubs(Number(store.get("league")) || 61) : (picker.hidden = true));
+    document.getElementById("club-none").onclick = () => { club = null; clubChoice = null; picker.hidden = true; paintClub(); };
+
+    const pform = document.getElementById("f-profile");
+    pform.onsubmit = async (e) => {
+      e.preventDefault();
+      const err = pform.querySelector(".form-err"), btn = pform.querySelector("button[type=submit]");
+      err.hidden = true; btn.disabled = true;
+      const body = { prenom: pform.elements.prenom.value, ville: pform.elements.ville.value };
+      if (clubChoice !== undefined) body.club = clubChoice;
+      try { await call("/account/profile", body); meDirty = true; clubChoice = undefined; cache.delete("/arena"); toast("Infos enregistrées."); }
+      catch (x) { err.textContent = x.message; err.hidden = false; }
+      btn.disabled = false;
+    };
+    bindForm("f-email", "/account/email", ["email", "motDePasse"], (d) => { meDirty = true; toast("E-mail modifié."); renderCompte(); });
+    bindForm("f-password", "/account/password", ["ancien", "nouveau"], () => { toast("Mot de passe modifié."); renderCompte(); });
     document.getElementById("logout").onclick = async () => {
       try { await call("/account/logout", {}); } catch { /* déjà déconnecté */ }
       setSession(null); cache.clear(); toast("À bientôt !"); location.hash = "#/";

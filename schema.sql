@@ -8,8 +8,14 @@ CREATE TABLE IF NOT EXISTS joueurs (
   pseudo TEXT NOT NULL COLLATE NOCASE UNIQUE,
   email TEXT NOT NULL COLLATE NOCASE UNIQUE,
   mdp TEXT NOT NULL,            -- mot de passe haché (jamais en clair) : pbkdf2$tours$sel$empreinte
-  cree_le INTEGER NOT NULL
+  cree_le INTEGER NOT NULL,
+  prenom TEXT,                  -- espace personnel : visibles par le joueur seulement
+  ville TEXT,
+  club TEXT,                    -- club favori (nom + blason), affiché au classement
+  club_logo TEXT
 );
+-- Base créée avant l'espace personnel : ajouter une seule fois
+--   ALTER TABLE joueurs ADD COLUMN prenom TEXT;  (idem ville, club, club_logo)
 
 CREATE TABLE IF NOT EXISTS sessions (
   jeton TEXT PRIMARY KEY,       -- empreinte SHA-256 du jeton de connexion

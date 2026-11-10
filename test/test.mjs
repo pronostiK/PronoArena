@@ -241,7 +241,7 @@ console.log("\n— Arène —");
   const expect = ["Zizou", "Platoche", "Titi"].map((p) => ({ p, pts: rows.filter((r) => r.pseudo === p).reduce((a, r) => a + r.points, 0), justes: rows.filter((r) => r.pseudo === p && r.points > 0).length }))
     .sort((a, b) => b.pts - a.pts || b.justes - a.justes || a.p.localeCompare(b.p));
   check("Classement de la semaine trié par points", board.joueurs === 3 && board.classement.map((c) => c.pseudo).join() === expect.map((e) => e.p).join() && board.classement.every((c, i) => c.points === expect[i].pts && c.rang === i + 1), board.classement.map((c) => `${c.rang}. ${c.pseudo} ${c.points} pts (${c.justes}/${c.joues})`).join(" · "));
-  check("Classement sans donnée privée (ni e-mail ni identifiant)", !JSON.stringify(board).includes("exemple.fr") && Object.keys(board.classement[0]).join() === "rang,pseudo,points,justes,joues,attente");
+  check("Classement sans donnée privée (ni e-mail ni identifiant)", !JSON.stringify(board).includes("exemple.fr") && Object.keys(board.classement[0]).join() === "rang,pseudo,club,points,justes,joues,attente");
   const meZ = await call("/me", { token: s1.token });
   check("Mon bilan : même rang et mêmes points que le classement", meZ.semaine.rang === board.classement.find((c) => c.pseudo === "Zizou").rang && meZ.semaine.points === expect.find((e) => e.p === "Zizou").pts);
 
@@ -252,6 +252,26 @@ console.log("\n— Arène —");
   SIM.now += 61000; // le classement est gardé 1 min en mémoire
   const cur = await call("/arena"), prev = await call("/arena?semaine=precedente");
   check("Nouvelle semaine : classement remis à zéro, l'ancien reste consultable", weekNow === "2026-11-09" && cur.classement.length === 0 && prev.classement.length === 3 && prev.semaine.debut === "2026-11-02" && prev.semaine.fin === "2026-11-08");
+
+  // Espace personnel
+  const team = L.classement[3];
+  const pr = await call("/account/profile", { token: s1.token, body: { prenom: "  Zinédine <b> ", ville: "Marseille", club: { leagueId: 61, teamId: team.id } } });
+  check("Espace perso : prénom, ville et club enregistrés", pr.status === 200 && pr.profil.prenom === "Zinédine b" && pr.profil.ville === "Marseille" && pr.profil.club.nom === team.nom && pr.profil.club.logo === team.logo, `${pr.profil?.club?.nom}`);
+  check("Espace perso : club inventé refusé", (await call("/account/profile", { token: s1.token, body: { club: { leagueId: 61, teamId: "faux" } } })).status === 400);
+  const meP = await call("/me", { token: s1.token });
+  check("Mon espace : mes infos, mon e-mail et mon bilan total", meP.profil.email === "zizou@exemple.fr" && meP.profil.club.nom === team.nom && meP.total.joues === 4 && meP.total.notes === 4 && meP.total.points === rows.filter((r) => r.pseudo === "Zizou").reduce((a, r) => a + r.points, 0));
+  SIM.now += 61000;
+  const b2 = await call("/arena?semaine=precedente");
+  check("Classement : blason du club favori, prénom et ville jamais montrés", b2.classement.find((c) => c.pseudo === "Zizou").club.logo === team.logo && !JSON.stringify(b2).includes("Marseille") && !JSON.stringify(b2).includes("Zinédine"));
+  check("Retirer son club", (await call("/account/profile", { token: s1.token, body: { prenom: "Zinédine", ville: "Marseille", club: null } })).profil.club === null);
+  check("Changer d'e-mail : mot de passe exigé, doublon refusé", (await call("/account/email", { token: s1.token, body: { email: "z2@exemple.fr", motDePasse: "faux-mot" } })).status === 401 && (await call("/account/email", { token: s1.token, body: { email: "p@exemple.fr", motDePasse: "motdepasse1" } })).status === 409);
+  const em = await call("/account/email", { token: s1.token, body: { email: "Z2@exemple.fr", motDePasse: "motdepasse1" } });
+  check("Changer d'e-mail", em.status === 200 && (await call("/account/login", { body: { identifiant: "z2@exemple.fr", motDePasse: "motdepasse1" } })).status === 200);
+  const other = await call("/account/login", { body: { identifiant: "zizou", motDePasse: "motdepasse1" } });
+  check("Changer de mot de passe : l'ancien est exigé", (await call("/account/password", { token: s1.token, body: { ancien: "pas-le-bon", nouveau: "nouveau-mdp-1" } })).status === 401 && (await call("/account/password", { token: s1.token, body: { ancien: "motdepasse1", nouveau: "court" } })).status === 400);
+  const pw = await call("/account/password", { token: s1.token, body: { ancien: "motdepasse1", nouveau: "nouveau-mdp-1" } });
+  check("Changer de mot de passe : nouveau accepté, ancien refusé", pw.status === 200 && (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "nouveau-mdp-1" } })).status === 200 && (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "motdepasse1" } })).status === 401);
+  check("Changer de mot de passe : les autres appareils sont déconnectés, pas celui-ci", (await call("/me", { token: other.token })).status === 401 && (await call("/me", { token: s1.token })).status === 200);
 
   // Quotas et vie du compte
   const perDay = (d1.stats.queries - q0) / ((Date.parse(last.date) + 4 * 3600000 - Date.parse(m0.date)) / 86400000);

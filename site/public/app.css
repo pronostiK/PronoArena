@@ -354,3 +354,21 @@ a.more { color: var(--orange); }
 .hero-logo img { flex: none; width: 112px; height: 112px; object-fit: contain; margin: -8px 0; }
 .big-logo { display: block; width: 200px; height: 200px; margin: 0 auto 6px; object-fit: contain; }
 @media (max-width: 350px) { .hero-logo img { width: 84px; height: 84px; } }
+
+/* Compétitions en colonne à gauche */
+.with-rail { display: flex; align-items: flex-start; }
+.rail-main { flex: 1; min-width: 0; }
+.chips.rail { flex: none; flex-direction: column; align-items: center; gap: 8px; width: 66px; padding: 4px 0 12px 10px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; position: sticky; top: 8px; max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px - env(safe-area-inset-bottom)); }
+.rail .chip-logo { width: 50px; height: 50px; border-radius: 14px; }
+.rail .chip-logo img { width: 36px; height: 36px; }
+.rail .chip-all, .rail .chip-logo:has(.chip-name) { width: 50px; height: auto; min-height: 50px; padding: 4px 2px; border-radius: 14px; display: grid; place-items: center; font-size: 10px; line-height: 1.15; font-weight: 700; white-space: normal; overflow-wrap: anywhere; text-align: center; }
+.rail .chip-all { font-size: 13px; }
+.rail-main .hero, .rail-main .panel, .rail-main .empty, .rail-main .error { margin-left: 10px; margin-right: 12px; }
+.rail-main .list { padding-left: 10px; padding-right: 12px; }
+.rail-main .hero { padding: 16px 14px; }
+.rail-main .hero h1 { font-size: 23px; }
+.rail-main .hero-logo img { width: 76px; height: 76px; }
+.rail-main .duel, .rail-main .res { padding-left: 10px; padding-right: 10px; }
+.rail-main .picks { gap: 6px; }
+.rail-main .pick .pts { padding: 2px 6px; font-size: 11px; }
+@media (max-width: 350px) { .rail-main .hero-logo img { display: none; } .rail-main .team b { font-size: 13px; } .rail-main .score-big { font-size: 18px; padding: 2px 8px; } }

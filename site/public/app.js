@@ -192,7 +192,17 @@
     const name = `<span class="chip-name">${esc(l.nom)}</span>`;
     return `<button type="button" class="chip${l.logo ? " chip-logo" : ""}" data-league="${l.id}" aria-pressed="${l.id === current}" aria-label="${esc(l.nom)}" title="${esc(l.nom)}">${l.logo ? `<img src="${esc(l.logo)}" alt="" width="40" height="40" data-fallback="${esc(name)}">` : name}</button>`;
   };
-  const chips = (list, current, extra = "") => `<div class="chips" role="group" aria-label="Compétitions">${extra}${list.map((l) => chip(l, current)).join("")}</div>`;
+  const chips = (list, current, extra = "", cls = "") => `<div class="chips${cls}" role="group" aria-label="Compétitions">${extra}${list.map((l) => chip(l, current)).join("")}</div>`;
+  // Colonne des compétitions à gauche (défile de haut en bas, reste visible pendant la lecture)
+  let railScroll = 0;
+  const rail = (list, current, extra, main) => `<div class="with-rail">${chips(list, current, extra, " rail")}<div class="rail-main">${main}</div></div>`;
+  function bindRail(onPick) {
+    const el = view.querySelector(".rail");
+    el.scrollTop = railScroll;
+    const on = el.querySelector('[aria-pressed="true"]');
+    if (on && (on.offsetTop < el.scrollTop || on.offsetTop + on.offsetHeight > el.scrollTop + el.clientHeight)) el.scrollTop = on.offsetTop - el.clientHeight / 2;
+    el.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { railScroll = el.scrollTop; onPick(b.dataset.league); }));
+  }
 
   // ---------- Écran Duels ----------
   async function renderDuels() {
@@ -202,7 +212,7 @@
     if (!list.some((l) => l.id === current)) current = list[0]?.id || 61;
     const league = list.find((l) => l.id === current) || { nom: "Ligue 1" };
 
-    view.innerHTML = `${chips(list, current)}
+    view.innerHTML = rail(list, current, "", `
       <section class="hero hero-logo">
         <div>
           <p class="kicker">${esc(league.nom)}${league.pays ? " · " + esc(league.pays) : ""}</p>
@@ -211,9 +221,9 @@
         </div>
         <img src="logo.webp" alt="" width="112" height="112">
       </section>
-      <div class="list" id="duels"><div class="skel"></div><div class="skel"></div></div>`;
+      <div class="list" id="duels"><div class="skel"></div><div class="skel"></div></div>`);
 
-    view.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { store.set("league", b.dataset.league); renderDuels(); }));
+    bindRail((id) => { store.set("league", id); renderDuels(); });
 
     const box = document.getElementById("duels");
     try {
@@ -467,16 +477,15 @@
     setTab("verdict");
     const list = await getLeagues();
     const sel = store.get("verdictLeague") || "all";
-    const all = `<button type="button" class="chip" data-league="all" aria-pressed="${sel === "all"}">Toutes</button>`;
-    view.innerHTML = `
+    const all = `<button type="button" class="chip chip-all" data-league="all" aria-pressed="${sel === "all"}" aria-label="Toutes les compétitions">Tout</button>`;
+    view.innerHTML = rail(list, Number(sel), all, `
       <section class="hero">
         <p class="kicker">Transparence totale</p>
         <h1>Le Verdict</h1>
         <p>Les résultats tombent. Le moteur avait-il vu juste ?</p>
       </section>
-      ${chips(list, Number(sel), all)}
-      <div id="verdict"><div class="list"><div class="skel"></div></div></div>`;
-    view.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { store.set("verdictLeague", b.dataset.league); renderVerdict(); }));
+      <div id="verdict"><div class="list"><div class="skel"></div></div></div>`);
+    bindRail((id) => { store.set("verdictLeague", id); renderVerdict(); });
 
     const box = document.getElementById("verdict");
     try {

@@ -67,6 +67,15 @@ check("Compétitions affichées en logos", (await page.locator(".chip-logo img")
 await page.click(".chip[data-league='39']"); await page.waitForSelector(".chip[data-league='39'][aria-pressed='true']"); await page.waitForSelector(".duel");
 check("Changer de compétition en touchant un logo", (await page.textContent(".kicker")).includes("Premier League"));
 await shot("1b-logos", false);
+{ const r = await page.locator(".rail").boundingBox(), c = await page.locator(".rail .chip").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((b) => [Math.round(b.left), Math.round(b.top)]));
+  check("Compétitions en colonne à gauche (les unes sous les autres)", r.x === 0 && r.width < 80 && c.every((p, i) => i === 0 || (p[0] === c[0][0] && p[1] > c[i - 1][1])), `colonne de ${Math.round(r.width)} px`);
+  await page.evaluate(() => window.scrollTo(0, 1500)); await page.waitForTimeout(200);
+  const r2 = await page.locator(".rail").boundingBox();
+  check("La colonne reste visible quand on descend dans les matchs", r2.y >= 0 && r2.y < 20, `position ${Math.round(r2.y)} px`);
+  await shot("1c-colonne-en-descendant", false);
+  const before = await page.evaluate(() => window.scrollY); await page.locator(".rail").evaluate((e) => (e.scrollTop = 9999));
+  check("La colonne défile de haut en bas jusqu'à la dernière compétition", await page.locator(".rail .chip").last().isVisible() && (await page.evaluate(() => window.scrollY)) === before);
+  await page.evaluate(() => window.scrollTo(0, 0)); }
 logosDown = true; await page.reload(); await page.waitForSelector(".duel"); await page.waitForTimeout(400);
 check("Logo indisponible : le nom s'affiche à la place", (await page.locator(".chip-name").count()) >= 10 && (await page.locator(".chip-logo img").count()) === 0);
 logosDown = false; await page.click(".chip[data-league='61']"); await page.waitForSelector(".duel"); await page.reload(); await page.waitForSelector(".duel");
@@ -141,13 +150,14 @@ await page.fill("#f-login [name=motDePasse]", "motdepasse10"); await page.click(
 check("Reconnexion par e-mail : mes pronos sont là", (await page.locator(".mp").count()) === 2);
 // Verdict inchangé
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await shot("10-verdict", false);
+check("Verdict : même colonne, avec « Tout »", (await page.locator(".rail .chip-all").count()) === 1);
 // Suppression du compte
 await page.click("#account"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse10"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
 check("Suppression du compte : plus rien en base", d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Hitch'").get().n === 0);
 // Débordement horizontal (téléphone étroit)
 await page.setViewportSize({ width: 320, height: 640 });
 await page.evaluate(() => 0);
-for (const h of ["#/", "#/arene", "#/compte"]) { await page.goto("http://localhost:8787/" + h); await page.waitForTimeout(500); const w = await page.evaluate(() => document.documentElement.scrollWidth); check(`Pas de débordement à 320 px (${h})`, w <= 320, `${w} px`); }
+for (const h of ["#/", "#/verdict", "#/arene", "#/compte"]) { await page.goto("http://localhost:8787/" + h); await page.waitForTimeout(500); const w = await page.evaluate(() => document.documentElement.scrollWidth); check(`Pas de débordement à 320 px (${h})`, w <= 320, `${w} px`); }
 check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
 await browser.close(); server.close();
 process.exit(checks.every(Boolean) ? 0 : 1);

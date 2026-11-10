@@ -346,3 +346,11 @@ a.more { color: var(--orange); }
 .fold summary::-webkit-details-marker { display: none; }
 .fold summary b { color: var(--text); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .fold .form { padding: 4px 12px 14px; }
+
+/* Logo */
+.brand-logo { width: 48px; height: 48px; object-fit: contain; margin: -4px -2px -4px -4px; }
+.hero-logo { display: flex; align-items: center; gap: 10px; padding-right: 10px; }
+.hero-logo > div { flex: 1; min-width: 0; }
+.hero-logo img { flex: none; width: 112px; height: 112px; object-fit: contain; margin: -8px 0; }
+.big-logo { display: block; width: 200px; height: 200px; margin: 0 auto 6px; object-fit: contain; }
+@media (max-width: 350px) { .hero-logo img { width: 84px; height: 84px; } }

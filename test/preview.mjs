@@ -43,7 +43,7 @@ const server = http.createServer(async (req, res) => {
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
   if (f === "/index.html") body = String(body).replace('<script src="app.js">', '<script>window.PRONO_API="/api"</script><script src="app.js">');
-  res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml" }[path.extname(f)] || "text/plain" });
+  res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
 

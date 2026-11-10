@@ -110,7 +110,7 @@ export default {
       if (path === "/leagues") {
         const season = currentSeason();
         const index = (await kvGet(env, "robot:index")) || {};
-        const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, pays: lg.country, coupe: !!lg.cup, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
+        const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, logo: lg.logo, pays: lg.country, coupe: !!lg.cup, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
         return json({ success: true, saison: season, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
       }
 

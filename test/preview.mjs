@@ -53,6 +53,9 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, devi
 await page.clock.setFixedTime(new Date(SIM.now)); // l'horloge du navigateur suit le monde simulé
 const errors = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => m.type() === "error" && !/404|ERR_|401|409/.test(m.text()) && errors.push(m.text()));
 await page.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
+// Logos des compétitions : remplacés ici par une pastille numérotée (pas d'accès à Internet pendant le test)
+let logosDown = false;
+await page.route(/espncdn\.com\/i\/leaguelogos/, (r) => logosDown ? r.abort() : r.fulfill({ contentType: "image/svg+xml", body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#1b3a6b"/><text x="20" y="25" font-size="12" text-anchor="middle" fill="#fff" font-family="sans-serif">${r.request().url().match(/(\d+)\.png/)[1]}</text></svg>` }));
 const shot = (name, fullPage = true) => page.screenshot({ path: `${OUT}/${name}.png`, fullPage });
 const checks = [];
 const check = (name, cond, info = "") => { checks.push(cond); console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
@@ -60,6 +63,13 @@ const check = (name, cond, info = "") => { checks.push(cond); console.log(`${con
 // Visiteur non connecté
 await page.goto("http://localhost:8787/"); await page.waitForSelector(".duel");
 await shot("1-duels-visiteur");
+check("Compétitions affichées en logos", (await page.locator(".chip-logo img").count()) >= 10 && (await page.locator(".chip-name").count()) === 0, `${await page.locator(".chip-logo img").count()} logos`);
+await page.click(".chip[data-league='39']"); await page.waitForSelector(".chip[data-league='39'][aria-pressed='true']"); await page.waitForSelector(".duel");
+check("Changer de compétition en touchant un logo", (await page.textContent(".kicker")).includes("Premier League"));
+await shot("1b-logos", false);
+logosDown = true; await page.reload(); await page.waitForSelector(".duel"); await page.waitForTimeout(400);
+check("Logo indisponible : le nom s'affiche à la place", (await page.locator(".chip-name").count()) >= 10 && (await page.locator(".chip-logo img").count()) === 0);
+logosDown = false; await page.click(".chip[data-league='61']"); await page.waitForSelector(".duel"); await page.reload(); await page.waitForSelector(".duel");
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium");
 await shot("2-arene-visiteur");
 // Il touche un prono : on lui demande de créer un compte, puis le prono est enregistré tout seul

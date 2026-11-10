@@ -42,24 +42,27 @@ export const LEAGUE_COEF = {
 const FD_DOMESTIC = ["fd:PL", "fd:PD", "fd:SA", "fd:BL1", "fd:FL1", "fd:PPL", "fd:DED"];
 const ESPN_DOMESTIC = ["espn:eng.1", "espn:esp.1", "espn:ita.1", "espn:ger.1", "espn:fra.1", "espn:por.1", "espn:ned.1", "espn:bel.1", "espn:tur.1", "espn:sco.1"];
 
+// Logo officiel de chaque compétition (images ESPN, comme les logos des clubs)
+const logo = (n) => `https://a.espncdn.com/i/leaguelogos/soccer/500/${n}.png`;
+
 // leagueId (utilisé par le site) -> source de données
 export const LEAGUES = {
-  61: { name: "Ligue 1", country: "France", src: "fd:FL1", backup: "espn:fra.1" },
-  39: { name: "Premier League", country: "Angleterre", src: "fd:PL", backup: "espn:eng.1" },
-  140: { name: "LaLiga", country: "Espagne", src: "fd:PD", backup: "espn:esp.1" },
-  135: { name: "Serie A", country: "Italie", src: "fd:SA", backup: "espn:ita.1" },
-  78: { name: "Bundesliga", country: "Allemagne", src: "fd:BL1", backup: "espn:ger.1" },
-  94: { name: "Liga Portugal", country: "Portugal", src: "fd:PPL", backup: "espn:por.1" },
-  88: { name: "Eredivisie", country: "Pays-Bas", src: "fd:DED", backup: "espn:ned.1" },
-  40: { name: "Championship", country: "Angleterre", src: "fd:ELC", backup: "espn:eng.2" },
-  71: { name: "Brasileirão", country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
-  2: { name: "Ligue des champions", country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC },
-  62: { name: "Ligue 2", country: "France", src: "espn:fra.2" },
-  3: { name: "Europa League", country: "Europe", src: "espn:uefa.europa", cup: true, domestic: ESPN_DOMESTIC },
-  848: { name: "Conference League", country: "Europe", src: "espn:uefa.europa.conf", cup: true, domestic: ESPN_DOMESTIC },
-  5: { name: "Ligue des Nations", country: "Europe", src: "espn:uefa.nations", cup: true },
-  15: { name: "Coupe du monde", country: "Monde", src: "fd:WC", cup: true, robot: false },
-  4: { name: "Euro", country: "Europe", src: "fd:EC", cup: true, robot: false },
+  61: { name: "Ligue 1", logo: logo(9), country: "France", src: "fd:FL1", backup: "espn:fra.1" },
+  39: { name: "Premier League", logo: logo(23), country: "Angleterre", src: "fd:PL", backup: "espn:eng.1" },
+  140: { name: "LaLiga", logo: logo(15), country: "Espagne", src: "fd:PD", backup: "espn:esp.1" },
+  135: { name: "Serie A", logo: logo(12), country: "Italie", src: "fd:SA", backup: "espn:ita.1" },
+  78: { name: "Bundesliga", logo: logo(10), country: "Allemagne", src: "fd:BL1", backup: "espn:ger.1" },
+  94: { name: "Liga Portugal", logo: logo(14), country: "Portugal", src: "fd:PPL", backup: "espn:por.1" },
+  88: { name: "Eredivisie", logo: logo(11), country: "Pays-Bas", src: "fd:DED", backup: "espn:ned.1" },
+  40: { name: "Championship", logo: logo(24), country: "Angleterre", src: "fd:ELC", backup: "espn:eng.2" },
+  71: { name: "Brasileirão", logo: logo(85), country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
+  2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC },
+  62: { name: "Ligue 2", logo: logo(96), country: "France", src: "espn:fra.2" },
+  3: { name: "Europa League", logo: logo(2310), country: "Europe", src: "espn:uefa.europa", cup: true, domestic: ESPN_DOMESTIC },
+  848: { name: "Conference League", logo: logo(20296), country: "Europe", src: "espn:uefa.europa.conf", cup: true, domestic: ESPN_DOMESTIC },
+  5: { name: "Ligue des Nations", logo: logo(2395), country: "Europe", src: "espn:uefa.nations", cup: true },
+  15: { name: "Coupe du monde", logo: logo(4), country: "Monde", src: "fd:WC", cup: true, robot: false },
+  4: { name: "Euro", logo: logo(74), country: "Europe", src: "fd:EC", cup: true, robot: false },
 };
 
 export function currentSeason(now = new Date()) {

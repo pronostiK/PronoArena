@@ -132,6 +132,7 @@ const okRes = V.matchs.every((m) => { const r = m.score.dom > m.score.ext ? "1" 
 check("Verdict : « vu juste / raté » exact", okRes);
 check("Verdict par compétition", (await get("/verdict?leagueId=61")).matchs.every((m) => m.leagueId === 61));
 const LG = await get("/leagues");
+check("Chaque compétition a son logo", LG.competitions.every((c) => /^https:\/\/a\.espncdn\.com\/i\/leaguelogos\/soccer\/500\/\d+\.png$/.test(c.logo)) && new Set(LG.competitions.map((c) => c.logo)).size === 16);
 check("Liste des compétitions avec matchs à venir", LG.competitions.length === 16 && LG.competitions.find((c) => c.id === 71)?.matchsAVenir > 0, "Brésil inclus");
 
 // ---- 6. Panne football-data : bascule sur ESPN ----

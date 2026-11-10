@@ -12,6 +12,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - **Verdict** : résultats vs pronostics figés avant le coup d'envoi + taux de réussite réel.
 - **Arène** : classement hebdomadaire des joueurs (lundi → dimanche, heure de Paris).
 - **Accès** : gratuit = 2 pronostics par jour ; **5 €/mois** = tous les pronostics (bloc 3, Stripe). Pas d'offre à 9 €.
+- Compétitions affichées par leur **logo** (images ESPN, adresses dans `src/config.js`), jamais par leur nom ; le nom ne s'affiche que si l'image ne charge pas.
 - Style : sombre + orange (#FF6B00), polices Archivo + Space Grotesk, visuel (logos, icônes, barres), peu de texte.
 
 ## Architecture (Cloudflare, offre gratuite — attention aux quotas)
@@ -43,7 +44,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Pas encore fait : « mot de passe oublié » (il faut un service d'envoi d'e-mails), page mentions légales / confidentialité.
 
 ## Tests
-- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 83 tests.
+- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 84 tests.
 - `test/preview.mjs <dossier>` : parcours joueur complet dans Chrome (inscription, prono, Arène, déconnexion, suppression) + captures téléphone (PLAYWRIGHT_PATH=/opt/npm-tools/node_modules/playwright).
 
 ## Fait

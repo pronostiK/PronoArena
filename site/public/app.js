@@ -187,7 +187,12 @@
     leagues.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
     return leagues;
   }
-  const chips = (list, current, extra = "") => `<div class="chips" role="group" aria-label="Compétitions">${extra}${list.map((l) => `<button type="button" class="chip" data-league="${l.id}" aria-pressed="${l.id === current}">${esc(l.nom)}</button>`).join("")}</div>`;
+  // Puces compétitions : le logo officiel ; le nom s'affiche seulement si l'image ne charge pas
+  const chip = (l, current) => {
+    const name = `<span class="chip-name">${esc(l.nom)}</span>`;
+    return `<button type="button" class="chip${l.logo ? " chip-logo" : ""}" data-league="${l.id}" aria-pressed="${l.id === current}" aria-label="${esc(l.nom)}" title="${esc(l.nom)}">${l.logo ? `<img src="${esc(l.logo)}" alt="" width="40" height="40" data-fallback="${esc(name)}">` : name}</button>`;
+  };
+  const chips = (list, current, extra = "") => `<div class="chips" role="group" aria-label="Compétitions">${extra}${list.map((l) => chip(l, current)).join("")}</div>`;
 
   // ---------- Écran Duels ----------
   async function renderDuels() {

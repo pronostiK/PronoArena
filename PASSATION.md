@@ -56,6 +56,8 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 
 ## À faire
 - **CHANGEMENT DE NOM DÉCIDÉ (10/11/2026) : le site devient « Duel Prono »** (duel avec un « e »). Raison : « PronoArena » est une marque enregistrée à l'INPI par un tiers (n° 5261442, classes 9, 41, 42) et prono-arena.fr appartient à ce tiers. « Duel Prono » et « Prono Duel » : aucun résultat à l'INPI ; duelprono.com et .fr libres le 10/11/2026.
+  - Domaines achetés chez Amen le 10/11/2026 : **duelprono.com** (adresse principale prévue) et **duelprono.fr** (redirigé vers le .com). Offre Amen : 3 comptes mail, DNS inclus. Ne pas déplacer les comptes joueurs chez Amen : ils restent dans D1.
+  - Branchement prévu : ajouter les domaines dans Cloudflare (serveurs de noms à changer chez Amen par l'utilisateur, guidé pas à pas, libellés Cloudflare en français), recopier les lignes MX d'Amen pour garder la boîte mail, site sur duelprono.com, moteur sur api.duelprono.com. Les noms internes des workers (prono-arena, prono-arena-worker) peuvent rester : les visiteurs ne les verront plus.
   - Ne rien renommer à moitié. Attendre : 1) le domaine acheté par l'utilisateur (nom exact), 2) le nouveau logo (même visuel, texte DUEL PRONO).
   - Puis tout changer d'un coup : nom dans le site (titre, en-tête, mentions, textes), fichiers du logo, noms des workers et adresse du moteur dans `site/public/app.js`, branchement du domaine sur Cloudflare, boîte e-mail, cette note.
   - Le mot « Arène » (onglet classement) peut rester : c'est le nom complet « Prono Arena » qui pose problème.

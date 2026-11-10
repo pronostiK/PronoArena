@@ -2,6 +2,9 @@
 
 Moteur de pronostics football (Cloudflare Worker).
 
+En ligne : https://prono-arena-worker.hitch-legende.workers.dev
+Publication automatique : chaque envoi sur `main` est publié par Cloudflare.
+
 - `worker.js` : moteur V6 (forces attaque/défense par équipe, Elo, Poisson + Dixon-Coles)
 - `wrangler.jsonc` : configuration Cloudflare (cache KV `PRONO_CACHE`)
 - `test/` : tests automatiques (`npm test`)

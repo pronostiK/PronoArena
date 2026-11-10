@@ -55,6 +55,11 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Bloc 2 : comptes joueurs, pronos bloqués au coup d'envoi, Arène. Codé et testé le 10/11/2026 (voir l'historique du dépôt pour savoir si c'est en ligne).
 
 ## À faire
+- **CHANGEMENT DE NOM DÉCIDÉ (10/11/2026) : le site devient « Duel Prono »** (duel avec un « e »). Raison : « PronoArena » est une marque enregistrée à l'INPI par un tiers (n° 5261442, classes 9, 41, 42) et prono-arena.fr appartient à ce tiers. « Duel Prono » et « Prono Duel » : aucun résultat à l'INPI ; duelprono.com et .fr libres le 10/11/2026.
+  - Ne rien renommer à moitié. Attendre : 1) le domaine acheté par l'utilisateur (nom exact), 2) le nouveau logo (même visuel, texte DUEL PRONO).
+  - Puis tout changer d'un coup : nom dans le site (titre, en-tête, mentions, textes), fichiers du logo, noms des workers et adresse du moteur dans `site/public/app.js`, branchement du domaine sur Cloudflare, boîte e-mail, cette note.
+  - Le mot « Arène » (onglet classement) peut rester : c'est le nom complet « Prono Arena » qui pose problème.
+- Vérifier que la Ligue des Nations apparaît une fois son chargement terminé (matchs le 12/11/2026) ; sinon lire /status.
 - Vérifier /status le lendemain (remplissage, saison précédente football-data acceptée ou non par la clé gratuite).
 - Après mise en ligne du bloc 2 : créer un vrai compte sur le site, vérifier /status (rubrique « arene ») et que l'inscription ne dépasse pas la limite de calcul de l'offre gratuite.
 - **Bloc 3** : abonnement 5 €/mois (Stripe), limite 2 pronos/jour en gratuit.

@@ -5,12 +5,21 @@ Moteur de pronostics football (Cloudflare Worker).
 En ligne : https://prono-arena-worker.hitch-legende.workers.dev
 Publication automatique : chaque envoi sur `main` est publié par Cloudflare.
 
-- `worker.js` : moteur V6 (forces attaque/défense par équipe, Elo, Poisson + Dixon-Coles)
-- `wrangler.jsonc` : configuration Cloudflare (cache KV `PRONO_CACHE`)
-- `test/` : tests automatiques (`npm test`)
-
-La clé football-data (`FOOTBALL_DATA_KEY`) est stockée dans Cloudflare, jamais dans ce dépôt.
+## Fonctionnement (V7)
+- **Robot** (toutes les 10 min) : met à jour les données des compétitions, puis recalcule les pronostics. Le site ne fait que lire le résultat : réponses instantanées.
+- **Moteur** : forces attaque/défense par équipe (domicile/extérieur, saison en cours + précédente), Elo reporté d'une saison à l'autre, Poisson + Dixon-Coles.
+- **Coupes d'Europe** : renforcées par les données des championnats nationaux, corrigées du niveau de chaque championnat.
+- **Stats** : forme (5 derniers), buts, % over 2,5, % les deux marquent, % clean sheet, classement.
+- **Face-à-face** : toutes compétitions, orientés vers l'équipe à domicile du match.
 
 ## Routes
-- `/league-predictions?leagueId=61&season=2026` : pronostics des 10 prochains matchs
-- `/match-details?matchId=…&source=…&teamDomId=…&teamExtId=…` : face-à-face
+- `/league-predictions?leagueId=61` : pronostics des 10 prochains matchs + classement
+- `/match-details?matchId=…&source=…&teamDomId=…&teamExtId=…` : stats + face-à-face
+- `/status` : état du robot et de chaque source (transparence)
+
+## Code
+- `src/config.js` réglages et compétitions · `src/model.js` moteur · `src/sources.js` données
+- `src/build.js` pronostics · `src/robot.js` robot · `src/index.js` routes
+- `test/` : `npm test` (monde simulé complet + précision)
+
+La clé football-data (`FOOTBALL_DATA_KEY`) est stockée dans Cloudflare, jamais dans ce dépôt.

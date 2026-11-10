@@ -1,14 +1,14 @@
 {
   // Configuration du moteur Prono Arena (publié automatiquement par Cloudflare à chaque mise à jour du dépôt)
   "name": "prono-arena-worker",
-  "main": "worker.js",
+  "main": "src/index.js",
   "compatibility_date": "2026-11-06",
   // Conserve les variables déjà réglées dans Cloudflare (dont FOOTBALL_DATA_KEY) : la clé n'est jamais dans le code
   "keep_vars": true,
   "kv_namespaces": [
     { "binding": "PRONO_CACHE", "id": "3aa538a17aa74a9190372cfe9799fa84" }
   ],
-  // Déclencheur automatique déjà en place dans Cloudflare (toutes les 2 heures), conservé tel quel
-  "triggers": { "crons": ["0 */2 * * *"] },
+  // Robot : passage toutes les 10 minutes (mise à jour des données et des pronostics)
+  "triggers": { "crons": ["*/10 * * * *"] },
   "observability": { "enabled": true, "logs": { "invocation_logs": true } }
 }

@@ -66,6 +66,16 @@ await shot("1-duels-visiteur");
 check("Compétitions affichées en logos", (await page.locator(".chip-logo img").count()) >= 10 && (await page.locator(".chip-name").count()) === 0, `${await page.locator(".chip-logo img").count()} logos`);
 await page.click(".chip[data-league='39']"); await page.waitForSelector(".chip[data-league='39'][aria-pressed='true']"); await page.waitForSelector(".duel");
 check("Changer de compétition en touchant un logo", (await page.textContent(".kicker")).includes("Premier League"));
+{ const total = await page.locator(".duel").count(), btns = page.locator(".day-btn");
+  const n = Number(await btns.nth(1).locator("i").textContent().then((t) => t.replace(/\D/g, "")));
+  check("Calendrier : « À venir » + un bouton par jour de match", (await btns.count()) >= 3 && Number(await btns.first().locator("b").textContent()) === total, `${await btns.count() - 1} jours, ${total} matchs`);
+  let sum = 0; for (let i = 1; i < await btns.count(); i++) sum += Number((await btns.nth(i).locator("i").textContent()).replace(/\D/g, ""));
+  check("Calendrier : aucun jour sans match, total cohérent", sum === total);
+  await btns.nth(1).click();
+  check("Toucher un jour n'affiche que ses matchs", (await page.locator(".duel").count()) === n && (await page.locator("h2.day").count()) === 1 && (await btns.nth(1).getAttribute("aria-pressed")) === "true", `${n} match(s)`);
+  await shot("1d-calendrier", false);
+  await btns.first().click();
+  check("« À venir » réaffiche tout", (await page.locator(".duel").count()) === total); }
 await shot("1b-logos", false);
 { const r = await page.locator(".rail").boundingBox(), c = await page.locator(".rail .chip").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((b) => [Math.round(b.left), Math.round(b.top)]));
   check("Compétitions en colonne à gauche (les unes sous les autres)", r.x === 0 && r.width < 80 && c.every((p, i) => i === 0 || (p[0] === c[0][0] && p[1] > c[i - 1][1])), `colonne de ${Math.round(r.width)} px`);
@@ -158,6 +168,10 @@ check("Suppression du compte : plus rien en base", d1.raw.prepare("SELECT COUNT(
 await page.setViewportSize({ width: 320, height: 640 });
 await page.evaluate(() => 0);
 for (const h of ["#/", "#/verdict", "#/arene", "#/compte"]) { await page.goto("http://localhost:8787/" + h); await page.waitForTimeout(500); const w = await page.evaluate(() => document.documentElement.scrollWidth); check(`Pas de débordement à 320 px (${h})`, w <= 320, `${w} px`); }
+await page.setViewportSize({ width: 390, height: 844 });
+await page.route("**/api/leagues", async (r) => { const j = await (await r.fetch()).json(); for (const c of j.competitions) if ([39, 62, 2].includes(c.id)) c.matchsAVenir = 0; await r.fulfill({ json: j }); });
+await page.goto("http://localhost:8787/#/verdict"); await page.reload(); await page.goto("http://localhost:8787/#/"); await page.waitForSelector(".duel");
+check("Championnats sans match retirés de la colonne", (await page.locator(".rail .chip").count()) === 11 && (await page.locator(".rail .chip[data-league='39'], .rail .chip[data-league='62'], .rail .chip[data-league='2']").count()) === 0, `${await page.locator(".rail .chip").count()} logos au lieu de 14`);
 check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
 await browser.close(); server.close();
 process.exit(checks.every(Boolean) ? 0 : 1);

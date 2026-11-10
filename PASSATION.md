@@ -14,6 +14,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - **Accès** : gratuit = 2 pronostics par jour ; **5 €/mois** = tous les pronostics (bloc 3, Stripe). Pas d'offre à 9 €.
 - Compétitions affichées par leur **logo** (images ESPN, adresses dans `src/config.js`), jamais par leur nom ; le nom ne s'affiche que si l'image ne charge pas. Elles sont rangées en **colonne à gauche** (Duels et Verdict), qui défile de haut en bas et reste visible pendant la lecture : choix de l'utilisateur pour se démarquer des autres sites.
 - Logo officiel (casque de gladiateur + Colisée, fourni par l'utilisateur, fond détouré) : `site/public/logo.webp`, `logo-small.webp`, `favicon.png`, `apple-touch-icon.png`. Affiché dans l'en-tête, le bandeau des Duels et l'écran de connexion.
+- Duels : calendrier en haut (« À venir » + un bouton par jour de match, comme PronostiK) ; la colonne n'affiche que les compétitions qui ont au moins un match à venir.
 - Style : sombre + orange (#FF6B00), polices Archivo + Space Grotesk, visuel (logos, icônes, barres), peu de texte.
 
 ## Architecture (Cloudflare, offre gratuite — attention aux quotas)

@@ -372,3 +372,14 @@ a.more { color: var(--orange); }
 .rail-main .picks { gap: 6px; }
 .rail-main .pick .pts { padding: 2px 6px; font-size: 11px; }
 @media (max-width: 350px) { .rail-main .hero-logo img { display: none; } .rail-main .team b { font-size: 13px; } .rail-main .score-big { font-size: 18px; padding: 2px 8px; } }
+
+/* Calendrier des jours de match */
+.days { display: flex; gap: 8px; overflow-x: auto; margin: 0 12px 12px 10px; padding-bottom: 2px; scrollbar-width: none; }
+.days::-webkit-scrollbar { display: none; }
+.days[hidden] { display: none; }
+.day-btn { flex: none; min-width: 62px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 8px 7px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.day-btn span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.day-btn b { font-family: var(--display); font-size: 20px; line-height: 1.1; color: var(--text); }
+.day-btn i { font-style: normal; font-size: 10.5px; white-space: nowrap; }
+.day-btn[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--bg); }
+.day-btn[aria-pressed="true"] b { color: var(--bg); }

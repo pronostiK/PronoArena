@@ -205,14 +205,19 @@
   }
 
   // ---------- Écran Duels ----------
+  let duelDay = "all"; // jour choisi dans le calendrier
   async function renderDuels() {
     setTab("duels");
-    const list = await getLeagues();
+    // Colonne de gauche : seulement les compétitions qui ont au moins un match à venir
+    const every = await getLeagues();
+    const withMatch = every.filter((l) => l.matchsAVenir > 0);
+    const list = withMatch.length ? withMatch : every;
     let current = Number(store.get("league")) || 61;
     if (!list.some((l) => l.id === current)) current = list[0]?.id || 61;
     const league = list.find((l) => l.id === current) || { nom: "Ligue 1" };
 
     view.innerHTML = rail(list, current, "", `
+      <div class="days" id="days" role="group" aria-label="Choisir un jour" hidden></div>
       <section class="hero hero-logo">
         <div>
           <p class="kicker">${esc(league.nom)}${league.pays ? " · " + esc(league.pays) : ""}</p>
@@ -223,7 +228,7 @@
       </section>
       <div class="list" id="duels"><div class="skel"></div><div class="skel"></div></div>`);
 
-    bindRail((id) => { store.set("league", id); renderDuels(); });
+    bindRail((id) => { store.set("league", id); duelDay = "all"; renderDuels(); });
 
     const box = document.getElementById("duels");
     try {
@@ -235,8 +240,24 @@
           : `<div class="empty">Aucun duel programmé pour le moment dans cette compétition.</div>`;
         return;
       }
-      let lastDay = "";
-      box.innerHTML = preds.map((p) => {
+      // Calendrier : un bouton par jour de match (affiché dès qu'il y a au moins deux jours)
+      const keyOf = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
+      const counts = new Map();
+      for (const p of preds) counts.set(keyOf(p.date), (counts.get(keyOf(p.date)) || 0) + 1);
+      if (!counts.has(duelDay)) duelDay = "all";
+      const today = keyOf(Date.now());
+      const strip = document.getElementById("days");
+      const paint = () => {
+        strip.hidden = counts.size < 2;
+        strip.innerHTML = `<button type="button" class="day-btn" data-day="all" aria-pressed="${duelDay === "all"}"><span>À venir</span><b>${preds.length}</b><i>matchs</i></button>` + [...counts].map(([k, n]) => {
+          const d = new Date(k + "T12:00:00");
+          return `<button type="button" class="day-btn" data-day="${k}" aria-pressed="${duelDay === k}" aria-label="${esc(fmtDay(d))}, ${n} match${n > 1 ? "s" : ""}"><span>${k === today ? "Auj." : esc(d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", ""))}</span><b>${d.getDate()}</b><i>${n} match${n > 1 ? "s" : ""}</i></button>`;
+        }).join("");
+        strip.querySelectorAll(".day-btn").forEach((b) => (b.onclick = () => { duelDay = b.dataset.day; paint(); }));
+        const on = strip.querySelector('[aria-pressed="true"]');
+        if (on) strip.scrollLeft = on.offsetLeft - strip.clientWidth / 2 + on.offsetWidth / 2;
+        let lastDay = "";
+        box.innerHTML = preds.filter((p) => duelDay === "all" || keyOf(p.date) === duelDay).map((p) => {
         const day = fmtDay(p.date);
         const head = day !== lastDay ? `<h2 class="day">${esc(day)}</h2>` : "";
         lastDay = day;
@@ -259,7 +280,9 @@
             <a class="more" href="${href}">Voir l'analyse complète
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
           </article>`;
-      }).join("");
+        }).join("");
+      };
+      paint();
     } catch (e) {
       box.innerHTML = `<div class="error" role="alert">Cette compétition est momentanément indisponible.<br><small>Choisis-en une autre ci-dessus, ou réessaie dans quelques minutes.</small><br><button type="button" id="retry">Réessayer</button></div>`;
       document.getElementById("retry").onclick = () => { cache.clear(); renderDuels(); };

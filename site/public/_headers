@@ -5,9 +5,11 @@
   Cache-Control: public, max-age=300
 /app.css
   Cache-Control: public, max-age=300
+/
+  Cache-Control: no-cache
+/duelprono-logo.webp
+  Cache-Control: public, max-age=86400
+/duelprono-logo-small.webp
+  Cache-Control: public, max-age=86400
 /index.html
-  Cache-Control: public, max-age=60
-/logo.webp
-  Cache-Control: public, max-age=86400
-/logo-small.webp
-  Cache-Control: public, max-age=86400
+  Cache-Control: no-cache

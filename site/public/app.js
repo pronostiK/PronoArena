@@ -224,7 +224,7 @@
           <h1>Choisis ton camp.</h1>
           <p>Touche ton prono : plus c'est risqué, plus ça rapporte de points.</p>
         </div>
-        <img src="logo.webp" alt="" width="112" height="112">
+        <img src="duelprono-logo.webp" alt="" width="112" height="112">
       </section>
       <div class="list" id="duels"><div class="skel"></div><div class="skel"></div></div>`);
 
@@ -674,7 +674,7 @@
     if (!session.token) {
       const mode = store.get("compteMode") === "login" ? "login" : "signup";
       view.innerHTML = `
-        <img class="big-logo" src="logo.webp" alt="Duel Prono" width="200" height="200">
+        <img class="big-logo" src="duelprono-logo.webp" alt="Duel Prono" width="200" height="200">
         <section class="hero">
           <p class="kicker">Gratuit · pour le fun</p>
           <h1>Entre dans l'arène.</h1>

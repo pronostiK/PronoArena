@@ -32,6 +32,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Forces attaque/défense dom/ext, Elo reporté d'une saison à l'autre, Poisson + Dixon-Coles.
 - Coupes d'Europe renforcées par les championnats nationaux (coefficients de niveau).
 - Sources : football-data (principale) ; ESPN (UN JOUR PAR APPEL, toute période = erreur 400, budget 40 appels par passage) (Ligue 2, Europa, Conference, Nations, championnats pour les coupes, **secours automatique** si football-data en panne > 12 h).
+- ESPN refuse parfois les appels (erreur 403, vue le 10/11/2026 à 21 h 10 UTC, juste après un changement de l'en-tête « User-Agent » ; cause non prouvée : en-tête ou rythme trop élevé). Parades en place : en-tête de navigateur neutre (`ESPN_HEADERS`), budget 30 appels par passage, **pause automatique** après un refus (30 min, 1 h, 2 h, 4 h max, visible dans /status rubrique « espn »), premier chargement des compétitions affichées avant les sources de secours. Remplissage complet simulé : ~42 h.
 - Compositions : onze du dernier match (ESPN, méthode PronostiK), correspondance d'identifiants football-data ↔ ESPN par matchs communs.
 - Routes : /league-predictions, /match-details, /verdict, /leagues, /status.
 
@@ -47,7 +48,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Pas encore fait : « mot de passe oublié » (il faut un service d'envoi d'e-mails), page mentions légales / confidentialité.
 
 ## Tests
-- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 94 tests.
+- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 97 tests.
 - `test/preview.mjs <dossier>` : parcours joueur complet dans Chrome (inscription, prono, Arène, déconnexion, suppression) + captures téléphone (PLAYWRIGHT_PATH=/opt/npm-tools/node_modules/playwright).
 
 ## Fait

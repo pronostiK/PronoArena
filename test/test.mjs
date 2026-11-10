@@ -23,7 +23,7 @@ console.log("\n— Robot —");
 const total = robotSources(2026).length;
 let runs = 0, status;
 const writes0 = env.stats.writes;
-for (; runs < 200; runs++) {
+for (; runs < 500; runs++) {
   await tick(env, NOW + runs * 600000);
   status = await get("/status");
   if (status.progression === `${total}/${total} sources à jour`) break;
@@ -144,6 +144,20 @@ check("Panne > 12 h : Ligue 1 bascule sur la source de secours", L1s.modele.sour
 SIM.fdDown.delete("FL1");
 for (let i = 0; i < 6 * 4; i++) { await tick(env, T); T += 600000; }
 check("Retour de football-data : source principale rétablie", (await get("/league-predictions?leagueId=61")).modele.source === "principale");
+
+// ---- 6 bis. ESPN refuse les appels (403) : pause, puis reprise ----
+console.log("\n— ESPN bloqué —");
+{
+  SIM.espnBlocked = true; calls.espnRefus = 0;
+  for (let i = 0; i < 6 * 6; i++) { await tick(env, T); T += 600000; } // 6 h de blocage
+  const st = await get("/status");
+  check("ESPN refuse (403) : le robot se met en pause au lieu d'insister", st.espn.etat === "en pause" && calls.espnRefus <= 6, `${calls.espnRefus} appels refusés en 6 h (36 passages), pause jusqu'à ${st.espn.jusqua}`);
+  check("Pendant la pause, les championnats football-data continuent", (await get("/league-predictions?leagueId=61")).count > 0 && st.sources.find((s) => s.source === "fd:FL1@2026").etat === "à jour");
+  SIM.espnBlocked = false;
+  for (let i = 0; i < 6 * 6; i++) { await tick(env, T); T += 600000; } // ESPN répond de nouveau
+  const st2 = await get("/status");
+  check("ESPN répond de nouveau : reprise automatique", st2.espn.etat === "ok" && st2.sources.filter((s) => s.source.startsWith("espn:")).every((s) => !s.etat.startsWith("erreur")), st2.progression);
+}
 
 // ---- 7. Sécurité de fonctionnement ----
 console.log("\n— Robustesse —");

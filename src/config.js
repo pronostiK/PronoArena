@@ -72,10 +72,11 @@ export function currentSeason(now = new Date()) {
 // Toutes les sources que le robot entretient, avec la saison et la priorité
 export function robotSources(season) {
   const list = new Map();
-  const add = (src, s, kind) => { const k = `${src}@${s}`; if (!list.has(k)) list.set(k, { src, season: s, kind }); };
+  // main : source principale d'une compétition affichée (chargée avant les sources de secours)
+  const add = (src, s, kind, main = false) => { const k = `${src}@${s}`; if (!list.has(k)) list.set(k, { src, season: s, kind, main }); else if (main) list.get(k).main = true; };
   for (const lg of Object.values(LEAGUES)) {
     if (lg.robot === false) continue;
-    add(lg.src, season, "live");
+    add(lg.src, season, "live", true);
     if (!lg.cup) add(lg.src, season - 1, "history"); // saison précédente : Elo + forces + face-à-face
     if (lg.backup) add(lg.backup, season, "live");   // source de secours (ESPN) si football-data tombe
   }

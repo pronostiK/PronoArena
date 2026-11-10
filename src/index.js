@@ -13,7 +13,7 @@
 //   GET  /arena[?semaine=precedente]                classement hebdomadaire
 // ============================================================
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
-import { kvGet, refreshSource, srcKey, resetEspnBudget } from "./sources.js";
+import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./sources.js";
 import { predsKey, getH2H, buildVerdict } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
@@ -123,7 +123,7 @@ export default {
         const tests = { jour: f(d), "7 jours": `${minus(7)}-${f(d)}`, "30 jours": `${minus(30)}-${f(d)}`, "90 jours": `${minus(90)}-${f(d)}` };
         const out = {};
         for (const [k, range] of Object.entries(tests)) for (const lim of ["", "&limit=500", "&limit=1000"]) {
-          const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${range}${lim}`, { headers: { "User-Agent": "Mozilla/5.0 (Duel Prono)" } });
+          const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${range}${lim}`, { headers: ESPN_HEADERS });
           out[`${k}${lim}`] = r.ok ? `${r.status} · ${((await r.json()).events || []).length} matchs` : `${r.status}`;
         }
         return json({ success: true, competition: lg, resultats: out });

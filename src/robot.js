@@ -29,7 +29,9 @@ export function pickDue(sources, index, now) {
       const overdue = (now - (meta?.updatedAt || 0)) - targetDelay(meta, s.kind, now);
       // priorité : match en cours ou imminent > saison en cours > historique
       const urgent = s.kind === "live" && targetDelay(meta, s.kind, now) === 15 * MIN;
-      return { ...s, k, urgent, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) };
+      // Premier chargement : les compétitions affichées passent avant les sources de secours
+      const first = s.main && !meta?.error && (!meta || meta.complete === false);
+      return { ...s, k, urgent, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) + (first && overdue >= 0 ? 1e12 : 0) };
     })
     .filter((s) => s.overdue >= 0)
     .sort((a, b) => b.overdue - a.overdue);
@@ -60,13 +62,23 @@ export async function runRobot(env, now = Date.now()) {
   const index = (await kvGet(env, INDEX_KEY)) || {};
   const report = [];
   resetEspnBudget();
+  // ESPN refuse parfois les appels (403 / 429) : on arrête tout de suite et on attend avant de réessayer,
+  // de plus en plus longtemps (30 min, 1 h, 2 h, 4 h), au lieu d'insister et d'aggraver le blocage.
+  let espnPaused = (index._espnPause?.until || 0) > now;
+  if (espnPaused) report.push(`ESPN en pause jusqu'à ${new Date(index._espnPause.until).toISOString()} (${index._espnPause.raison})`);
+  const pauseEspn = (raison) => {
+    const n = (index._espnPause?.n || 0) + 1;
+    index._espnPause = { n, until: now + Math.min(30 * MIN * 2 ** (n - 1), 4 * HOUR), raison };
+    espnPaused = true;
+  };
+  const refused = (e) => /\[(403|429)\]/.test(String(e?.message || e));
   // Compositions : une équipe par passage (prend une des 3 places du passage s'il y a du travail)
   let compoDone = false;
   // Pas de composition tant que des données manquent (remplissage) ou qu'un match se joue
   const pending = pickDue(robotSources(season), index, now);
   const busy = pending.some((x) => x.urgent || !index[x.k] || index[x.k].complete === false);
-  if (!busy) try { const r = await refreshOneCompo(env, index, season, now); if (r) { report.push(r); compoDone = true; } }
-  catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; }
+  if (!busy && !espnPaused) try { const r = await refreshOneCompo(env, index, season, now); if (r) { report.push(r); compoDone = true; } }
+  catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; if (refused(e)) pauseEspn("compositions refusées"); }
   // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
   const all = pickDue(robotSources(season), index, now);
   const nUrgent = all.filter((x) => x.urgent).length;
@@ -76,6 +88,7 @@ export async function runRobot(env, now = Date.now()) {
   for (const s of due) {
     // ESPN : un appel par jour ; on garde la mise à jour dans le budget du passage
     let extra = ESPN_EXTRA_DAYS;
+    if (s.src.startsWith("espn:") && espnPaused) continue; // on ne touche pas à ESPN pendant la pause
     if (s.src.startsWith("espn:")) {
       const left = espnBudgetLeft() - (s.kind === "live" ? ESPN_RECENT_DAYS : 0);
       if (left < (s.kind === "live" ? 0 : 1)) { report.push(`${s.k}: reporté (budget du passage)`); continue; }
@@ -98,12 +111,14 @@ export async function runRobot(env, now = Date.now()) {
         const missing = s.kind === "live" && !(await env.PRONO_CACHE.get(predsKey(id, season)));
         if ((changed && data.complete !== false) || missing) toRebuild.add(id);
       }
+      if (s.src.startsWith("espn:")) delete index._espnPause; // ESPN répond de nouveau
       report.push(`${s.k}: ok (${data.finished.length} terminés, ${data.upcoming.length} à venir${changed ? ", mis à jour" : ""})`);
     } catch (e) {
       index[s.k] = { ...(index[s.k] || {}), updatedAt: now, error: String(e.message || e) };
       // Source en panne : on revérifie les compétitions concernées (bascule sur le secours si besoin)
       if (s.kind === "live") for (const id of leaguesUsing(s.src)) toRebuild.add(id);
       report.push(`${s.k}: ERREUR ${e.message}`);
+      if (s.src.startsWith("espn:") && refused(e)) pauseEspn(String(e.message));
     }
   }
 
@@ -139,5 +154,6 @@ export async function robotStatus(env, now = Date.now()) {
     };
   });
   const total = sources.length, ok = sources.filter((s) => s.etat === "à jour").length;
-  return { saison: season, progression: `${ok}/${total} sources à jour`, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  const pause = (index._espnPause?.until || 0) > now ? { jusqua: new Date(index._espnPause.until).toISOString(), raison: index._espnPause.raison, refusConsecutifs: index._espnPause.n } : null;
+  return { saison: season, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

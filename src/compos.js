@@ -4,14 +4,14 @@
 //   { idmap: { fdId: espnId }, idmapAt, teams: { espnId: { ev, d, opp, side, score, f, xi:[[n°, nom, poste]] } } }
 // ============================================================
 import { LEAGUES } from "./config.js";
-import { kvGet, srcKey } from "./sources.js";
+import { kvGet, srcKey, ESPN_HEADERS } from "./sources.js";
 
 export const COMPOS_KEY = "compos:all";
 const DAY = 86400000;
 
 // Onze de départ d'un match ESPN (format identique à PronostiK)
 export async function espnLineup(slug, id) {
-  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${id}`);
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${id}`, { headers: ESPN_HEADERS });
   if (!res.ok) throw new Error(`ESPN compo [${res.status}]`);
   const j = await res.json();
   const out = {};

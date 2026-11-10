@@ -56,14 +56,16 @@ const ymd = (ts) => new Date(ts).toISOString().slice(0, 10).replace(/-/g, "");
 
 // ESPN n'accepte qu'un seul jour par appel (vérifié en réel : toute période renvoie 400).
 // Budget par passage du robot : Cloudflare gratuit limite à 50 appels sortants par exécution.
-export const ESPN_BUDGET = 40;
+export const ESPN_BUDGET = 30; // rythme prudent : ESPN refuse (403) quand on l'appelle trop vite
+// En-tête de navigateur neutre (sans nom de site) pour les appels ESPN
+export const ESPN_HEADERS = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", Accept: "application/json" };
 const espnBudget = { left: ESPN_BUDGET };
 export const resetEspnBudget = () => { espnBudget.left = ESPN_BUDGET; };
 export const espnBudgetLeft = () => espnBudget.left;
 
 async function espnDay(league, ts) {
   if (espnBudget.left-- <= 0) throw new Error("ESPN : budget d'appels du passage épuisé");
-  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${ymd(ts)}`, { headers: { "User-Agent": "Mozilla/5.0 (Duel Prono)" } });
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${ymd(ts)}`, { headers: ESPN_HEADERS });
   if (!res.ok) throw new Error(`ESPN ${league} [${res.status}]`);
   const data = await res.json();
   const teams = {}, finished = [], upcoming = [];

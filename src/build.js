@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Construction des pronostics, face-à-face et Verdict
+// DUEL PRONO — Construction des pronostics, face-à-face et Verdict
 // à partir des données préparées par le robot (aucun appel API ici)
 // ============================================================
 import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";

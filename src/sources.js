@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Sources de données (football-data.org et ESPN)
+// DUEL PRONO — Sources de données (football-data.org et ESPN)
 // Format compact stocké dans le cache KV, clé "src:<source>@<saison>" :
 // { src, season, updatedAt, complete, cursor,
 //   teams: { id: [nom, logo] },
@@ -63,7 +63,7 @@ export const espnBudgetLeft = () => espnBudget.left;
 
 async function espnDay(league, ts) {
   if (espnBudget.left-- <= 0) throw new Error("ESPN : budget d'appels du passage épuisé");
-  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${ymd(ts)}`, { headers: { "User-Agent": "Mozilla/5.0 (Prono Arena)" } });
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${ymd(ts)}`, { headers: { "User-Agent": "Mozilla/5.0 (Duel Prono)" } });
   if (!res.ok) throw new Error(`ESPN ${league} [${res.status}]`);
   const data = await res.json();
   const teams = {}, finished = [], upcoming = [];

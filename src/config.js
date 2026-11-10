@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Configuration centrale
+// DUEL PRONO — Configuration centrale
 // ============================================================
 
 export const VERSION = "v7";

@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Site (Duels, Analyse, Verdict, Arène, Compte)
+// DUEL PRONO — Site (Duels, Analyse, Verdict, Arène, Compte)
 // Toutes les données viennent du moteur. Seuls le compte et les pronostics du joueur sont envoyés.
 // ============================================================
 (() => {
@@ -674,7 +674,7 @@
     if (!session.token) {
       const mode = store.get("compteMode") === "login" ? "login" : "signup";
       view.innerHTML = `
-        <img class="big-logo" src="logo.webp" alt="Prono Arena" width="200" height="200">
+        <img class="big-logo" src="logo.webp" alt="Duel Prono" width="200" height="200">
         <section class="hero">
           <p class="kicker">Gratuit · pour le fun</p>
           <h1>Entre dans l'arène.</h1>

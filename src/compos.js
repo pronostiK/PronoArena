@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Compositions (onze aligné au dernier match, source ESPN)
+// DUEL PRONO — Compositions (onze aligné au dernier match, source ESPN)
 // Méthode reprise de PronostiK. Stockage : une seule clé "compos:all"
 //   { idmap: { fdId: espnId }, idmapAt, teams: { espnId: { ev, d, opp, side, score, f, xi:[[n°, nom, poste]] } } }
 // ============================================================

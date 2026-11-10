@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Robot autonome (déclenché toutes les 10 minutes)
+// DUEL PRONO — Robot autonome (déclenché toutes les 10 minutes)
 // À chaque passage : met à jour les sources les plus "en retard",
 // puis recalcule les pronostics des compétitions concernées.
 // ============================================================

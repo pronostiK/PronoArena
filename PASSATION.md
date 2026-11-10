@@ -1,4 +1,4 @@
-# Prono Arena — note de passation (à lire en début de nouvelle conversation)
+# Duel Prono (ex-« Prono Arena ») — note de passation (à lire en début de nouvelle conversation)
 
 ## Utilisateur
 - Francophone, novice en informatique : réponses courtes et claires, pas de jargon, guider pas à pas.
@@ -13,7 +13,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - **Arène** : classement hebdomadaire des joueurs (lundi → dimanche, heure de Paris).
 - **Accès** : gratuit = 2 pronostics par jour ; **5 €/mois** = tous les pronostics (bloc 3, Stripe). Pas d'offre à 9 €.
 - Compétitions affichées par leur **logo** (images ESPN, adresses dans `src/config.js`), jamais par leur nom ; le nom ne s'affiche que si l'image ne charge pas. Elles sont rangées en **colonne à gauche** (Duels et Verdict), qui défile de haut en bas et reste visible pendant la lecture : choix de l'utilisateur pour se démarquer des autres sites.
-- Logo officiel (casque de gladiateur + Colisée, fourni par l'utilisateur, fond détouré) : `site/public/logo.webp`, `logo-small.webp`, `favicon.png`, `apple-touch-icon.png`. Affiché dans l'en-tête, le bandeau des Duels et l'écran de connexion.
+- Logo officiel Duel Prono (casque de gladiateur + Colisée, fourni par l'utilisateur) : `site/public/logo.webp`, `logo-small.webp`, `favicon.png`, `apple-touch-icon.png`. Affiché dans l'en-tête, le bandeau des Duels et l'écran de connexion.
 - Duels : calendrier en haut (« À venir » + un bouton par jour de match, comme PronostiK) ; la colonne n'affiche que les compétitions qui ont au moins un match à venir.
 - Style : sombre + orange (#FF6B00), polices Archivo + Space Grotesk, visuel (logos, icônes, barres), peu de texte.
 
@@ -55,7 +55,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Bloc 2 : comptes joueurs, pronos bloqués au coup d'envoi, Arène. Codé et testé le 10/11/2026 (voir l'historique du dépôt pour savoir si c'est en ligne).
 
 ## À faire
-- **CHANGEMENT DE NOM DÉCIDÉ (10/11/2026) : le site devient « Duel Prono »** (duel avec un « e »). Raison : « PronoArena » est une marque enregistrée à l'INPI par un tiers (n° 5261442, classes 9, 41, 42) et prono-arena.fr appartient à ce tiers. « Duel Prono » et « Prono Duel » : aucun résultat à l'INPI ; duelprono.com et .fr libres le 10/11/2026.
+- **NOM : « Duel Prono » depuis le 10/11/2026. FAIT sur le site** (titre, en-tête, mentions, logo, icônes ; original du logo dans `assets/logo-duel-prono-original.png`, utilisé tel quel car son fond est propre). **RESTE : brancher les domaines.** Ne plus jamais écrire « Prono Arena » dans ce que voit le visiteur. Historique : (duel avec un « e »). Raison : « PronoArena » est une marque enregistrée à l'INPI par un tiers (n° 5261442, classes 9, 41, 42) et prono-arena.fr appartient à ce tiers. « Duel Prono » et « Prono Duel » : aucun résultat à l'INPI ; duelprono.com et .fr libres le 10/11/2026.
   - Domaines achetés chez Amen le 10/11/2026 : **duelprono.com** (adresse principale prévue) et **duelprono.fr** (redirigé vers le .com). Offre Amen : 3 comptes mail, DNS inclus. Ne pas déplacer les comptes joueurs chez Amen : ils restent dans D1.
   - Branchement prévu : ajouter les domaines dans Cloudflare (serveurs de noms à changer chez Amen par l'utilisateur, guidé pas à pas, libellés Cloudflare en français), recopier les lignes MX d'Amen pour garder la boîte mail, site sur duelprono.com, moteur sur api.duelprono.com. Les noms internes des workers (prono-arena, prono-arena-worker) peuvent rester : les visiteurs ne les verront plus.
   - Ne rien renommer à moitié. Attendre : 1) le domaine acheté par l'utilisateur (nom exact), 2) le nouveau logo (même visuel, texte DUEL PRONO).

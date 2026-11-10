@@ -1,4 +1,4 @@
-// Tests Prono Arena V7 : robot, pronostics, stats, coupes, face-à-face, état, limites Cloudflare gratuites
+// Tests Duel Prono V7 : robot, pronostics, stats, coupes, face-à-face, état, limites Cloudflare gratuites
 import { NOW, SIM, STRENGTH, installFetch, makeKV, makeD1, calls, DB as WORLD } from "./sim.mjs";
 import worker from "../src/index.js";
 import { runRobot } from "../src/robot.js";

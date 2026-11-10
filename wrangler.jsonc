@@ -1,5 +1,5 @@
 {
-  // Configuration du moteur Prono Arena (publié automatiquement par Cloudflare à chaque mise à jour du dépôt)
+  // Configuration du moteur Duel Prono (nom interne inchangé : prono-arena-worker) (publié automatiquement par Cloudflare à chaque mise à jour du dépôt)
   "name": "prono-arena-worker",
   "main": "src/index.js",
   "compatibility_date": "2026-11-06",

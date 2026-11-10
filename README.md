@@ -1,4 +1,4 @@
-# Prono Arena
+# Duel Prono
 
 Moteur de pronostics football (Cloudflare Worker).
 

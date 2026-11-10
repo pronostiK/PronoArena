@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Moteur de calcul
+// DUEL PRONO — Moteur de calcul
 // Matchs terminés au format : { id, homeId, awayId, hg, ag, ts, season }
 // ============================================================
 import { MODEL, VERSION } from "./config.js";

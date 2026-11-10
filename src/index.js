@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Point d'entrée du Worker (V7)
+// DUEL PRONO — Point d'entrée du Worker (V7)
 //   /league-predictions?leagueId=61[&season=2026]  pronostics + stats + classement
 //   /match-details?matchId=..&source=..&teamDomId=..&teamExtId=..[&leagueId=..]
 //   /verdict?leagueId=61|all[&days=30]             résultats vs pronostics figés + taux de réussite
@@ -123,7 +123,7 @@ export default {
         const tests = { jour: f(d), "7 jours": `${minus(7)}-${f(d)}`, "30 jours": `${minus(30)}-${f(d)}`, "90 jours": `${minus(90)}-${f(d)}` };
         const out = {};
         for (const [k, range] of Object.entries(tests)) for (const lim of ["", "&limit=500", "&limit=1000"]) {
-          const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${range}${lim}`, { headers: { "User-Agent": "Mozilla/5.0 (Prono Arena)" } });
+          const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${range}${lim}`, { headers: { "User-Agent": "Mozilla/5.0 (Duel Prono)" } });
           out[`${k}${lim}`] = r.ok ? `${r.status} · ${((await r.json()).events || []).length} matchs` : `${r.status}`;
         }
         return json({ success: true, competition: lg, resultats: out });

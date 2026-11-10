@@ -1,5 +1,5 @@
 // ============================================================
-// PRONO ARENA — Arène (bloc 2)
+// DUEL PRONO — Arène (bloc 2)
 // Comptes joueurs, pronostics des joueurs bloqués au coup d'envoi,
 // notation par le robot, classement hebdomadaire. Base D1 (binding DB).
 // ============================================================
@@ -11,7 +11,7 @@ const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const SESSION_MS = 90 * DAY;
 const PBKDF2_TOURS = 100000; // maximum accepté par Cloudflare Workers
 const LIVE = /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/;
-const RESERVED = ["admin", "administrateur", "moteur", "pronoarena", "prono_arena", "prono-arena", "moderateur", "support"];
+const RESERVED = ["admin", "administrateur", "moteur", "duelprono", "duel_prono", "duel-prono", "pronoarena", "prono_arena", "prono-arena", "moderateur", "support"];
 
 export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }

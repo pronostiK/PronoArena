@@ -59,6 +59,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
   - Ne rien renommer à moitié. Attendre : 1) le domaine acheté par l'utilisateur (nom exact), 2) le nouveau logo (même visuel, texte DUEL PRONO).
   - Puis tout changer d'un coup : nom dans le site (titre, en-tête, mentions, textes), fichiers du logo, noms des workers et adresse du moteur dans `site/public/app.js`, branchement du domaine sur Cloudflare, boîte e-mail, cette note.
   - Le mot « Arène » (onglet classement) peut rester : c'est le nom complet « Prono Arena » qui pose problème.
+- Icône de la future application Android (APK) fournie par l'utilisateur : `assets/icone-application.png` (casque + ballon, sans texte, 1254 px, coins arrondis). À utiliser telle quelle pour l'APK ; peut aussi servir d'icône du site au moment du changement de nom.
 - Vérifier que la Ligue des Nations apparaît une fois son chargement terminé (matchs le 12/11/2026) ; sinon lire /status.
 - Vérifier /status le lendemain (remplissage, saison précédente football-data acceptée ou non par la clé gratuite).
 - Après mise en ligne du bloc 2 : créer un vrai compte sur le site, vérifier /status (rubrique « arene ») et que l'inscription ne dépasse pas la limite de calcul de l'offre gratuite.

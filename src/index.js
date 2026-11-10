@@ -12,6 +12,17 @@ import { predsKey, getH2H, buildVerdict } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 
 const CORS = { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" };
+// Mémoire partagée entre visiteurs (5 min) pour les calculs lourds : économise le quota de lectures
+const memo = new Map();
+async function remember(key, ttl, fn) {
+  const hit = memo.get(key);
+  if (hit && Date.now() - hit.t < ttl) return hit.v;
+  const v = await fn();
+  memo.set(key, { t: Date.now(), v });
+  if (memo.size > 100) memo.delete(memo.keys().next().value);
+  return v;
+}
+
 const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o), { status, headers: { ...CORS, ...extra } });
 
 async function getPredictions(env, leagueId, season) {
@@ -60,12 +71,12 @@ export default {
         const leagueId = parseInt(q("leagueId")) || null;
         const [pred, h] = await Promise.all([
           findPrediction(env, matchId, leagueId, season),
-          getH2H(env, { source, teamDomId: q("teamDomId"), teamExtId: q("teamExtId") }, season),
+          getH2H(env, { source, teamDomId: q("teamDomId"), teamExtId: q("teamExtId"), leagueId }, season),
         ]);
         const stats = pred
           ? { domicile: { ...(pred.teams.domicile.stats || {}), classement: pred.teams.domicile.classement }, exterieur: { ...(pred.teams.exterieur.stats || {}), classement: pred.teams.exterieur.classement } }
           : { domicile: {}, exterieur: {} };
-        return json({ success: true, stats, h2h: h.h2h });
+        return json({ success: true, stats, h2h: h.h2h }, 200, { "Cache-Control": "public, max-age=1800" });
       }
 
       if (path === "/verdict") {
@@ -73,7 +84,8 @@ export default {
         const lid = q("leagueId") || "all";
         const ids = lid === "all" ? Object.keys(LEAGUES).map(Number) : [parseInt(lid)];
         const days = Math.min(120, Math.max(1, parseInt(q("days")) || 30));
-        return json(await buildVerdict(env, ids, season, Date.now(), days), 200, { "Cache-Control": "public, max-age=300" });
+        const v = await remember(`verdict:${lid}:${season}:${days}`, 300000, () => buildVerdict(env, ids, season, Date.now(), days));
+        return json(v, 200, { "Cache-Control": "public, max-age=300" });
       }
 
       if (path === "/leagues") {

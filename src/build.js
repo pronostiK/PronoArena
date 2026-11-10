@@ -173,13 +173,16 @@ function orient(list, teamDomId, teamExtId, names) {
     });
 }
 
-export async function getH2H(env, { source, teamDomId, teamExtId }, season) {
+export async function getH2H(env, { source, teamDomId, teamExtId, leagueId }, season) {
   const provider = source === "football-data" ? "fd:" : "espn:";
   const keys = new Set();
-  for (const lg of Object.values(LEAGUES)) {
-    for (const s of [lg.src, lg.backup, ...(lg.domestic || [])].filter((x) => x && x.startsWith(provider))) {
-      keys.add(srcKey(s, season)); keys.add(srcKey(s, season - 1));
+  // Économie de quota : seulement les données de la compétition du match (2 à 11 lectures au lieu de 40)
+  const leagues = leagueId && LEAGUES[leagueId] ? [LEAGUES[leagueId]] : Object.values(LEAGUES);
+  for (const lg of leagues) {
+    for (const s of [lg.src, lg.backup].filter((x) => x && x.startsWith(provider))) {
+      keys.add(srcKey(s, season)); if (!lg.cup) keys.add(srcKey(s, season - 1));
     }
+    for (const d of (lg.domestic || []).filter((x) => x.startsWith(provider))) keys.add(srcKey(d, season));
   }
   const srcs = (await Promise.all([...keys].map((k) => kvGet(env, k)))).filter(Boolean);
   const all = [], names = {};

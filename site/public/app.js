@@ -129,7 +129,9 @@
       const data = await api(`/league-predictions?leagueId=${current}`);
       const preds = (data.predictions || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
       if (!preds.length) {
-        box.innerHTML = `<div class="empty">Aucun duel programmé pour le moment dans cette compétition.</div>`;
+        box.innerHTML = data.enPreparation
+          ? `<div class="empty">Les données de cette compétition sont en cours de préparation. Reviens dans quelques minutes.</div>`
+          : `<div class="empty">Aucun duel programmé pour le moment dans cette compétition.</div>`;
         return;
       }
       let lastDay = "";
@@ -159,7 +161,8 @@
           </a>`;
       }).join("");
     } catch (e) {
-      errorBox(e.message, renderDuels);
+      box.innerHTML = `<div class="error" role="alert">Cette compétition est momentanément indisponible.<br><small>Choisis-en une autre ci-dessus, ou réessaie dans quelques minutes.</small><br><button type="button" id="retry">Réessayer</button></div>`;
+      document.getElementById("retry").onclick = () => { cache.clear(); renderDuels(); };
     }
   }
 

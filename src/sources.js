@@ -50,14 +50,30 @@ export async function fetchFootballData(code, season, key) {
   return { teams, finished, upcoming, complete: true, cursor: null };
 }
 
-// ---------- ESPN (fenêtres de 90 jours pour rester léger) ----------
+// ---------- ESPN (fenêtres de 30 jours pour rester léger) ----------
 const ESPN_SKIP = ["STATUS_CANCELED", "STATUS_POSTPONED", "STATUS_ABANDONED", "STATUS_FORFEIT"];
 const ymd = (ts) => new Date(ts).toISOString().slice(0, 10).replace(/-/g, "");
 
+// ESPN refuse parfois les longues périodes (erreur 400) : on découpe automatiquement
+// (période complète → semaines → jours, comme PronostiK), dans la limite de 40 appels.
+const espnBudget = { left: 40 };
+export const resetEspnBudget = () => { espnBudget.left = 40; };
+async function espnFetch(league, from, to) {
+  if (espnBudget.left-- <= 0) throw new Error("ESPN : trop d'appels pour ce passage");
+  const range = ymd(from) === ymd(to) ? ymd(from) : `${ymd(from)}-${ymd(to)}`;
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${range}&limit=500`, { headers: { "User-Agent": "Mozilla/5.0 (Prono Arena)" } });
+  if (res.ok) return (await res.json()).events || [];
+  if (res.status === 400 && to - from >= DAY) {
+    const step = to - from > 7 * DAY ? 7 * DAY : DAY;
+    const out = [];
+    for (let t = from; t <= to; t += step) out.push(...(await espnFetch(league, t, Math.min(to, t + step - DAY))));
+    return out;
+  }
+  throw new Error(`ESPN ${league} [${res.status}]`);
+}
+
 async function espnWindow(league, from, to) {
-  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${ymd(from)}-${ymd(to)}&limit=1000`);
-  if (!res.ok) throw new Error(`ESPN ${league} [${res.status}]`);
-  const data = await res.json();
+  const data = { events: await espnFetch(league, from, to) };
   const teams = {}, finished = [], upcoming = [];
   for (const ev of data.events || []) {
     const c = ev.competitions?.[0];
@@ -77,7 +93,7 @@ async function espnWindow(league, from, to) {
   return { teams, finished, upcoming };
 }
 
-// Remplit la saison par morceaux de 90 jours, puis se contente de mettre à jour les derniers jours
+// Remplit la saison par morceaux de 30 jours, puis se contente de mettre à jour les derniers jours
 export async function fetchEspnIncremental(league, season, prev, now = Date.now()) {
   const start = Date.UTC(season, 6, 1);
   const end = Math.min(now, Date.UTC(season + 1, 6, 1));
@@ -86,22 +102,31 @@ export async function fetchEspnIncremental(league, season, prev, now = Date.now(
   let teams = { ...state.teams }, upcoming = state.upcoming, cursor = state.cursor ?? start, complete = state.complete;
 
   let from, to;
-  if (!complete) { from = cursor; to = Math.min(cursor + 90 * DAY, end); }
-  else { from = Math.max(start, end - 4 * DAY); to = end; }
+  if (!complete) { from = cursor; to = Math.min(cursor + 30 * DAY, end); }
+  else { from = Math.max(start, end - 3 * DAY); to = Math.min(end + DAY, Date.UTC(season + 1, 6, 1)); }
   const w = await espnWindow(league, from, to);
   for (const f of w.finished) fin.set(String(f[0]), f);
   Object.assign(teams, w.teams);
   if (!complete) { cursor = to; complete = to >= end - 3 * DAY; }
 
-  // Matchs à venir (saison en cours seulement)
+  let upAt = state.upAt || 0;
   if (end === now) {
-    const up = await espnWindow(league, now - DAY, now + 21 * DAY);
-    Object.assign(teams, up.teams);
-    for (const f of up.finished) fin.set(String(f[0]), f);
-    upcoming = up.upcoming;
+    if (now - upAt > 3 * 3600000) {
+      // Calendrier complet des 3 prochaines semaines : toutes les 3 h seulement
+      const up = await espnWindow(league, now - DAY, now + 21 * DAY);
+      Object.assign(teams, up.teams);
+      for (const f of up.finished) fin.set(String(f[0]), f);
+      upcoming = up.upcoming; upAt = now;
+    } else {
+      // Mise à jour éclair : statuts (en direct) et matchs terminés des derniers jours
+      const done = new Set(w.finished.map((f) => String(f[0])));
+      const map = new Map((upcoming || []).filter((u) => !done.has(String(u[0]))).map((u) => [String(u[0]), u]));
+      for (const u of w.upcoming) map.set(String(u[0]), u);
+      upcoming = [...map.values()];
+    }
   } else upcoming = [];
 
-  return { teams, finished: [...fin.values()].sort((a, b) => a[5] - b[5]), upcoming, complete, cursor };
+  return { teams, finished: [...fin.values()].sort((a, b) => a[5] - b[5]), upcoming, complete, cursor, upAt };
 }
 
 export async function fetchSource(src, season, env, prev, now = Date.now()) {

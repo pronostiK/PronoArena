@@ -7,7 +7,7 @@
 //   /status                                         état du robot (transparence)
 // ============================================================
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
-import { kvGet, refreshSource, srcKey } from "./sources.js";
+import { kvGet, refreshSource, srcKey, resetEspnBudget } from "./sources.js";
 import { predsKey, getH2H, buildVerdict } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
@@ -31,7 +31,13 @@ async function getPredictions(env, leagueId, season) {
   if (cached) return cached;
   // Pas encore préparé par le robot : calcul immédiat (une seule fois, ensuite c'est le robot qui entretient)
   const lg = LEAGUES[leagueId];
-  if (!(await kvGet(env, srcKey(lg.src, season)))) await refreshSource(env, lg.src, season);
+  resetEspnBudget();
+  try {
+    if (!(await kvGet(env, srcKey(lg.src, season)))) await refreshSource(env, lg.src, season);
+  } catch (e) {
+    // Source indisponible pour l'instant : réponse vide propre, le robot réessaiera
+    return JSON.stringify({ success: true, leagueId, season, count: 0, predictions: [], enPreparation: true, detail: e.message });
+  }
   await saveLeague(env, leagueId, season, Date.now());
   return env.PRONO_CACHE.get(predsKey(leagueId, season));
 }
@@ -96,6 +102,20 @@ export default {
         const index = (await kvGet(env, "robot:index")) || {};
         const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, pays: lg.country, coupe: !!lg.cup, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
         return json({ success: true, saison: season, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
+      }
+
+      if (path === "/diag/espn") {
+        // Diagnostic : ce qu'ESPN accepte réellement (formats de période)
+        const lg = q("league") || "uefa.europa";
+        const d = new Date(), f = (x) => x.toISOString().slice(0, 10).replace(/-/g, "");
+        const minus = (n) => f(new Date(d.getTime() - n * 86400000));
+        const tests = { jour: f(d), "7 jours": `${minus(7)}-${f(d)}`, "30 jours": `${minus(30)}-${f(d)}`, "90 jours": `${minus(90)}-${f(d)}` };
+        const out = {};
+        for (const [k, range] of Object.entries(tests)) for (const lim of ["", "&limit=500", "&limit=1000"]) {
+          const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${range}${lim}`, { headers: { "User-Agent": "Mozilla/5.0 (Prono Arena)" } });
+          out[`${k}${lim}`] = r.ok ? `${r.status} · ${((await r.json()).events || []).length} matchs` : `${r.status}`;
+        }
+        return json({ success: true, competition: lg, resultats: out });
       }
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)) });

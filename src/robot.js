@@ -4,7 +4,7 @@
 // puis recalcule les pronostics des compétitions concernées.
 // ============================================================
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
-import { kvGet, refreshSource } from "./sources.js";
+import { kvGet, refreshSource, resetEspnBudget } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 
@@ -58,6 +58,7 @@ export async function runRobot(env, now = Date.now()) {
   const season = currentSeason(new Date(now));
   const index = (await kvGet(env, INDEX_KEY)) || {};
   const report = [];
+  resetEspnBudget();
   // Compositions : une équipe par passage (prend une des 3 places du passage s'il y a du travail)
   let compoDone = false;
   // Pas de composition tant que des données manquent (remplissage) ou qu'un match se joue
@@ -65,7 +66,10 @@ export async function runRobot(env, now = Date.now()) {
   const busy = pending.some((x) => x.urgent || !index[x.k] || index[x.k].complete === false);
   if (!busy) try { const r = await refreshOneCompo(env, index, season, now); if (r) { report.push(r); compoDone = true; } }
   catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; }
-  const due = pickDue(robotSources(season), index, now).slice(0, MAX_PER_RUN - (compoDone ? 1 : 0));
+  // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
+  const all = pickDue(robotSources(season), index, now);
+  const nUrgent = all.filter((x) => x.urgent).length;
+  const due = all.slice(0, Math.max(MAX_PER_RUN - (compoDone ? 1 : 0), Math.min(6, nUrgent)));
   const toRebuild = new Set();
 
   for (const s of due) {

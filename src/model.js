@@ -3,6 +3,7 @@
 // Matchs terminés au format : { id, homeId, awayId, hg, ag, ts, season }
 // ============================================================
 import { MODEL, VERSION } from "./config.js";
+import { nationsPredict, fitLambdas } from "./nations.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const r1 = (x) => Math.round(x * 10) / 10;
@@ -217,6 +218,17 @@ export function calculate_match_prediction(match, ctx) {
     }
   }
 
+  // Sélections nationales : classement Elo sur tous les matchs internationaux (voir nations.js)
+  let eloD = model.elo[match.teamDomId] ?? MODEL.eloStart, eloE = model.elo[match.teamExtId] ?? MODEL.eloStart;
+  if (ctx.national) {
+    const N = ctx.national, nd = N.nameOf(match.teamDomId), ne = N.nameOf(match.teamExtId);
+    if (N.ratings.has(nd) && N.ratings.has(ne)) {
+      eloD = N.ratings.get(nd); eloE = N.ratings.get(ne);
+      [lD, lE] = fitLambdas(nationsPredict(eloD, eloE, N.params));
+      playedD = playedE = 40; sourceCalc = "elo-selections";
+    } else for (const n of [nd, ne]) if (!N.ratings.has(n)) N.unknown.add(n); // signalé dans /status
+  }
+
   const lambdaDom = r3(clamp(lD, MODEL.lambdaMin, MODEL.lambdaMax));
   const lambdaExt = r3(clamp(lE, MODEL.lambdaMin, MODEL.lambdaMax));
   const poisson = calculate_poisson_match(lambdaDom, lambdaExt);
@@ -230,8 +242,8 @@ export function calculate_match_prediction(match, ctx) {
     status: match.status || "SCHEDULED",
     source: match.source,
     teams: {
-      domicile: { id: match.teamDomId, name: match.domName, logo: match.domLogo, elo: Math.round(model.elo[match.teamDomId] ?? MODEL.eloStart) },
-      exterieur: { id: match.teamExtId, name: match.extName, logo: match.extLogo, elo: Math.round(model.elo[match.teamExtId] ?? MODEL.eloStart) },
+      domicile: { id: match.teamDomId, name: match.domName, logo: match.domLogo, elo: Math.round(eloD) },
+      exterieur: { id: match.teamExtId, name: match.extName, logo: match.extLogo, elo: Math.round(eloE) },
     },
     lambdas: { lambdaDom, lambdaExt },
     poisson,

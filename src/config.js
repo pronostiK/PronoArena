@@ -60,9 +60,9 @@ export const LEAGUES = {
   62: { name: "Ligue 2", logo: logo(96), country: "France", src: "espn:fra.2" },
   3: { name: "Europa League", logo: logo(2310), country: "Europe", src: "espn:uefa.europa", cup: true, domestic: ESPN_DOMESTIC },
   848: { name: "Conference League", logo: logo(20296), country: "Europe", src: "espn:uefa.europa.conf", cup: true, domestic: ESPN_DOMESTIC },
-  5: { name: "Ligue des Nations", logo: logo(2395), country: "Europe", src: "espn:uefa.nations", cup: true },
-  15: { name: "Coupe du monde", logo: logo(4), country: "Monde", src: "fd:WC", cup: true, robot: false },
-  4: { name: "Euro", logo: logo(74), country: "Europe", src: "fd:EC", cup: true, robot: false },
+  5: { name: "Ligue des Nations", logo: logo(2395), country: "Europe", src: "espn:uefa.nations", cup: true, national: true },
+  15: { name: "Coupe du monde", logo: logo(4), country: "Monde", src: "fd:WC", cup: true, national: true, robot: false },
+  4: { name: "Euro", logo: logo(74), country: "Europe", src: "fd:EC", cup: true, national: true, robot: false },
 };
 
 export function currentSeason(now = new Date()) {

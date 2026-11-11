@@ -8,6 +8,8 @@ import { kvGet, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, 
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcoming, allKey } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
+import { refreshSeed } from "./nations.js";
+import { LEAGUES } from "./config.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const MAX_PER_RUN = 3;
@@ -42,6 +44,7 @@ export async function saveLeague(env, leagueId, season, now, index = null) {
   if (!result) return false;
   if (index) {
     index[`count:${leagueId}`] = result.count; // pour /leagues, sans relire les pronostics
+    if (result.modele?.selections) index[`selections:${leagueId}`] = result.modele.selections; // pour /status
     index[`teams:${leagueId}`] = [...new Set(result.predictions.flatMap((p) => [p.teams.domicile.id, p.teams.exterieur.id]))]; // pour les compositions
   }
   const key = predsKey(leagueId, season);
@@ -122,6 +125,13 @@ export async function runRobot(env, now = Date.now()) {
     }
   }
 
+  // Sélections : notes Elo rafraîchies une fois par semaine (tous les matchs internationaux)
+  if (now - (index._nationsAt || 0) > 7 * DAY) {
+    index._nationsAt = now;
+    try { if (await refreshSeed(env)) { report.push("sélections : notes Elo mises à jour"); for (const [id, lg] of Object.entries(LEAGUES)) if (lg.national && lg.robot !== false) toRebuild.add(Number(id)); } }
+    catch (e) { report.push(`sélections : ERREUR ${e.message}`); }
+  }
+
   for (const id of toRebuild) {
     try { if (await saveLeague(env, id, season, now, index)) report.push(`pronostics ${id}: recalculés`); }
     catch (e) { report.push(`pronostics ${id}: ERREUR ${e.message}`); }
@@ -164,5 +174,6 @@ export async function robotStatus(env, now = Date.now()) {
   });
   const total = sources.length, ok = sources.filter((s) => s.etat === "à jour").length;
   const pause = (index._espnPause?.until || 0) > now ? { jusqua: new Date(index._espnPause.until).toISOString(), raison: index._espnPause.raison, refusConsecutifs: index._espnPause.n } : null;
-  return { saison: season, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  const selections = Object.fromEntries(Object.entries(index).filter(([k]) => k.startsWith("selections:")).map(([k, v]) => [LEAGUES[k.slice(11)]?.name || k, v]));
+  return { saison: season, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

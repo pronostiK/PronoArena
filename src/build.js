@@ -5,6 +5,7 @@
 import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
 import { buildModel, computeTeamRatings, teamStats, leagueTable, calculate_match_prediction } from "./model.js";
+import { nationalContext } from "./nations.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 export const predsKey = (leagueId, season) => `preds:${leagueId}@${season}`;
@@ -119,9 +120,10 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const rank = new Map(table.map((r) => [r.id, r]));
   const names = { ...extraNames, ...(prev?.teams || {}), ...cur.teams };
 
+  const national = lg.national ? await nationalContext(env, finishedCur, cur.teams) : null;
   const upcoming = toUpcoming(cur, provider).sort((a, b) => a.ts - b.ts).slice(0, 10);
   const predictions = upcoming.map((m) => {
-    const p = calculate_match_prediction(m, { model, leagueId, season, domestic });
+    const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national });
     for (const side of ["domicile", "exterieur"]) {
       const team = p.teams[side];
       const st = teamStats(team.id, formePool);
@@ -146,6 +148,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       donneesMisesAJour: new Date(cur.updatedAt).toISOString(),
       source: secours ? "secours" : "principale",
       ...(domesticStatus.length ? { championnatsUtilises: domesticStatus } : {}),
+      ...(national ? { selections: { notesAu: national.asOf, inconnues: [...national.unknown] } } : {}),
     },
     classement: table.map((r) => ({ rang: r.rang, id: r.id, nom: names[r.id]?.[0] || r.id, logo: names[r.id]?.[1] || null, joues: r.j, v: r.v, n: r.n, d: r.d, bp: r.bp, bc: r.bc, diff: r.diff, points: r.pts })),
     predictions,

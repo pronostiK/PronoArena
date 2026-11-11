@@ -5,6 +5,8 @@ import { runRobot } from "../src/robot.js";
 import { robotSources } from "../src/config.js";
 import { calculate_poisson_match } from "../src/model.js";
 import { weekOf, pointsFor } from "../src/arena.js";
+import { nationName, nationsPredict, fitLambdas, applyResults } from "../src/nations.js";
+import SEED from "../src/nations-seed.js";
 
 let ok = 0, ko = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : ko++; console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
@@ -88,6 +90,25 @@ for (const [id, nom] of [[2, "Ligue des champions"], [3, "Europa League"], [848,
 }
 const NL = await get("/league-predictions?leagueId=5");
 check("Ligue des Nations : pronostics présents", NL.count > 0);
+
+// ---- 3 bis. Sélections nationales : classement Elo sur tous les matchs internationaux ----
+console.log("\n— Sélections —");
+{
+  const R = SEED.ratings, P = SEED.params;
+  const tb = nationsPredict(R[nationName("Türkiye")], R.Belgium, P), [lD, lE] = fitLambdas(tb), g = calculate_poisson_match(lD, lE);
+  check("Turquie – Belgique (à domicile) : la Turquie garde de vraies chances", g.proba1 > 0.18 && g.proba1 < 0.33 && g.proba2 > g.proba1 && g.probaN > 0.2, `Turquie ${Math.round(100 * g.proba1)} % · nul ${Math.round(100 * g.probaN)} % · Belgique ${Math.round(100 * g.proba2)} %`);
+  check("Marchés cohérents avec les probabilités Elo", Math.abs(g.proba1 - g.proba2 - (tb.p[0] - tb.p[2])) < 0.01 && Math.abs(lD + lE - tb.lam[0] - tb.lam[1]) < 1e-6);
+  const eq = calculate_poisson_match(...fitLambdas(nationsPredict(1800, 1800, P))), big = calculate_poisson_match(...fitLambdas(nationsPredict(R.Spain, R["San Marino"], P)));
+  check("Deux sélections de même niveau : léger avantage à celle qui reçoit", eq.proba1 > eq.proba2 && eq.proba1 < 0.5, `${Math.round(100 * eq.proba1)} % / ${Math.round(100 * eq.proba2)} %`);
+  check("Très gros écart : très net favori", big.proba1 > 0.93, `Espagne – Saint-Marin : ${Math.round(100 * big.proba1)} %`);
+  check("Noms des fournisseurs reconnus (Türkiye, Czechia, Bosnia-Herzegovina…)", ["Türkiye", "Czechia", "Bosnia-Herzegovina", "Republic of Ireland", "North Macedonia", "Northern Ireland", "Faroe Islands", "Kosovo", "Wales", "Scotland"].every((n) => nationName(n) in R));
+  const up = applyResults(SEED, [{ ts: 1, home: "Turkey", away: "Belgium", hg: 2, ag: 0 }]);
+  check("Une victoire fait monter la note, une défaite la fait baisser", up.get("Turkey") > R.Turkey + 10 && up.get("Belgium") < R.Belgium - 10 && Math.abs(up.get("Turkey") + up.get("Belgium") - R.Turkey - R.Belgium) < 1e-6);
+  check("Ligue des Nations calculée par l'Elo des sélections, aucune inconnue", NL.predictions.every((x) => x.donnees.calcul === "elo-selections" && x.donnees.fiabilite === "élevée") && NL.modele.selections.inconnues.length === 0 && NL.predictions.some((x) => x.teams.domicile.elo > 1900), `notes au ${NL.modele.selections.notesAu}`);
+  const worst = Math.min(...NL.predictions.filter((x) => x.teams.domicile.name !== "San Marino" && x.teams.exterieur.name !== "San Marino").flatMap((x) => [x.poisson.proba1, x.poisson.proba2]));
+  check("Aucune grande sélection donnée perdante d'avance (moins de 5 %)", worst > 0.05, `plus faible probabilité de victoire : ${Math.round(100 * worst)} %`);
+  check("/status indique l'état des sélections", (await get("/status")).selections["Ligue des Nations"]?.inconnues.length === 0);
+}
 
 // ---- 4. Face-à-face et détails ----
 console.log("\n— Détails de match —");

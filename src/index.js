@@ -3,7 +3,8 @@
 //   /league-predictions?leagueId=61[&season=2026]  pronostics + stats + classement
 //   /match-details?matchId=..&source=..&teamDomId=..&teamExtId=..[&leagueId=..]
 //   /verdict?leagueId=61|all[&days=30]             résultats vs pronostics figés + taux de réussite
-//   /leagues                                        compétitions disponibles et nombre de matchs à venir
+//   /leagues                                        compétitions disponibles, nombre de matchs à venir, date du prochain
+//   /upcoming                                       tous les matchs des 7 prochains jours (page d'accueil)
 //   /status                                         état du robot (transparence)
 // Arène (bloc 2, base D1) :
 //   POST /account/signup | /account/login | /account/logout | /account/delete
@@ -14,7 +15,7 @@
 // ============================================================
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
 import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./sources.js";
-import { predsKey, getH2H, buildVerdict } from "./build.js";
+import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
 import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
@@ -82,6 +83,13 @@ export default {
         return new Response(body, { headers: { ...CORS, "Cache-Control": "public, max-age=120" } });
       }
 
+      if (path === "/upcoming") {
+        // Préparé par le robot ; calculé à la volée seulement s'il n'existe pas encore
+        const season = currentSeason();
+        const body = (env.PRONO_CACHE && (await env.PRONO_CACHE.get(allKey(season)))) || JSON.stringify(await remember(`upcoming:${season}`, 60000, () => buildUpcoming(env, season)));
+        return new Response(body, { headers: { ...CORS, "Cache-Control": "public, max-age=120" } });
+      }
+
       if (path === "/match-details") {
         const matchId = q("matchId"), source = q("source");
         if (!matchId || !source) throw new Error("Paramètres manquants");
@@ -111,7 +119,7 @@ export default {
       if (path === "/leagues") {
         const season = currentSeason();
         const index = (await kvGet(env, "robot:index")) || {};
-        const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, logo: lg.logo, pays: lg.country, coupe: !!lg.cup, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
+        const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, logo: lg.logo, pays: lg.country, coupe: !!lg.cup, prochain: index[`next:${id}`] ? new Date(index[`next:${id}`]).toISOString() : null, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
         return json({ success: true, saison: season, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
       }
 

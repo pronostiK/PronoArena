@@ -132,6 +132,10 @@ const okRes = V.matchs.every((m) => { const r = m.score.dom > m.score.ext ? "1" 
 check("Verdict : « vu juste / raté » exact", okRes);
 check("Verdict par compétition", (await get("/verdict?leagueId=61")).matchs.every((m) => m.leagueId === 61));
 const LG = await get("/leagues");
+const UP = await get("/upcoming");
+check("Accueil : tous les matchs des 7 prochains jours, de plusieurs compétitions, triés par date", UP.success && UP.matchs.length >= 20 && new Set(UP.matchs.map((m) => m.leagueId)).size >= 6 && UP.matchs.every((m, i) => (i === 0 || Date.parse(m.date) >= Date.parse(UP.matchs[i - 1].date)) && Date.parse(m.date) < SIM.now + 7 * 86400000 && Math.abs(m.poisson.proba1 + m.poisson.probaN + m.poisson.proba2 - 1) < 0.01 && m.teams.domicile.name), `${UP.matchs.length} matchs, ${new Set(UP.matchs.map((m) => m.leagueId)).size} compétitions`);
+{ const l1 = (await get("/league-predictions?leagueId=61")).predictions, next = LG.competitions.find((c) => c.id === 61).prochain;
+  check("Compétitions : date du prochain match fournie pour le tri", LG.competitions.filter((c) => c.matchsAVenir > 0).every((c) => c.prochain) && Date.parse(next) === Math.min(...l1.map((p) => Date.parse(p.date)).filter((t) => t > SIM.now - 3 * 3600000)), next); }
 check("Chaque compétition a son logo", LG.competitions.every((c) => /^https:\/\/a\.espncdn\.com\/i\/leaguelogos\/soccer\/500\/\d+\.png$/.test(c.logo)) && new Set(LG.competitions.map((c) => c.logo)).size === 16);
 check("Liste des compétitions avec matchs à venir", LG.competitions.length === 16 && LG.competitions.find((c) => c.id === 71)?.matchsAVenir > 0, "Brésil inclus");
 

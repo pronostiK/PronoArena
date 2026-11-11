@@ -4,8 +4,8 @@
 // puis recalcule les pronostics des compétitions concernées.
 // ============================================================
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
-import { kvGet, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS } from "./sources.js";
-import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY } from "./build.js";
+import { kvGet, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS } from "./sources.js";
+import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcoming, allKey } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
 
@@ -126,6 +126,14 @@ export async function runRobot(env, now = Date.now()) {
     try { if (await saveLeague(env, id, season, now, index)) report.push(`pronostics ${id}: recalculés`); }
     catch (e) { report.push(`pronostics ${id}: ERREUR ${e.message}`); }
   }
+
+  // Page d'accueil : tous les matchs à venir + date du prochain match de chaque compétition
+  try {
+    const up = await buildUpcoming(env, season, now);
+    for (const k of Object.keys(index)) if (k.startsWith("next:")) delete index[k];
+    for (const [id, ts] of Object.entries(up.prochains)) index[`next:${id}`] = ts;
+    await kvPutIfChanged(env, allKey(season), up);
+  } catch (e) { report.push(`accueil : ERREUR ${e.message}`); }
 
   // Arène : les pronostics des joueurs sont notés dès que le score final est connu
   try {

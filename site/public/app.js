@@ -184,7 +184,9 @@
     } catch {
       leagues = [{ id: 61, nom: "Ligue 1", pays: "France" }];
     }
-    leagues.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
+    // La compétition dont le prochain match est le plus proche passe en tête
+    const when = (l) => (l.prochain ? Date.parse(l.prochain) : Infinity);
+    leagues.sort((a, b) => when(a) - when(b) || ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
     return leagues;
   }
   // Puces compétitions : le logo officiel ; le nom s'affiche seulement si l'image ne charge pas
@@ -206,20 +208,26 @@
 
   // ---------- Écran Duels ----------
   let duelDay = "all"; // jour choisi dans le calendrier
-  async function renderDuels() {
+  // which = "all" : page d'accueil, tous les matchs à venir. Sinon l'identifiant d'une compétition.
+  let lastDuels = null;
+  async function renderDuels(which = "all") {
     setTab("duels");
     // Colonne de gauche : seulement les compétitions qui ont au moins un match à venir
     const every = await getLeagues();
     const withMatch = every.filter((l) => l.matchsAVenir > 0);
     const list = withMatch.length ? withMatch : every;
-    let current = Number(store.get("league")) || 61;
-    if (!list.some((l) => l.id === current)) current = list[0]?.id || 61;
-    const league = list.find((l) => l.id === current) || { nom: "Ligue 1" };
+    const isAll = which === "all" || !every.some((l) => l.id === Number(which));
+    const current = isAll ? "all" : Number(which);
+    const league = isAll ? null : every.find((l) => l.id === current);
+    if (!isAll) store.set("league", current);
+    if (lastDuels !== current) { duelDay = "all"; lastDuels = current; }
+    const byId = new Map(every.map((l) => [l.id, l]));
+    const allChip = `<button type="button" class="chip chip-all" data-league="all" aria-pressed="${isAll}" aria-label="Toutes les compétitions">Tout</button>`;
 
-    view.innerHTML = rail(list, current, "", `
+    view.innerHTML = rail(list, current, allChip, `
       <section class="hero hero-logo">
         <div>
-          <p class="kicker">${esc(league.nom)}${league.pays ? " · " + esc(league.pays) : ""}</p>
+          <p class="kicker">${isAll ? "Toutes les compétitions" : esc(league.nom) + (league.pays ? " · " + esc(league.pays) : "")}</p>
           <h1>Choisis ton camp.</h1>
           <p>Les probabilités de chaque match. Touche ton camp pour jouer dans l'Arène.</p>
         </div>
@@ -228,14 +236,15 @@
       <div class="days" id="days" role="group" aria-label="Choisir un jour" hidden></div>
       <div class="list" id="duels"><div class="skel"></div><div class="skel"></div></div>`);
 
-    bindRail((id) => { store.set("league", id); duelDay = "all"; renderDuels(); });
+    bindRail((id) => { const h = id === "all" ? "#/" : "#/ligue/" + id; if (location.hash === h || (h === "#/" && !location.hash)) renderDuels(id); else location.hash = h; });
 
     const box = document.getElementById("duels");
     try {
-      const [data, mine] = await Promise.all([api(`/league-predictions?leagueId=${current}`), getMe()]);
-      const preds = (data.predictions || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+      const [data, mine] = await Promise.all([api(isAll ? "/upcoming" : `/league-predictions?leagueId=${current}`), getMe()]);
+      const preds = (isAll ? data.matchs : data.predictions || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
       if (!preds.length) {
-        box.innerHTML = data.enPreparation
+        box.innerHTML = isAll ? `<div class="empty">Aucun duel dans les 7 prochains jours. Choisis une compétition pour voir ses prochains matchs.</div>`
+          : data.enPreparation
           ? `<div class="empty">Les données de cette compétition sont en cours de préparation. Reviens dans quelques minutes.</div>`
           : `<div class="empty">Aucun duel programmé pour le moment dans cette compétition.</div>`;
         return;
@@ -263,18 +272,21 @@
         lastDay = day;
         const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
         const status = isLive(p.status) ? `<span class="live">En direct</span>` : `<span class="tag">Fiabilité ${esc(p.donnees?.fiabilite || "—")}</span>`;
-        const href = `#/duel/${current}/${encodeURIComponent(p.matchId)}`;
+        const lid = isAll ? p.leagueId : current, lg = byId.get(lid);
+        // Page d'accueil : chaque carte rappelle sa compétition
+        const comp = isAll && lg ? `<span class="lg-tag">${lg.logo ? `<img src="${esc(lg.logo)}" alt="" width="18" height="18" data-fallback="">` : ""}${esc(lg.nom)}</span>` : "";
+        const href = `#/duel/${lid}/${encodeURIComponent(p.matchId)}`;
         return `${head}
           <article class="duel">
             <a class="duel-link" href="${href}" aria-label="${esc(D.name)} contre ${esc(E.name)}, voir l'analyse">
-              <div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${status}</div>
+              <div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${comp}${status}</div>
               <div class="teams">
                 <div class="team">${crest(D)}<b>${esc(D.name)}</b></div>
                 <span class="vs">VS</span>
                 <div class="team">${crest(E)}<b>${esc(E.name)}</b></div>
               </div>
             </a>
-            ${picks(p, current, myPick(mine, current, p.matchId))}
+            ${picks(p, lid, myPick(mine, lid, p.matchId))}
             <div class="bar" aria-hidden="true"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
             <div class="badges">${badges(p)}</div>
             <a class="more" href="${href}">Voir l'analyse complète
@@ -284,8 +296,8 @@
       };
       paint();
     } catch (e) {
-      box.innerHTML = `<div class="error" role="alert">Cette compétition est momentanément indisponible.<br><small>Choisis-en une autre ci-dessus, ou réessaie dans quelques minutes.</small><br><button type="button" id="retry">Réessayer</button></div>`;
-      document.getElementById("retry").onclick = () => { cache.clear(); renderDuels(); };
+      box.innerHTML = `<div class="error" role="alert">Cette compétition est momentanément indisponible.<br><small>Choisis-en une autre, ou réessaie dans quelques minutes.</small><br><button type="button" id="retry">Réessayer</button></div>`;
+      document.getElementById("retry").onclick = () => { cache.clear(); renderDuels(current); };
     }
   }
 
@@ -447,7 +459,7 @@
 
     const tabsDef = [["m", "Probas"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
     view.innerHTML = `
-      <div class="back"><a href="#/" aria-label="Retour aux duels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
+      <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels de ${esc(lg?.nom || "la compétition")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
       <section class="match-hero">
         <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b><small>${D.classement ? `${D.classement.rang}${D.classement.rang === 1 ? "er" : "e"} · ` : ""}Elo ${esc(D.elo)}</small></div>
         <div class="kickoff">${isLive(p.status) ? `<span class="live">En direct</span>` : `<strong>${esc(fmtTime(p.date))}</strong>`}<span>${esc(fmtDay(p.date))}</span></div>
@@ -656,7 +668,7 @@
   async function afterAuth(d) {
     setSession(d.token, d.pseudo);
     const pick = pendingPick; pendingPick = null;
-    if (pick) { location.hash = "#/"; await sendPick(pick); cache.clear(); route(); }
+    if (pick) { location.hash = "#/ligue/" + pick.leagueId; await sendPick(pick); cache.clear(); route(); }
     else { toast(`Bienvenue dans l'arène, ${d.pseudo} !`); location.hash = "#/arene"; }
   }
   function bindForm(id, path, fields, done) {
@@ -955,7 +967,8 @@
     if (parts[0] === "arene") { arenaWeek = "courante"; return renderArena(); }
     if (parts[0] === "compte") return renderCompte();
     if (DOCS[parts[0]]) return renderDoc(parts[0]);
-    return renderDuels();
+    if (parts[0] === "ligue" && parts[1]) return renderDuels(parts[1]);
+    return renderDuels("all");
   }
   window.addEventListener("hashchange", route);
   paintAccount();

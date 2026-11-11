@@ -493,3 +493,9 @@ a.more { color: var(--orange); }
   .doc { padding: 28px 32px; }
   .doc p, .doc li { font-size: 15px; }
 }
+
+/* Page d'accueil « Tout » : rappel de la compétition sur chaque carte */
+.lg-tag { display: inline-flex; align-items: center; gap: 6px; margin: 0 auto 0 10px; min-width: 0; font-size: 12px; font-weight: 700; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-tag img { flex: none; width: 18px; height: 18px; padding: 2px; border-radius: 5px; background: #f4f1ec; object-fit: contain; }
+.duel-top .tag, .duel-top .live { flex: none; }
+.rail .chip-all[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--bg); }

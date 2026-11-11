@@ -10,6 +10,34 @@ const r3 = (x) => Math.round(x * 1000) / 1000;
 export const predsKey = (leagueId, season) => `preds:${leagueId}@${season}`;
 export const archiveKey = (leagueId, season) => `archive:${leagueId}@${season}`;
 export const INDEX_KEY = "robot:index";
+export const allKey = (season) => `preds:all@${season}`;
+
+// ---------- Tous les matchs à venir, toutes compétitions confondues (page d'accueil) ----------
+// Version allégée de chaque pronostic (ce qu'il faut pour une carte), sur les 7 prochains jours,
+// + la date du prochain match de chaque compétition (pour trier la liste des compétitions).
+const UPCOMING_DAYS = 7, UPCOMING_MAX = 200;
+export async function buildUpcoming(env, season, now = Date.now()) {
+  const matchs = [], prochains = {};
+  for (const id of Object.keys(LEAGUES).map(Number)) {
+    const raw = await env.PRONO_CACHE.get(predsKey(id, season));
+    if (!raw) continue;
+    const preds = (JSON.parse(raw).predictions || []).filter((p) => Date.parse(p.date) > now - 3 * 3600000);
+    if (!preds.length) continue;
+    prochains[id] = Math.min(...preds.map((p) => Date.parse(p.date)));
+    for (const p of preds) {
+      if (Date.parse(p.date) > now + UPCOMING_DAYS * 86400000) continue;
+      const P = p.poisson, t = (x) => ({ id: x.id, name: x.name, logo: x.logo });
+      matchs.push({
+        matchId: p.matchId, leagueId: id, date: p.date, status: p.status, source: p.source,
+        teams: { domicile: t(p.teams.domicile), exterieur: t(p.teams.exterieur) },
+        poisson: { proba1: P.proba1, probaN: P.probaN, proba2: P.proba2, probaOver25: P.probaOver25, probaUnder25: P.probaUnder25, probaBTTS: P.probaBTTS },
+        donnees: { fiabilite: p.donnees?.fiabilite },
+      });
+    }
+  }
+  matchs.sort((a, b) => Date.parse(a.date) - Date.parse(b.date) || a.leagueId - b.leagueId);
+  return { success: true, season, jours: UPCOMING_DAYS, count: Math.min(matchs.length, UPCOMING_MAX), prochains, matchs: matchs.slice(0, UPCOMING_MAX) };
+}
 
 // Source principale, ou ESPN si football-data est en panne depuis plus de 12 h
 export function chooseSource(lg, season, index, now) {

@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp6">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp6">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp7">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp7">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -63,9 +63,17 @@ const check = (name, cond, info = "") => { checks.push(cond); console.log(`${con
 // Visiteur non connecté
 await page.goto("http://localhost:8787/"); await page.waitForSelector(".duel");
 await shot("1-duels-visiteur");
+{ const api = await (await page.request.get("http://localhost:8787/api/leagues")).json();
+  const want = api.competitions.filter((c) => c.matchsAVenir > 0).sort((a, b) => Date.parse(a.prochain) - Date.parse(b.prochain)).map((c) => c.id);
+  const got = await page.locator(".rail .chip-logo").evaluateAll((els) => els.map((e) => Number(e.dataset.league)));
+  check("Accueil : onglet « Tout » en tête, sélectionné par défaut", (await page.locator(".rail .chip").first().textContent()) === "Tout" && (await page.locator(".rail .chip-all").getAttribute("aria-pressed")) === "true" && (await page.textContent(".kicker")) === "Toutes les compétitions");
+  const nextOf = Object.fromEntries(api.competitions.map((c) => [c.id, Date.parse(c.prochain)]));
+  check("Compétitions classées par prochain match", got.length === want.length && got.every((id, i) => i === 0 || nextOf[id] >= nextOf[got[i - 1]]), got.slice(0, 5).join(" → "));
+  const tags = await page.locator(".duel .lg-tag").allTextContents();
+  check("Accueil : matchs de plusieurs compétitions, chacun avec le nom de la sienne", (await page.locator(".duel").count()) >= 20 && tags.length === (await page.locator(".duel").count()) && new Set(tags).size >= 5, `${tags.length} matchs, ${new Set(tags).size} compétitions`); }
 check("Compétitions affichées en logos", (await page.locator(".chip-logo img").count()) >= 10 && (await page.locator(".chip-name").count()) === 0, `${await page.locator(".chip-logo img").count()} logos`);
 await page.click(".chip[data-league='39']"); await page.waitForSelector(".chip[data-league='39'][aria-pressed='true']"); await page.waitForSelector(".duel");
-check("Changer de compétition en touchant un logo", (await page.textContent(".kicker")).includes("Premier League"));
+check("Changer de compétition en touchant un logo", (await page.textContent(".kicker")).includes("Premier League") && (await page.evaluate(() => location.hash)) === "#/ligue/39" && (await page.locator(".lg-tag").count()) === 0);
 { const total = await page.locator(".duel").count(), btns = page.locator(".day-btn");
   const n = Number(await btns.nth(1).locator("i").textContent().then((t) => t.replace(/\D/g, "")));
   check("Calendrier : « À venir » + un bouton par jour de match", (await btns.count()) >= 3 && Number(await btns.first().locator("b").textContent()) === total, `${await btns.count() - 1} jours, ${total} matchs`);
@@ -122,6 +130,11 @@ check("Base : 2 pronos pour Hitch", d1.raw.prepare("SELECT COUNT(*) n FROM prono
 // Analyse : le prono se retrouve dans la fiche du match
 await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300);
 check("Analyse : mon prono affiché", (await page.locator(".pick[aria-pressed='true']").count()) === 1);
+{ const back = await page.locator(".back a").getAttribute("href"); await page.click(".back a"); await page.waitForSelector(".duel");
+  check("Retour depuis l'analyse : on revient à la compétition du match", /^#\/ligue\/\d+$/.test(back) && (await page.evaluate(() => location.hash)) === back && (await page.locator(".rail .chip-logo[aria-pressed='true']").count()) === 1);
+  await page.click(".brand"); await page.waitForSelector(".lg-tag");
+  check("Le logo du site ramène à l'accueil « Tout »", (await page.locator(".rail .chip-all").getAttribute("aria-pressed")) === "true");
+  await page.goBack(); await page.waitForSelector(".duel"); await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300); }
 check("Analyse : ni cote, ni « remboursé », onglet Probas", !/cote|Remboursé|Marchés/i.test(await page.locator("#view").textContent()) && (await page.locator(".tabs button").first().textContent()) === "Probas");
 await shot("5-analyse", false);
 // Arène et compte
@@ -175,7 +188,7 @@ for (const h of ["#/", "#/verdict", "#/arene", "#/compte"]) { await page.goto("h
 await page.setViewportSize({ width: 390, height: 844 });
 await page.route("**/api/leagues", async (r) => { const j = await (await r.fetch()).json(); for (const c of j.competitions) if ([39, 62, 2].includes(c.id)) c.matchsAVenir = 0; await r.fulfill({ json: j }); });
 await page.goto("http://localhost:8787/#/verdict"); await page.reload(); await page.goto("http://localhost:8787/#/"); await page.waitForSelector(".duel");
-check("Championnats sans match retirés de la colonne", (await page.locator(".rail .chip").count()) === 11 && (await page.locator(".rail .chip[data-league='39'], .rail .chip[data-league='62'], .rail .chip[data-league='2']").count()) === 0, `${await page.locator(".rail .chip").count()} logos au lieu de 14`);
+check("Championnats sans match retirés de la colonne", (await page.locator(".rail .chip-logo").count()) === 11 && (await page.locator(".rail .chip[data-league='39'], .rail .chip[data-league='62'], .rail .chip[data-league='2']").count()) === 0, `${await page.locator(".rail .chip-logo").count()} logos au lieu de 14`);
 await page.setViewportSize({ width: 390, height: 844 });
 for (const [h, t] of [["a-propos", "À propos"], ["conditions", "Conditions d'utilisation"], ["confidentialite", "Confidentialité"], ["mentions-legales", "Mentions légales"]]) {
   await page.goto("http://localhost:8787/#/" + h); await page.waitForSelector(".doc");
@@ -198,7 +211,7 @@ await page.reload(); await page.waitForSelector(".duel");
   check("Ordinateur : navigation en haut, plus de barre en bas", tb.y < 5 && tb.height < 90);
   check("Ordinateur : matchs sur deux colonnes", d[0][1] === d[1][1] && d[1][0] > d[0][0] + 300, `cartes de ${d[0][2]} px`);
   check("Ordinateur : pas de barre de défilement visible dans la colonne, qui défile quand même", await page.locator(".rail").evaluate((e) => e.offsetWidth === e.clientWidth && e.scrollHeight > e.clientHeight && (e.scrollTop = 200, e.scrollTop > 0)));
-  check("Ordinateur : noms des compétitions à côté des logos", (await page.locator(".rail .chip-logo").first().evaluate((e) => getComputedStyle(e, "::after").content)).includes("Ligue 1")); }
+  check("Ordinateur : noms des compétitions à côté des logos", await page.locator(".rail .chip-logo").first().evaluate((e) => getComputedStyle(e, "::after").content.includes(e.getAttribute("aria-label")))); }
 await wide("duels");
 await page.locator(".duel .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400); await wide("analyse");
 await page.click(".tabs button[data-pane='c']"); await page.waitForTimeout(400); await wide("compos");

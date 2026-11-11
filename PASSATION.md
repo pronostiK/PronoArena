@@ -14,6 +14,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - **Accès** : gratuit = 2 pronostics par jour ; **5 €/mois** = tous les pronostics (bloc 3, Stripe). Pas d'offre à 9 €.
 - Compétitions affichées par leur **logo** (images ESPN, adresses dans `src/config.js`), jamais par leur nom ; le nom ne s'affiche que si l'image ne charge pas. Elles sont rangées en **colonne à gauche** (Duels et Verdict), qui défile de haut en bas et reste visible pendant la lecture : choix de l'utilisateur pour se démarquer des autres sites.
 - Logo officiel Duel Prono (casque de gladiateur + Colisée, fourni par l'utilisateur) : `site/public/duelprono-logo.webp`, `duelprono-logo-small.webp`, `duelprono-icone.png`, `duelprono-icone-180.png` (si une image change, changer aussi son nom de fichier, et le `?v=` de app.js / app.css dans index.html, sinon les téléphones gardent l'ancienne version). Affiché dans l'en-tête, le bandeau des Duels et l'écran de connexion.
+- **Accueil = « Tout »** (`#/`) : tous les matchs des 7 prochains jours, toutes compétitions, préparés par le robot (route `/upcoming`, clé KV `preds:all@saison`, version allégée de chaque match). Une compétition = `#/ligue/<id>`. Le logo du site et l'onglet Duels ramènent à l'accueil ; le retour depuis une analyse ramène à la compétition du match. Les compétitions sont classées par date de prochain match (`prochain` dans `/leagues`).
 - Duels : calendrier en haut (« À venir » + un bouton par jour de match, comme PronostiK) ; la colonne n'affiche que les compétitions qui ont au moins un match à venir.
 - **Positionnement : site de probabilités + jeu gratuit, pas un site de paris.** Jamais les mots « pari », « cote », « bookmaker », « remboursé », « marchés » dans ce que voit le visiteur. Les points du jeu ne sont pas affichés sur les Duels (décision de l'utilisateur : ne pas mélanger points et probabilités) ; ils apparaissent après le choix (message), dans l'Arène et dans Mon espace.
 - **Deux mises en page** : téléphone (par défaut) et ordinateur à partir de 1000 px de large (bloc « VERSION ORDINATEUR » à la fin de `app.css`) : navigation en haut, colonne des compétitions avec logo + nom, matchs sur deux colonnes, Arène et Mon espace sur deux colonnes. Toute nouveauté doit être vérifiée dans les deux (`test/preview.mjs` fait les deux).
@@ -37,7 +38,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Sources : football-data (principale) ; ESPN (UN JOUR PAR APPEL, toute période = erreur 400, budget 40 appels par passage) (Ligue 2, Europa, Conference, Nations, championnats pour les coupes, **secours automatique** si football-data en panne > 12 h).
 - ESPN refuse parfois les appels (erreur 403, vue le 10/11/2026 à 21 h 10 UTC, juste après un changement de l'en-tête « User-Agent » ; cause non prouvée : en-tête ou rythme trop élevé). Parades en place : en-tête de navigateur neutre (`ESPN_HEADERS`), budget 30 appels par passage, **pause automatique** après un refus (30 min, 1 h, 2 h, 4 h max, visible dans /status rubrique « espn »), premier chargement des compétitions affichées avant les sources de secours. Remplissage complet simulé : ~42 h.
 - Compositions : onze du dernier match (ESPN, méthode PronostiK), correspondance d'identifiants football-data ↔ ESPN par matchs communs.
-- Routes : /league-predictions, /match-details, /verdict, /leagues, /status.
+- Routes : /league-predictions, /upcoming, /match-details, /verdict, /leagues, /status.
 
 ## Arène (bloc 2, `src/arena.js`)
 - Compte : pseudo + e-mail + mot de passe. Mot de passe haché (PBKDF2, 100 000 tours), jeton de connexion haché, valable 90 jours, rangé dans le navigateur (pas de cookie : site et moteur sont sur deux adresses différentes).
@@ -54,7 +55,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Polices Archivo et Space Grotesk hébergées dans `site/public/fonts/` (plus aucun appel à Google).
 
 ## Tests
-- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 98 tests.
+- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 100 tests.
 - `test/preview.mjs <dossier>` : parcours joueur complet dans Chrome (inscription, prono, Arène, déconnexion, suppression) + captures téléphone (PLAYWRIGHT_PATH=/opt/npm-tools/node_modules/playwright).
 
 ## Fait

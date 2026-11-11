@@ -55,6 +55,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Anti-abus : 10 essais de connexion par quart d'heure, 5 inscriptions par heure et par adresse.
 - Pas encore fait : « mot de passe oublié » (il faut un service d'envoi d'e-mails).
 - Pages d'information (11/11/2026), dans `site/public/app.js` (objet `DOCS`) : À propos, Conditions d'utilisation, Confidentialité, Mentions légales ; liens en bas de chaque page. L'éditeur est un particulier non professionnel qui reste anonyme (LCEN art. 6 III) : **ne jamais écrire son nom dans le site ni dans le dépôt.** Contact : contact@duelprono.com. Site réservé aux 18 ans et plus : case obligatoire à l'inscription, vérifiée aussi par le moteur. Textes non relus par un juriste.
+- 11/11/2026 : l'utilisateur n'ouvre pas de micro-entreprise pour l'instant → le bloc 3 (paiement) attend ; le site reste gratuit et l'éditeur reste anonyme.
 - **À refaire avant le bloc 3 (abonnement payant)** : l'éditeur devient professionnel, donc identité ou société + SIRET dans les mentions légales, conditions de vente, droit de rétractation.
 - Polices Archivo et Space Grotesk hébergées dans `site/public/fonts/` (plus aucun appel à Google).
 

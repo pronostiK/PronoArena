@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node test/test.mjs && node test/precision.mjs"
+    "test": "node test/test.mjs && node test/precision.mjs && node test/i18n.mjs"
   }
 }

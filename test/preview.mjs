@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp11">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp11">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp12">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp12">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -51,6 +51,20 @@ const OUT = process.argv[2];
 const browser = await chromium.launch({ executablePath: "/usr/bin/google-chrome" });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "fr-FR", timezoneId: "Europe/Paris" });
 await page.clock.setFixedTime(new Date(SIM.now)); // l'horloge du navigateur suit le monde simulé
+// Relevé de tous les textes affichés pendant le parcours (HARVEST=fichier) : sert à vérifier les traductions
+const seen = new Set(), seenEn = new Set(); let english = false;
+await page.exposeFunction("__report", (x) => { (english ? seenEn : seen).add(x); });
+await page.addInitScript(() => {
+  const send = (x) => { x = (x || "").replace(/\s+/g, " ").trim(); if (x) window.__report(x); };
+  const scan = (n) => {
+    if (n.nodeType === 3) { if (!/^(SCRIPT|STYLE|TITLE)$/.test(n.parentNode?.nodeName || "TITLE")) send(n.nodeValue); }
+    else if (n.nodeType === 1) { for (const a of ["aria-label", "title", "alt", "placeholder"]) if (n.hasAttribute(a)) send("@" + n.getAttribute(a)); for (const c of n.childNodes) scan(c); }
+  };
+  // On lit chaque texte un instant plus tard : c'est ce qui reste à l'écran une fois la traduction passée
+  new MutationObserver((ms) => setTimeout(() => { for (const m of ms) { if (m.type === "characterData") send(m.target.nodeValue); else if (m.type === "attributes") scan(m.target); for (const n of m.addedNodes) scan(n); } }, 0))
+    .observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["aria-label", "title", "alt", "placeholder"] });
+  document.addEventListener("DOMContentLoaded", () => setTimeout(() => scan(document.body), 0));
+});
 const errors = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => m.type() === "error" && !/404|ERR_|400|401|409/.test(m.text()) && errors.push(m.text()));
 const outside = []; page.on("request", (r) => { const h = new URL(r.url()).hostname; if (h !== "localhost" && !outside.includes(h)) outside.push(h); });
 // Logos des compétitions : remplacés ici par une pastille numérotée (pas d'accès à Internet pendant le test)
@@ -239,6 +253,54 @@ await page.click("#espace-tabs [data-go='general']"); await page.waitForSelector
 await page.click("#param-tabs [data-go='securite']"); await page.waitForSelector("#logout"); await wide("parametres-securite");
 await page.goto("http://localhost:8787/#/confidentialite"); await page.waitForSelector(".doc"); await wide("confidentialite");
 await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout"); await page.click("#logout"); await page.waitForSelector(".duel"); await page.click("#account"); await page.waitForSelector("#f-login"); await wide("connexion");
+// ---- Version anglaise : on refait un tour complet et on cherche le moindre mot français resté à l'écran ----
+check("Langue : français par défaut, choix proposé en bas de page", (await page.evaluate(() => document.documentElement.lang)) === "fr" && (await page.locator(".lang-switch [data-lang='fr']").getAttribute("aria-pressed")) === "true");
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto("http://localhost:8787/#/"); await page.waitForSelector(".duel");
+english = true;
+await page.click(".lang-switch [data-lang='en']"); await page.waitForFunction(() => document.documentElement.lang === "en"); await page.waitForSelector(".duel");
+check("Anglais : le site bascule et s'en souvient", (await page.textContent(".hero h1")) === "Pick your side." && (await page.locator(".tabbar a").allTextContents()).map((x) => x.trim()).join("|") === "Duels|Verdict|Arena" && (await page.textContent("#account")).trim() === "Log in" && (await page.title()) === "Duel Prono · The football forecast arena");
+await shot("en-1-home");
+const go = async (hash, sel) => { await page.goto("http://localhost:8787/" + hash); await page.waitForSelector(sel); await page.waitForTimeout(250); };
+await page.locator(".rail .chip-logo").first().click(); await page.waitForSelector(".duel"); await page.locator(".day-btn").nth(1).click().catch(() => {});
+await go(await page.locator(".duel.is-locked .lock-cta").first().getAttribute("data-after"), ".lock-panel");
+await go("#/verdict", ".res, .empty"); await page.locator(".rail .chip-logo").first().click(); await page.waitForSelector(".res, .empty"); await page.waitForTimeout(250);
+await go("#/arene", ".board"); await page.click(".chip[data-week='precedente']"); await page.waitForSelector(".board"); await page.waitForTimeout(250);
+for (const d of ["a-propos", "conditions", "confidentialite", "mentions-legales"]) await go("#/" + d, ".doc");
+check("Anglais : pages d'information traduites", (await page.textContent(".hero h1")) === "Legal notice" && /published by a private individual/.test(await page.textContent(".doc")));
+await go("#/compte", ".tabs button[data-mode='signup']");
+await page.click(".tabs button[data-mode='signup']"); await page.waitForSelector("#f-signup:not([hidden])");
+await page.fill("#f-signup [name=pseudo]", "x"); await page.click("#f-signup button[type=submit]"); await page.waitForSelector("#f-signup .form-err:not([hidden])");
+check("Anglais : message d'erreur du moteur traduit", (await page.textContent("#f-signup .form-err")) === "Username: 3 to 16 letters or digits, no spaces.");
+await shot("en-2-signup");
+await page.click(".tabs button[data-mode='login']"); await page.waitForSelector("#f-login:not([hidden])");
+await page.fill("#f-login [name=identifiant]", "nobody"); await page.fill("#f-login [name=motDePasse]", "wrong-password"); await page.click("#f-login button[type=submit]"); await page.waitForSelector("#f-login .form-err:not([hidden])");
+await page.click(".tabs button[data-mode='signup']");
+await page.fill("#f-signup [name=pseudo]", "Bobby"); await page.fill("#f-signup [name=email]", "bobby@example.com"); await page.fill("#f-signup [name=motDePasse]", "password99"); await page.check("#f-signup [name=accepte]");
+await page.click("#f-signup button[type=submit]"); await page.waitForSelector(".board"); await page.waitForTimeout(400);
+await go("#/", ".duel"); await page.locator(".picks:not(.locked)").first().locator(".pick[data-pick='1']").click(); await page.waitForSelector(".pick[aria-pressed='true']"); await page.waitForTimeout(400);
+check("Anglais : prono enregistré, message traduit", /^Pick saved · \d+ pts at stake$/.test(await page.textContent("#toast")) && /My pick/.test(await page.locator(".pick[aria-pressed='true']").first().textContent()));
+await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400);
+await shot("en-3-analysis");
+for (const k of ["s", "c", "h"]) { await page.click(`.tabs button[data-pane='${k}']`); await page.waitForTimeout(300); }
+SIM.now += 61000; await go("#/arene", ".board"); await page.waitForSelector(".mp"); await shot("en-4-arena");
+await go("#/compte", ".me-hero"); await shot("en-5-space");
+await page.click("#espace-tabs [data-go='general']"); await page.waitForSelector("#f-profile"); await page.click("#club-open"); await page.waitForSelector(".club"); await page.locator(".club").first().click();
+await page.click("#f-profile button[type=submit]"); await page.waitForFunction(() => document.getElementById("toast").textContent === "Details saved.");
+check("Anglais : choix de la langue dans Paramètres → Général", (await page.locator(".lang-choice [data-lang='en']").getAttribute("aria-pressed")) === "true" && (await page.locator("#param-tabs button").allTextContents()).map((x) => x.trim()).join("|") === "General|Security");
+await shot("en-6-settings");
+await page.click("#param-tabs [data-go='securite']"); await page.waitForSelector("#logout"); await page.click(".fold >> nth=0 >> summary"); await page.click(".fold >> nth=1 >> summary"); await page.click(".danger summary");
+await page.fill("#f-email [name=email]", "b2@example.com"); await page.fill("#f-email [name=motDePasse]", "not-my-password"); await page.click("#f-email button[type=submit]"); await page.waitForSelector("#f-email .form-err:not([hidden])");
+await page.setViewportSize({ width: 1440, height: 900 }); await go("#/", ".duel"); await page.screenshot({ path: `${OUT}/en-7-pc.png` }); await page.setViewportSize({ width: 390, height: 844 });
+await go("#/compte/securite", "#logout"); await page.click("#logout"); await page.waitForSelector(".duel"); await page.waitForTimeout(300);
+{ const FR = /[àâçéèêëîïôùûüœ]|(^|[\s'’(«])(le|la|les|des|du|une|un|et|ou|pour|avec|sur|dans|ton|ta|tes|mon|ma|mes|aux|est|pas|que|qui|ce|cette|au|de|tu|il|nous|vous|je)(?=[\s,.!?:;)»]|$)/i;
+  // Noms venus des données ou saisis par les joueurs : ils ne se traduisent pas
+  const left = [...seenEn].map((x) => x.replace(/^@/, "")).filter((x) => x.length > 3).filter((x) => FR.test(x.replace(/Équipe \S+/g, "").replace(/\b(Brasileirão|Français|Platoche|LaPulga|Rocheteau)\b/g, "").replace(/\bMon(?= \d|$)/g, "")));
+  check("Anglais : plus un seul mot français à l'écran sur tout le parcours", left.length === 0, `${seenEn.size} textes vérifiés${left.length ? " ; restés en français : " + left.slice(0, 40).map((x) => JSON.stringify(x)).join(" ") : ""}`); }
+await page.click(".lang-switch [data-lang='fr']"); await page.waitForFunction(() => document.documentElement.lang === "fr"); await page.waitForSelector(".duel");
+check("Retour au français en un clic", (await page.textContent(".hero h1")) === "Choisis ton camp." && (await page.textContent("#account")).trim() === "Connexion");
+english = false;
 check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
+if (process.env.HARVEST) fs.writeFileSync(process.env.HARVEST, JSON.stringify([...seen], null, 0));
 await browser.close(); server.close();
 process.exit(checks.every(Boolean) ? 0 : 1);

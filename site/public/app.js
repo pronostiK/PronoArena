@@ -10,6 +10,8 @@
   if (/^(www\.duelprono\.com|(www\.)?duelprono\.fr)$/.test(location.hostname)) location.replace("https://duelprono.com" + location.pathname + location.search + location.hash);
   const API = window.PRONO_API || (location.hostname === "duelprono.com" ? "https://api.duelprono.com" : "https://prono-arena-worker.hitch-legende.workers.dev");
   const view = document.getElementById("view");
+  // Langue choisie par le visiteur (voir i18n.js) : français par défaut, anglais au choix
+  const I18N = window.DP_I18N || { lang: "fr", locale: I18N.locale, t: (x) => x };
 
   // Ordre d'affichage des compétitions
   const ORDER = [61, 2, 39, 140, 135, 78, 3, 848, 62, 94, 88, 40, 71, 5, 15, 4];
@@ -17,7 +19,7 @@
   // ---------- Outils ----------
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pct = (x) => Math.round((x || 0) * 100);
-  const dec = (x) => (x == null ? "—" : Number(x).toFixed(1).replace(".", ","));
+  const dec = (x) => (x == null ? "—" : Number(x).toFixed(1).replace(".", I18N.lang === "en" ? "." : ","));
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } },
@@ -121,9 +123,9 @@
     sendPick(pick);
   });
 
-  const fmtDay = (d) => { const s = new Date(d).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" }); return s.charAt(0).toUpperCase() + s.slice(1); };
-  const fmtTime = (d) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  const fmtShort = (d) => new Date(d).toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+  const fmtDay = (d) => { const s = new Date(d).toLocaleDateString(I18N.locale, { weekday: "short", day: "numeric", month: "long" }); return s.charAt(0).toUpperCase() + s.slice(1); };
+  const fmtTime = (d) => new Date(d).toLocaleTimeString(I18N.locale, { hour: "2-digit", minute: "2-digit" });
+  const fmtShort = (d) => new Date(d).toLocaleDateString(I18N.locale, { month: "short", year: "numeric" });
   const isLive = (s) => /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/.test(s || "");
 
   function initials(name) {
@@ -141,22 +143,6 @@
     const img = e.target;
     if (img.tagName === "IMG" && img.dataset.fallback) img.outerHTML = img.dataset.fallback;
   }, true);
-
-  // Phrase "avis du moteur"
-  function avis(p) {
-    const P = p.poisson, d = p.teams.domicile.name, e = p.teams.exterieur.name;
-    const best = Math.max(P.proba1, P.probaN, P.proba2);
-    let t;
-    if (best === P.probaN && P.probaN >= 0.3) t = "match très équilibré, le nul est l'issue la plus probable.";
-    else if (P.proba1 >= 0.6) t = `${d} largement favori à domicile.`;
-    else if (P.proba2 >= 0.55) t = `${e} largement favori, même à l'extérieur.`;
-    else if (P.proba1 >= 0.45) t = `${d} favori, mais ${e} peut accrocher le nul.`;
-    else if (P.proba2 >= 0.42) t = `${e} favori, mais ${d} peut accrocher le nul.`;
-    else t = `duel serré, léger avantage ${P.proba1 >= P.proba2 ? d : e}.`;
-    if (P.probaOver25 >= 0.62) t += ` Match ouvert attendu (+2,5 buts : ${pct(P.probaOver25)} %).`;
-    else if (P.probaUnder25 >= 0.62) t += ` Match fermé attendu (moins de 2,5 buts : ${pct(P.probaUnder25)} %).`;
-    return t;
-  }
 
   // Badges visuels (remplacent les phrases)
   function badges(p) {
@@ -192,6 +178,7 @@
     } catch {
       leagues = [{ id: 61, nom: "Ligue 1", pays: "France" }];
     }
+    for (const l of leagues) { l.nom = I18N.t(l.nom); if (l.pays) l.pays = I18N.t(l.pays); }
     // La compétition dont le prochain match est le plus proche passe en tête
     const when = (l) => (l.prochain ? Date.parse(l.prochain) : Infinity);
     leagues.sort((a, b) => when(a) - when(b) || ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
@@ -269,7 +256,7 @@
         strip.hidden = counts.size < 2;
         strip.innerHTML = `<button type="button" class="day-btn" data-day="all" aria-pressed="${duelDay === "all"}"><span>À venir</span><b>${preds.length}</b><i>matchs</i></button>` + [...counts].map(([k, n]) => {
           const d = new Date(k + "T12:00:00");
-          return `<button type="button" class="day-btn" data-day="${k}" aria-pressed="${duelDay === k}" aria-label="${esc(fmtDay(d))}, ${n} match${n > 1 ? "s" : ""}"><span>${k === today ? "Auj." : esc(d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", ""))}</span><b>${d.getDate()}</b><i>${n} match${n > 1 ? "s" : ""}</i></button>`;
+          return `<button type="button" class="day-btn" data-day="${k}" aria-pressed="${duelDay === k}" aria-label="${esc(fmtDay(d))}, ${n} match${n > 1 ? "s" : ""}"><span>${k === today ? "Auj." : esc(d.toLocaleDateString(I18N.locale, { weekday: "short" }).replace(".", ""))}</span><b>${d.getDate()}</b><i>${n} match${n > 1 ? "s" : ""}</i></button>`;
         }).join("");
         strip.querySelectorAll(".day-btn").forEach((b) => (b.onclick = () => { duelDay = b.dataset.day; paint(); }));
         const on = strip.querySelector('[aria-pressed="true"]');
@@ -533,7 +520,7 @@
           }).join("")
         : `<p class="note">Aucune confrontation récente entre ces deux équipes.</p>`;
       const cp = md.compositions || {};
-      const fmtLast = (c) => (c ? `${esc(new Date(c.ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }))} · ${c.side === "D" ? "contre" : "à"} ${esc(c.opp || "—")} · ${esc(String(c.score).replace("-", " – "))}` : "Composition non disponible");
+      const fmtLast = (c) => (c ? `${esc(new Date(c.ts).toLocaleDateString(I18N.locale, { day: "numeric", month: "short" }))} · ${c.side === "D" ? "contre" : "à"} ${esc(c.opp || "—")} · ${esc(String(c.score).replace("-", " – "))}` : "Composition non disponible");
       document.getElementById("compos").innerHTML = cp.domicile || cp.exterieur
         ? `<div class="xi-h">${mini(D)}<b>${esc(D.name)}</b>${cp.domicile?.f ? `<span class="xi-f home">${esc(cp.domicile.f)}</span>` : ""}</div><small class="xi-last">${fmtLast(cp.domicile)}</small>
            ${pitch(cp.domicile, cp.exterieur)}
@@ -605,7 +592,7 @@
 
   // ---------- Écran Arène (classement de la semaine) ----------
   const avatar = (pseudo, cls = "") => `<span class="avatar ${cls}" style="background:hsl(${hue(pseudo)} 55% 38%)" aria-hidden="true">${esc(String(pseudo || "?")[0].toUpperCase())}</span>`;
-  const dMonth = (iso, withMonth) => new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", withMonth ? { day: "numeric", month: "long" } : { day: "numeric" });
+  const dMonth = (iso, withMonth) => new Date(iso + "T12:00:00").toLocaleDateString(I18N.locale, withMonth ? { day: "numeric", month: "long" } : { day: "numeric" });
   const weekLabel = (w) => `Du ${dMonth(w.debut, w.debut.slice(5, 7) !== w.fin.slice(5, 7))} au ${dMonth(w.fin, true)}`;
 
   function pickLine(x) {
@@ -810,6 +797,13 @@
         <button type="submit" class="cta">Enregistrer</button>
         <p class="note">Ton prénom et ta ville restent privés. Seul le blason de ton club apparaît au classement.</p>
       </form>
+      <section class="panel solo" data-part="general">
+        <h2>${ico("gear")}Langue</h2>
+        <div class="lang-choice" role="group" aria-label="Choisir la langue">
+          <button type="button" class="btn" data-lang="fr" aria-pressed="${I18N.lang === "fr"}">Français</button>
+          <button type="button" class="btn" data-lang="en" aria-pressed="${I18N.lang === "en"}">English</button>
+        </div>
+      </section>
       <section class="panel" data-part="securite">
         <h2>${ico("shield")}Mes identifiants</h2>
         <details class="fold"><summary><span>E-mail</span><b id="mail-now">${esc(pf.email)}</b></summary>
@@ -902,7 +896,7 @@
   // ---------- Pages d'information ----------
   const MAIL = "contact@duelprono.com";
   const mailto = `<a href="mailto:${MAIL}">${MAIL}</a>`;
-  const DOCS = {
+  const DOCS_FR = {
     "a-propos": { kicker: "Qui sommes-nous", titre: "À propos", html: `
       <h2>Le principe</h2>
       <p>Duel Prono présente chaque match de football comme un duel et affiche ses probabilités : victoire, nul, nombre de buts, scores les plus probables.</p>
@@ -975,7 +969,7 @@
       <h2>À quoi servent ces données</h2>
       <p>Uniquement à faire fonctionner ton compte et le jeu (exécution du service que tu as demandé) et à protéger le site contre les abus. Ton e-mail sert à te connecter et à te contacter au sujet de ton compte. Il ne reçoit aucune publicité.</p>
       <h2>Cookies et stockage</h2>
-      <p>Le site n'utilise aucun cookie publicitaire ni outil de mesure d'audience. Il range dans ton navigateur ta connexion (valable 90 jours) et tes réglages d'affichage. Ce stockage est indispensable au fonctionnement du compte.</p>
+      <p>Le site n'utilise aucun cookie publicitaire ni outil de mesure d'audience. Il range dans ton navigateur ta connexion (valable 90 jours), ta langue et tes réglages d'affichage. Ce stockage est indispensable au fonctionnement du compte.</p>
       <h2>Qui a accès aux données</h2>
       <ul>
         <li><b>L'hébergeur</b>, Cloudflare, qui stocke les données en Europe de l'Ouest pour notre compte. Cloudflare est une société américaine : des traitements techniques peuvent avoir lieu hors de l'Union européenne, dans le cadre des garanties prévues par la réglementation.</li>
@@ -1002,6 +996,107 @@
       <h2>Propriété intellectuelle</h2>
       <p>Le nom, le logo, les textes et les calculs de Duel Prono ne peuvent pas être reproduits sans autorisation. Les noms et emblèmes des clubs et des compétitions appartiennent à leurs propriétaires respectifs.</p>` },
   };
+  const DOCS_EN = {
+    "a-propos": { kicker: "Who we are", titre: "About", html: `
+      <h2>The idea</h2>
+      <p>Duel Prono presents every football match as a duel and shows its probabilities: win, draw, number of goals, most likely scores.</p>
+      <p>The site is also a free game. You pick your side before kick-off, you score points when you get it right, and a ranking starts again from zero every Monday.</p>
+      <h2>How the probabilities are calculated</h2>
+      <ul>
+        <li>The last 40 matches of each team are taken into account; the 5 most recent count double.</li>
+        <li>Each team's level is tracked from one season to the next, in attack and in defence, at home and away.</li>
+        <li>A statistical model works out the expected goals, then the probability of each result.</li>
+      </ul>
+      <p>No human opinion, no "tips": only calculations, redone automatically throughout the day.</p>
+      <h2>Transparency</h2>
+      <p>Every probability is frozen at kick-off and can no longer be changed. The <a href="#/verdict">Verdict</a> tab then compares our calculations with the real results and shows the actual success rate, good or bad.</p>
+      <h2>What Duel Prono is not</h2>
+      <p>Duel Prono is not a betting site. You do not stake any money and you win neither money nor prizes. A probability is never a certainty: even a result given at 80% fails one time in five.</p>
+      <h2>Contact us</h2>
+      <p>${mailto}</p>` },
+    "conditions": { kicker: "Site rules", titre: "Terms of use", html: `
+      <p class="maj">Last updated: 11 November 2026</p>
+      <h2>1. Purpose</h2>
+      <p>These terms set the rules for using the Duel Prono site. By creating an account, you accept them.</p>
+      <h2>2. The service</h2>
+      <p>Duel Prono shows probabilities for football matches, calculated by a statistical model, and offers a free prediction game with a weekly ranking.</p>
+      <p>Without an account, the probabilities of 2 matches are free every day. With an account, which is free, all of them are available.</p>
+      <h2>3. A free game, with no money involved</h2>
+      <ul>
+        <li>Playing is free. No stake is required.</li>
+        <li>Points and rankings have no value: they give no right to any winnings, prize or reward.</li>
+        <li>Duel Prono is not a gambling operator, takes no bets and does not link to any betting site.</li>
+      </ul>
+      <h2>4. The probabilities</h2>
+      <p>The probabilities are statistical estimates provided for information, with no guarantee of results. They are not advice. What you do with them is your sole responsibility, and Duel Prono cannot be held liable for any loss whatsoever.</p>
+      <h2>5. Your account</h2>
+      <ul>
+        <li>The site is reserved for people aged 18 or over.</li>
+        <li>One account per person, with a valid email address.</li>
+        <li>Your username is public. It must not be offensive, misleading or someone else's.</li>
+        <li>You are responsible for your password.</li>
+        <li>You can delete your account at any time from "My space".</li>
+      </ul>
+      <h2>6. Rules of the game</h2>
+      <ul>
+        <li>One pick per match: home win, draw or away win.</li>
+        <li>It can be changed until kick-off, not after.</li>
+        <li>A correct pick earns points, and more of them when the result was considered unlikely (from 10 to 100). A wrong pick earns 0 points.</li>
+        <li>The ranking runs from Monday to Sunday (Paris time) and starts again from zero every Monday.</li>
+        <li>Any cheating (multiple accounts, automation, exploiting an error) may lead to the account being deleted.</li>
+      </ul>
+      <h2>7. Availability</h2>
+      <p>The site depends on external data sources and may be interrupted, incomplete or delayed. It is provided as is, with no guarantee of availability.</p>
+      <h2>8. Ownership</h2>
+      <p>The Duel Prono name, its logo, its texts and its calculations belong to the publisher of the site. The names and emblems of clubs and competitions belong to their respective owners; they are shown only to identify the matches, with no partnership implied.</p>
+      <h2>9. Changes</h2>
+      <p>These terms may change. The date of the last update is shown at the top of the page. If a paid plan is offered one day, it will be covered by separate terms of sale.</p>
+      <h2>10. Governing law</h2>
+      <p>These terms are governed by French law. The French version is the reference version. For any question: ${mailto}</p>` },
+    "confidentialite": { kicker: "Your data", titre: "Privacy", html: `
+      <p class="maj">Last updated: 11 November 2026</p>
+      <h2>In short</h2>
+      <p>Duel Prono keeps the strict minimum needed to run your account. No advertising, no reselling, no tracking.</p>
+      <h2>The data we store</h2>
+      <ul>
+        <li><b>When you sign up</b>: your username, your email address and your password. The password is transformed irreversibly: nobody can read it, not even us.</li>
+        <li><b>If you provide them</b>: your first name, your city and your favourite club.</li>
+        <li><b>When you play</b>: your picks and your points.</li>
+        <li><b>For security</b>: an anonymised fingerprint of your IP address, kept for 24 hours at most, to block abusive sign-ups and log-ins.</li>
+      </ul>
+      <h2>What is public</h2>
+      <p>Only your username, your favourite club's crest, your points and your number of picks appear in the ranking. Your email, first name and city are never shown.</p>
+      <h2>What the data is used for</h2>
+      <p>Only to run your account and the game (performing the service you asked for) and to protect the site against abuse. Your email is used to log you in and to contact you about your account. It receives no advertising.</p>
+      <h2>Cookies and storage</h2>
+      <p>The site uses no advertising cookies and no audience measurement tool. It stores in your browser your log-in (valid for 90 days), your language and your display settings. This storage is essential for the account to work.</p>
+      <h2>Who has access to the data</h2>
+      <ul>
+        <li><b>The host</b>, Cloudflare, which stores the data in Western Europe on our behalf. Cloudflare is an American company: technical processing may take place outside the European Union, within the safeguards provided for by the regulations.</li>
+        <li><b>Club and competition images</b> are loaded from the servers of our sports data providers (football-data.org and ESPN), which therefore see your device's IP address, like any site you visit.</li>
+      </ul>
+      <p>No data is sold or passed on for commercial purposes.</p>
+      <h2>How long data is kept</h2>
+      <p>Your data is kept for as long as your account exists. When you delete it, your account, your details and all your picks are erased immediately and permanently.</p>
+      <h2>Your rights</h2>
+      <p>You can view and change your details, or delete your account, from "My space". For any other request (a copy of your data, objection, question), write to ${mailto}. You can also lodge a complaint with the CNIL, the French data protection authority (cnil.fr).</p>
+      <h2>Minors</h2>
+      <p>The site is reserved for people aged 18 or over. An account created by a minor will be deleted.</p>` },
+    "mentions-legales": { kicker: "Legal information", titre: "Legal notice", html: `
+      <h2>Publisher</h2>
+      <p>The Duel Prono site is published by a private individual, on a non-professional basis. As French law allows (Article 6, III of Law No. 2004-575 of 21 June 2004 on confidence in the digital economy), the publisher has chosen to remain anonymous; their contact details have been provided to the host.</p>
+      <h2>Contact</h2>
+      <p>${mailto}</p>
+      <h2>Host</h2>
+      <p>Cloudflare, Inc.<br>101 Townsend Street, San Francisco, CA 94107, United States<br>www.cloudflare.com</p>
+      <h2>Personal data</h2>
+      <p>See the <a href="#/confidentialite">Privacy</a> page.</p>
+      <h2>Notice</h2>
+      <p>Duel Prono is not a gambling operator and takes no bets. The probabilities shown are statistical estimates, with no guarantee of results. The game is free, with no stakes and no winnings.</p>
+      <h2>Intellectual property</h2>
+      <p>The Duel Prono name, logo, texts and calculations may not be reproduced without permission. The names and emblems of clubs and competitions belong to their respective owners.</p>` },
+  };
+  const DOCS = I18N.lang === "en" ? DOCS_EN : DOCS_FR;
   function renderDoc(key) {
     setTab("");
     const d = DOCS[key];

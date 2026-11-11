@@ -125,6 +125,8 @@ export async function runRobot(env, now = Date.now()) {
     }
   }
 
+  // Changement de méthode pour les sélections : leurs pronostics sont recalculés une fois, sans attendre de nouvelles données
+  if (index._natRev !== 1) { index._natRev = 1; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.national && lg.robot !== false) toRebuild.add(Number(id)); }
   // Sélections : notes Elo rafraîchies une fois par semaine (tous les matchs internationaux)
   if (now - (index._nationsAt || 0) > 7 * DAY) {
     index._nationsAt = now;

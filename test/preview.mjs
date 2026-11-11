@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp7">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp7">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp9">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp9">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -141,8 +141,11 @@ await shot("5-analyse", false);
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium"); await page.waitForSelector(".mp");
 await shot("6-arene-connecte");
 await page.click(".chip[data-week='precedente']"); await page.waitForSelector(".empty, .podium, .rks"); await shot("7-arene-semaine-derniere");
-await page.click("#account"); await page.waitForSelector("#logout");
+await page.click("#account"); await page.waitForSelector(".me-hero");
+check("Mon espace : onglets « Mon jeu » et « Paramètres », réglages cachés au départ", (await page.locator("#espace-tabs button").allTextContents()).join("|") === "Mon jeu|Paramètres" && !(await page.locator("#f-profile").isVisible()) && !(await page.locator("#logout").isVisible()));
 check("Mon espace : mes 2 pronos à venir et les points en jeu", (await page.locator("[data-plist='up'] .mp").count()) === 2 && /pts en jeu/.test(await page.textContent("[data-plist='up']")));
+await page.click("#espace-tabs [data-go='general']"); await page.waitForSelector("#f-profile");
+check("Paramètres : onglets Général et Sécurité, Général ouvert", (await page.locator("#param-tabs button").allTextContents()).join("|") === "Général|Sécurité" && (await page.evaluate(() => location.hash)) === "#/compte/general" && !(await page.locator("#logout").isVisible()) && !(await page.locator("[data-plist='up']").isVisible()));
 await page.fill("#f-profile [name=prenom]", "Hicham"); await page.fill("#f-profile [name=ville]", "Paris");
 await page.click("#club-open"); await page.waitForSelector(".club");
 await page.locator("#club-picker .chip").nth(1).click(); await page.waitForSelector(".club"); await page.waitForTimeout(300);
@@ -152,9 +155,12 @@ await page.locator(".club").nth(2).click();
 await page.click("#f-profile button[type=submit]"); await page.waitForFunction(() => document.getElementById("toast").textContent === "Infos enregistrées.");
 const saved2 = d1.raw.prepare("SELECT prenom, ville, club, club_logo FROM joueurs WHERE pseudo = 'Hitch'").get();
 check("Mes infos enregistrées en base (prénom, ville, club)", saved2.prenom === "Hicham" && saved2.ville === "Paris" && saved2.club === clubName && !!saved2.club_logo, `${saved2.club}`);
-await page.reload(); await page.waitForSelector("#logout");
+await page.reload(); await page.waitForSelector("#f-profile");
 check("Mes infos toujours là après rechargement", (await page.inputValue("#f-profile [name=prenom]")) === "Hicham" && (await page.textContent("#club-now")).includes(clubName));
-await page.waitForTimeout(300); await shot("8-compte");
+await page.waitForTimeout(300); await shot("8-parametres-general");
+await page.click("#param-tabs [data-go='securite']"); await page.waitForSelector("#logout");
+check("Sécurité : e-mail, mot de passe, déconnexion et suppression au même endroit", (await page.locator("#f-email").count()) === 1 && (await page.locator(".fold").first().isVisible()) && (await page.locator(".danger").isVisible()) && !(await page.locator("#f-profile").isVisible()));
+await shot("8-parametres-securite");
 await page.click(".fold >> nth=1 >> summary"); await page.fill("#f-password [name=ancien]", "motdepasse9"); await page.fill("#f-password [name=nouveau]", "motdepasse10"); await page.click("#f-password button[type=submit]");
 await page.waitForFunction(() => document.getElementById("toast").textContent === "Mot de passe modifié.");
 await page.click(".fold >> nth=0 >> summary"); await page.fill("#f-email [name=email]", "moi2@exemple.fr"); await page.fill("#f-email [name=motDePasse]", "motdepasse10"); await page.click("#f-email button[type=submit]");
@@ -164,10 +170,11 @@ SIM.now += 61000; // le classement est gardé 1 min en mémoire côté moteur
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".rk.me .fan, .pod.me .fan");
 check("Arène : mon blason à côté de mon pseudo", true);
 await shot("8b-arene-blason", false);
-await page.click("#account"); await page.waitForSelector("#logout");
+await page.click("#account"); await page.waitForSelector(".me-hero"); await shot("8-compte");
 // Rechargement : toujours connecté ; déconnexion puis reconnexion
-await page.reload(); await page.waitForSelector("#logout");
+await page.reload(); await page.waitForSelector(".me-hero");
 check("Toujours connecté après rechargement", (await page.textContent("#account")).includes("Hitch"));
+await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout");
 await page.click("#logout"); await page.waitForSelector(".duel");
 check("Déconnexion", (await page.textContent("#account")).trim() === "Connexion" && (await page.locator(".pick[aria-pressed='true']").count()) === 0);
 await page.click("#account"); await page.click(".tabs button[data-mode='login']");
@@ -179,7 +186,7 @@ check("Reconnexion par e-mail : mes pronos sont là", (await page.locator(".mp")
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await shot("10-verdict", false);
 check("Verdict : même colonne, avec « Tout »", (await page.locator(".rail .chip-all").count()) === 1);
 // Suppression du compte
-await page.click("#account"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse10"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
+await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse10"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
 check("Suppression du compte : plus rien en base", d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Hitch'").get().n === 0);
 // Débordement horizontal (téléphone étroit)
 await page.setViewportSize({ width: 320, height: 640 });
@@ -217,9 +224,11 @@ await page.locator(".duel .more").first().click(); await page.waitForSelector(".
 await page.click(".tabs button[data-pane='c']"); await page.waitForTimeout(400); await wide("compos");
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await wide("verdict");
 SIM.now += 61000; await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".board"); await page.waitForSelector(".mp"); await wide("arene");
-await page.click("#account"); await page.waitForSelector("#logout"); await wide("espace");
+await page.click("#account"); await page.waitForSelector(".me-hero"); await wide("espace");
+await page.click("#espace-tabs [data-go='general']"); await page.waitForSelector("#f-profile"); await wide("parametres-general");
+await page.click("#param-tabs [data-go='securite']"); await page.waitForSelector("#logout"); await wide("parametres-securite");
 await page.goto("http://localhost:8787/#/confidentialite"); await page.waitForSelector(".doc"); await wide("confidentialite");
-await page.click("#account"); await page.waitForSelector("#logout"); await page.click("#logout"); await page.waitForSelector(".duel"); await page.click("#account"); await page.waitForSelector("#f-login"); await wide("connexion");
+await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout"); await page.click("#logout"); await page.waitForSelector(".duel"); await page.click("#account"); await page.waitForSelector("#f-login"); await wide("connexion");
 check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
 await browser.close(); server.close();
 process.exit(checks.every(Boolean) ? 0 : 1);

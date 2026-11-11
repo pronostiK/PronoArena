@@ -311,6 +311,7 @@
     target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     grid: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
     bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   };
   const ico = (k) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
   const mini = (t) => crest(t, "crest crest-xs");
@@ -681,7 +682,10 @@
       catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
     };
   }
-  async function renderCompte() {
+  // sub : "" = mon jeu, "general" ou "securite" = paramètres
+  let espaceSub = "";
+  async function renderCompte(sub = espaceSub) {
+    espaceSub = ["general", "securite"].includes(sub) ? sub : "";
     setTab("compte");
     view.dataset.page = session.token ? "espace" : "compte";
     if (!session.token) {
@@ -727,18 +731,27 @@
     const pending = upcoming.reduce((a, x) => a + x.mise, 0);
     let club = pf.club ? { ...pf.club } : null, clubChoice; // clubChoice : undefined = inchangé, null = retiré, objet = nouveau club
     const rank = (n) => (n ? `${n}<sup>${n === 1 ? "er" : "e"}</sup>` : "—");
+    const inSettings = espaceSub !== "";
     view.innerHTML = `
       <section class="hero me-hero">
         ${avatar(session.pseudo, "avatar-xl")}
-        <div><p class="kicker">Mon espace</p><h1>${esc(session.pseudo)}</h1><p id="me-sub"></p></div>
+        <div><p class="kicker">${inSettings ? "Paramètres" : "Mon espace"}</p><h1>${esc(session.pseudo)}</h1><p id="me-sub"></p></div>
       </section>
-      <section class="panel">
+      <div class="tabs" id="espace-tabs" role="tablist" aria-label="Mon espace" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <button type="button" role="tab" aria-selected="${!inSettings}" data-go="">Mon jeu</button>
+        <button type="button" role="tab" aria-selected="${inSettings}" data-go="general">${ico("gear")}Paramètres</button>
+      </div>
+      <div class="tabs sub" id="param-tabs" role="tablist" aria-label="Paramètres" style="grid-template-columns:repeat(2,minmax(0,1fr))" ${inSettings ? "" : "hidden"}>
+        <button type="button" role="tab" aria-selected="${espaceSub === "general"}" data-go="general">Général</button>
+        <button type="button" role="tab" aria-selected="${espaceSub === "securite"}" data-go="securite">${ico("shield")}Sécurité</button>
+      </div>
+      <section class="panel" data-part="">
         <h2>${ico("target")}Mon bilan</h2>
         <div class="grid3">${tile("Rang semaine", rank(w.rang))}${tile("Points semaine", w.points)}${tile("Points en jeu", pending)}</div>
         <div class="grid3">${tile("Total points", g.points)}${tile("Pronos justes", `${g.justes}/${g.notes}`)}${tile("Réussite", g.notes ? Math.round((100 * g.justes) / g.notes) + "%" : "—")}</div>
         <a class="cta" href="#/arene">Voir le classement</a>
       </section>
-      <section class="panel">
+      <section class="panel" data-part="">
         <h2>${ico("grid")}Mes pronos</h2>
         <div class="tabs seg" role="tablist" aria-label="Mes pronos" style="grid-template-columns:repeat(2,minmax(0,1fr))">
           <button type="button" role="tab" aria-selected="true" data-list="up">À venir (${upcoming.length})</button>
@@ -747,8 +760,8 @@
         <div class="rks" data-plist="up">${upcoming.length ? upcoming.map(pickLine).join("") : `<p class="note">Aucun prono en cours. Choisis ton camp dans les duels.</p>`}</div>
         <div class="rks" data-plist="done" hidden>${done.length ? done.map(pickLine).join("") : `<p class="note">Aucun match terminé pour l'instant.</p>`}</div>
       </section>
-      <form class="panel form" id="f-profile" novalidate>
-        <h2>${ico("shield")}Mes infos</h2>
+      <form class="panel form solo" id="f-profile" data-part="general" novalidate>
+        <h2>${ico("target")}Mon profil</h2>
         <label>Prénom<input name="prenom" autocomplete="given-name" maxlength="30" value="${esc(pf.prenom || "")}"></label>
         <label>Ville<input name="ville" autocomplete="address-level2" maxlength="40" value="${esc(pf.ville || "")}"></label>
         <div class="field"><span>Club favori</span>
@@ -759,8 +772,8 @@
         <button type="submit" class="cta">Enregistrer</button>
         <p class="note">Ton prénom et ta ville restent privés. Seul le blason de ton club apparaît au classement.</p>
       </form>
-      <section class="panel">
-        <h2>${ico("clock")}Mes identifiants</h2>
+      <section class="panel" data-part="securite">
+        <h2>${ico("shield")}Mes identifiants</h2>
         <details class="fold"><summary><span>E-mail</span><b id="mail-now">${esc(pf.email)}</b></summary>
           <form class="form" id="f-email" novalidate>
             <label>Nouvel e-mail<input name="email" type="email" autocomplete="email" inputmode="email" maxlength="120" required></label>
@@ -778,7 +791,8 @@
           </form>
         </details>
       </section>
-      <section class="panel">
+      <section class="panel" data-part="securite">
+        <h2>${ico("clock")}Ma session</h2>
         <button type="button" class="btn" id="logout">Me déconnecter</button>
         <details class="danger">
           <summary>Supprimer mon compte</summary>
@@ -797,6 +811,9 @@
       document.getElementById("me-sub").innerHTML = club ? `${crest({ name: club.nom, logo: club.logo }, "crest crest-xxs")}${esc(club.nom)}` : "";
     };
     paintClub();
+    // Onglets : chaque partie de l'espace a sa propre adresse (on y reste après un rechargement)
+    view.querySelectorAll("[data-part]").forEach((el) => (el.hidden = el.dataset.part !== espaceSub));
+    view.querySelectorAll("#espace-tabs button, #param-tabs button").forEach((b) => (b.onclick = () => { location.hash = "#/compte" + (b.dataset.go ? "/" + b.dataset.go : ""); }));
     view.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => {
       view.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
       view.querySelectorAll("[data-plist]").forEach((x) => (x.hidden = x.dataset.plist !== b.dataset.list));
@@ -965,7 +982,7 @@
     if (parts[0] === "duel" && parts[1] && parts[2]) return renderDuel(parts[1], decodeURIComponent(parts[2]));
     if (parts[0] === "verdict") return renderVerdict();
     if (parts[0] === "arene") { arenaWeek = "courante"; return renderArena(); }
-    if (parts[0] === "compte") return renderCompte();
+    if (parts[0] === "compte") return renderCompte(parts[1] || "");
     if (DOCS[parts[0]]) return renderDoc(parts[0]);
     if (parts[0] === "ligue" && parts[1]) return renderDuels(parts[1]);
     return renderDuels("all");

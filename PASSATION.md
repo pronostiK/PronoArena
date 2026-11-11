@@ -47,6 +47,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Le robot note les pronos dès que le score final est connu (1 appel base par passage s'il n'y a rien à noter).
 - Classement : points, puis pronos justes, puis moins de pronos joués, puis pseudo. 50 premiers affichés.
 - Routes : POST /account/signup, /account/login, /account/logout, /account/delete ; GET /me ; POST /picks ; GET /arena[?semaine=precedente]. /status affiche le nombre de joueurs et de pronos.
+- Mon espace a deux onglets : « Mon jeu » (`#/compte` : bilan, pronos) et « Paramètres », lui-même en « Général » (`#/compte/general` : prénom, ville, club favori) et « Sécurité » (`#/compte/securite` : e-mail, mot de passe, déconnexion, suppression du compte). **Demandé et pas encore fait : choix de la langue** (suppose de traduire tout le site ; attendre que l'utilisateur dise quelles langues) et d'éventuels autres réglages à préciser.
 - Espace personnel (écran Compte) : bilan semaine + total, tous ses pronos (à venir / terminés), prénom et ville (privés), club favori (blason affiché au classement), changement d'e-mail et de mot de passe. Routes POST /account/profile, /account/email, /account/password.
 - Anti-abus : 10 essais de connexion par quart d'heure, 5 inscriptions par heure et par adresse.
 - Pas encore fait : « mot de passe oublié » (il faut un service d'envoi d'e-mails).

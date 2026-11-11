@@ -499,3 +499,17 @@ a.more { color: var(--orange); }
 .lg-tag img { flex: none; width: 18px; height: 18px; padding: 2px; border-radius: 5px; background: #f4f1ec; object-fit: contain; }
 .duel-top .tag, .duel-top .live { flex: none; }
 .rail .chip-all[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--bg); }
+
+/* Mon espace : onglets Mon jeu / Paramètres (Général, Sécurité) */
+.tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.tabs button .ico { width: 16px; height: 16px; }
+.tabs[hidden] { display: none; }
+.tabs.sub { background: transparent; padding: 0; gap: 8px; }
+.tabs.sub button { height: 40px; border: 1px solid var(--line); background: var(--surface); }
+.tabs.sub button[aria-selected="true"] { background: #3a2312; border-color: var(--orange); color: var(--text); }
+@media (min-width: 1000px) {
+  #view[data-page="espace"] > .tabs { grid-column: 1 / -1; width: 100%; max-width: 520px; }
+  #view[data-page="espace"] > .solo { grid-column: 1 / -1; width: 100%; max-width: 640px; justify-self: center; }
+  #view[data-page="espace"] > .tabs { justify-self: center; }
+  #view[data-page="espace"] { align-content: start; }
+}

@@ -70,17 +70,17 @@
   }
 
   // ---------- Pronostic du joueur : 3 boutons (1, N, 2) ----------
-  // Points en jeu = 10 / probabilité du moteur, entre 10 et 100 (même formule que le moteur, qui fait foi)
-  const ptsFor = (p) => Math.max(10, Math.min(100, Math.round(10 / Math.max(Number(p) || 0, 0.01))));
+  // Les points ne sont pas affichés sur les duels (on y vient d'abord pour les probabilités) :
+  // ils apparaissent après le choix, dans l'Arène et dans « Mon espace ».
   const duelIndex = new Map();
   function picks(p, leagueId, mine) {
     duelIndex.set(`${leagueId}/${p.matchId}`, p);
     const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
     const locked = isLive(p.status) || Date.parse(p.date) <= Date.now();
     const opt = (k, proba, cls, label, aria) => {
-      const sel = mine?.choix === k, pts = sel ? mine.mise : ptsFor(proba);
-      return `<button type="button" class="pick" data-pick="${k}" aria-pressed="${sel}"${locked ? " disabled" : ""} aria-label="${esc(aria)}, ${pct(proba)} %, ${pts} points en jeu${sel ? ", ton pronostic" : ""}">
-          <b class="${cls}">${pct(proba)}%</b><small>${label}</small><span class="pts">${sel ? (locked ? "🔒 " : "✓ ") : "+"}${pts} pts</span></button>`;
+      const sel = mine?.choix === k;
+      return `<button type="button" class="pick" data-pick="${k}" aria-pressed="${sel}"${locked ? " disabled" : ""} aria-label="${esc(aria)}, ${pct(proba)} %${sel ? ", ton pronostic" : ""}">
+          <b class="${cls}">${pct(proba)}%</b><small>${sel ? (locked ? "🔒 Mon prono" : "✓ Mon prono") : label}</small></button>`;
     };
     return `<div class="picks${locked ? " locked" : ""}" data-league="${esc(leagueId)}" data-match="${esc(p.matchId)}" role="group" aria-label="Ton pronostic">${opt("1", P.proba1, "c1", "Victoire", `Victoire ${D.name}`)}${opt("N", P.probaN, "cN", "Nul", "Match nul")}${opt("2", P.proba2, "c2", "Victoire", `Victoire ${E.name}`)}</div>`;
   }
@@ -222,7 +222,7 @@
         <div>
           <p class="kicker">${esc(league.nom)}${league.pays ? " · " + esc(league.pays) : ""}</p>
           <h1>Choisis ton camp.</h1>
-          <p>Touche ton prono : plus c'est risqué, plus ça rapporte de points.</p>
+          <p>Les probabilités de chaque match. Touche ton camp pour jouer dans l'Arène.</p>
         </div>
         <img src="duelprono-logo.webp" alt="" width="112" height="112">
       </section>
@@ -367,16 +367,16 @@
       view.innerHTML = `<div class="empty">Ce duel n'est plus à l'affiche (il est peut-être terminé : regarde le Verdict).<br><button type="button" onclick="location.hash='#/'">Retour aux duels</button></div>`;
       return;
     }
-    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur, C = p.cotesJustes || {};
+    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
     const isNat = Number(leagueId) === 5;
 
     const marches = `
       <section class="panel">
         <h2>${ico("trophy")}Résultat</h2>
         <div class="probs probs-lg">
-          <div>${mini(D)}<b class="c1">${pct(P.proba1)}%</b><small>cote ${esc(C.cote1 ?? "—")}</small></div>
-          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.probaN)}%</b><small>cote ${esc(C.coteN ?? "—")}</small></div>
-          <div>${mini(E)}<b class="c2">${pct(P.proba2)}%</b><small>cote ${esc(C.cote2 ?? "—")}</small></div>
+          <div>${mini(D)}<b class="c1">${pct(P.proba1)}%</b></div>
+          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.probaN)}%</b></div>
+          <div>${mini(E)}<b class="c2">${pct(P.proba2)}%</b></div>
         </div>
         <div class="bar" aria-hidden="true" style="height:8px"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
         <div class="badges">${badges(p)}</div>
@@ -384,7 +384,7 @@
       <section class="panel">
         <h2>${ico("split")}Double chance</h2>
         <div class="grid3">${tile("1X", pct(P.proba1X) + "%")}${tile("X2", pct(P.probaX2) + "%")}${tile("12", pct(P.proba12) + "%")}</div>
-        <h3>${ico("shield")}Remboursé si nul</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
+        <h3>${ico("shield")}Vainqueur, hors match nul</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
         <h3>${ico("clock")}Mi-temps</h3>
         <div class="probs">
           <div>${mini(D)}<b class="c1">${pct(P.miTemps?.proba1)}%</b></div>
@@ -445,7 +445,7 @@
         ${SD.domicile && SE.exterieur ? cmp(`Buts marqués (dom. / ext.)`, SD.domicile.butsMarques, SE.exterieur.butsMarques, dec) : ""}
       </section>` : ""}`;
 
-    const tabsDef = [["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
+    const tabsDef = [["m", "Probas"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
     view.innerHTML = `
       <div class="back"><a href="#/" aria-label="Retour aux duels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
       <section class="match-hero">
@@ -456,7 +456,7 @@
       <section class="panel">
         <h2>${ico("target")}Ton prono</h2>
         ${picks(p, Number(leagueId), myPick(mine, leagueId, p.matchId))}
-        <p class="note">${isLive(p.status) || Date.parse(p.date) <= Date.now() ? "Coup d'envoi donné : les pronos sont bloqués." : "Modifiable jusqu'au coup d'envoi. Les points en jeu sont fixés au moment de ton choix."}</p>
+        <p class="note">${isLive(p.status) || Date.parse(p.date) <= Date.now() ? "Coup d'envoi donné : les pronos sont bloqués." : "Modifiable jusqu'au coup d'envoi. Ton prono compte pour le classement de l'Arène."}</p>
       </section>
       <div class="tabs" role="tablist" aria-label="Sections de l'analyse" style="grid-template-columns:repeat(${tabsDef.length},minmax(0,1fr))">
         ${tabsDef.map(([k, l], i) => `<button type="button" role="tab" aria-selected="${i === 0}" data-pane="${k}">${l}</button>`).join("")}

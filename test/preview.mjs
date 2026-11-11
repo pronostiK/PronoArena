@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp1">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp1">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp2">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp2">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -94,7 +94,7 @@ await shot("2-arene-visiteur");
 // Il touche un prono : on lui demande de créer un compte, puis le prono est enregistré tout seul
 await page.click(".tabbar a[data-tab='duels']"); await page.waitForSelector(".duel");
 const target = page.locator(".picks:not(.locked)").first();
-const wanted = await target.locator(".pick[data-pick='2'] .pts").textContent();
+check("Duels : aucun point affiché sous les probabilités", (await page.locator(".duel .pts").count()) === 0 && !/pts/.test(await page.locator("#duels").textContent()));
 await target.locator(".pick[data-pick='2']").click();
 await page.waitForSelector("#f-signup");
 await shot("3-inscription");
@@ -103,8 +103,8 @@ await page.click("#f-signup button[type=submit]"); await page.waitForSelector("#
 check("Pseudo déjà pris : message clair", (await page.textContent("#f-signup .form-err")) === "Ce pseudo est déjà pris.");
 await page.fill("#f-signup [name=pseudo]", "Hitch"); await page.click("#f-signup button[type=submit]");
 await page.waitForSelector(".pick[aria-pressed='true']");
-const saved = await page.locator(".pick[aria-pressed='true'] .pts").first().textContent();
-check("Prono enregistré après création du compte", saved.replace(/\D/g, "") === wanted.replace(/\D/g, ""), `affiché « ${wanted} » → enregistré « ${saved} »`);
+const saved = page.locator(".pick[aria-pressed='true']").first();
+check("Prono enregistré après création du compte", (await saved.getAttribute("data-pick")) === "2" && /Mon prono/.test(await saved.textContent()), (await saved.locator("small").textContent()));
 check("Compte affiché en haut", (await page.textContent("#account")).includes("Hitch"));
 await page.waitForTimeout(3200);
 // Deux autres pronos, changement d'avis sur le premier
@@ -119,6 +119,7 @@ check("Base : 2 pronos pour Hitch", d1.raw.prepare("SELECT COUNT(*) n FROM prono
 // Analyse : le prono se retrouve dans la fiche du match
 await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300);
 check("Analyse : mon prono affiché", (await page.locator(".pick[aria-pressed='true']").count()) === 1);
+check("Analyse : ni cote, ni « remboursé », onglet Probas", !/cote|Remboursé|Marchés/i.test(await page.locator("#view").textContent()) && (await page.locator(".tabs button").first().textContent()) === "Probas");
 await shot("5-analyse", false);
 // Arène et compte
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium"); await page.waitForSelector(".mp");

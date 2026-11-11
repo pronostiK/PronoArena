@@ -383,3 +383,7 @@ a.more { color: var(--orange); }
 .day-btn i { font-style: normal; font-size: 10.5px; white-space: nowrap; }
 .day-btn[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--bg); }
 .day-btn[aria-pressed="true"] b { color: var(--bg); }
+
+/* Boutons de prono sans points : plus compacts, le choix du joueur écrit dans le bouton */
+.pick { min-height: 62px; }
+.pick[aria-pressed="true"] small { color: var(--orange-txt); font-weight: 700; }

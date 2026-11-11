@@ -5,6 +5,9 @@
   "compatibility_date": "2026-11-06",
   // Conserve les variables déjà réglées dans Cloudflare (dont FOOTBALL_DATA_KEY) : la clé n'est jamais dans le code
   "keep_vars": true,
+  // Adresse publique du moteur. L'ancienne adresse en workers.dev reste active (anciennes versions du site en mémoire).
+  "routes": [{ "pattern": "api.duelprono.com", "custom_domain": true }],
+  "workers_dev": true,
   "kv_namespaces": [
     { "binding": "PRONO_CACHE", "id": "3aa538a17aa74a9190372cfe9799fa84" }
   ],

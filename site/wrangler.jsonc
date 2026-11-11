@@ -2,5 +2,11 @@
   // Site Duel Prono (nom interne inchangé : prono-arena ; pages statiques), publié automatiquement à chaque mise à jour du dossier site/
   "name": "prono-arena",
   "compatibility_date": "2026-11-06",
+  // Adresse publique du site. L'ancienne adresse en workers.dev reste active.
+  "routes": [
+    { "pattern": "duelprono.com", "custom_domain": true },
+    { "pattern": "www.duelprono.com", "custom_domain": true }
+  ],
+  "workers_dev": true,
   "assets": { "directory": "./public" }
 }

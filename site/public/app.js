@@ -5,7 +5,10 @@
 (() => {
   "use strict";
 
-  const API = window.PRONO_API || "https://prono-arena-worker.hitch-legende.workers.dev";
+  // Une seule adresse officielle : www.duelprono.com et duelprono.fr renvoient vers duelprono.com
+  // (sinon la connexion du joueur, rangée par adresse, ne suivrait pas)
+  if (/^(www\.duelprono\.com|(www\.)?duelprono\.fr)$/.test(location.hostname)) location.replace("https://duelprono.com" + location.pathname + location.search + location.hash);
+  const API = window.PRONO_API || (location.hostname === "duelprono.com" ? "https://api.duelprono.com" : "https://prono-arena-worker.hitch-legende.workers.dev");
   const view = document.getElementById("view");
 
   // Ordre d'affichage des compétitions

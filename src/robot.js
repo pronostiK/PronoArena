@@ -129,7 +129,8 @@ export async function runRobot(env, now = Date.now()) {
 
   // Page d'accueil : tous les matchs à venir + date du prochain match de chaque compétition
   try {
-    const up = await buildUpcoming(env, season, now);
+    const up = await buildUpcoming(env, season, now, index._free);
+    if (up.gratuits.ids.length) index._free = up.gratuits; // les 2 matchs offerts du jour, figés jusqu'à minuit
     for (const k of Object.keys(index)) if (k.startsWith("next:")) delete index[k];
     for (const [id, ts] of Object.entries(up.prochains)) index[`next:${id}`] = ts;
     await kvPutIfChanged(env, allKey(season), up);
@@ -163,5 +164,5 @@ export async function robotStatus(env, now = Date.now()) {
   });
   const total = sources.length, ok = sources.filter((s) => s.etat === "à jour").length;
   const pause = (index._espnPause?.until || 0) > now ? { jusqua: new Date(index._espnPause.until).toISOString(), raison: index._espnPause.raison, refusConsecutifs: index._espnPause.n } : null;
-  return { saison: season, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  return { saison: season, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

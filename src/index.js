@@ -5,6 +5,7 @@
 //   /verdict?leagueId=61|all[&days=30]             résultats vs pronostics figés + taux de réussite
 //   /leagues                                        compétitions disponibles, nombre de matchs à venir, date du prochain
 //   /upcoming                                       tous les matchs des 7 prochains jours (page d'accueil)
+// Accès : un visiteur non inscrit ne reçoit les probabilités que des 2 matchs offerts du jour ; un inscrit reçoit tout.
 //   /status                                         état du robot (transparence)
 // Arène (bloc 2, base D1) :
 //   POST /account/signup | /account/login | /account/logout | /account/delete
@@ -15,7 +16,7 @@
 // ============================================================
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
 import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./sources.js";
-import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey } from "./build.js";
+import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
 import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
@@ -35,6 +36,17 @@ async function remember(key, ttl, fn) {
   if (memo.size > 100) memo.delete(memo.keys().next().value);
   return v;
 }
+
+// ---------- Accès : inscrit = tout ; visiteur = les 2 matchs offerts du jour ----------
+// (Tant que la base des comptes n'est pas branchée, personne ne peut s'inscrire : tout reste ouvert.)
+async function viewer(env, request) {
+  if (!env.DB) return "all";
+  if (!request.headers.get("Authorization")) return "free";
+  try { await auth(env, request); return "all"; } catch { return "free"; }
+}
+const freeIds = async (env) => new Set((await remember("free-ids", 60000, async () => ((await kvGet(env, INDEX_KEY)) || {})._free?.ids || [])));
+// En-têtes de cache : la réponse dépend de la connexion
+const cacheFor = (who, env, seconds) => ({ "Cache-Control": !env.DB ? `public, max-age=${seconds}` : who === "all" ? "private, max-age=60" : "public, max-age=60", Vary: "Authorization" });
 
 const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o), { status, headers: { ...CORS, ...extra } });
 
@@ -80,14 +92,28 @@ export default {
         const season = parseInt(q("season")) || currentSeason();
         const body = await getPredictions(env, leagueId, season);
         if (!body) return json({ success: true, leagueId, season, count: 0, predictions: [] });
-        return new Response(body, { headers: { ...CORS, "Cache-Control": "public, max-age=120" } });
+        const who = await viewer(env, request);
+        if (who === "all") return new Response(body, { headers: { ...CORS, ...cacheFor(who, env, 120) } });
+        // Visiteur non inscrit : probabilités des 2 matchs offerts seulement
+        const locked = await remember(`anon:${leagueId}:${season}`, 60000, async () => {
+          const free = await freeIds(env), o = JSON.parse(body);
+          o.predictions = o.predictions.map((p) => (free.has(freeKey(leagueId, p.matchId)) ? { ...p, gratuit: true } : lockPrediction(p, leagueId)));
+          return JSON.stringify({ ...o, acces: "visiteur" });
+        });
+        return new Response(locked, { headers: { ...CORS, ...cacheFor(who, env, 120) } });
       }
 
       if (path === "/upcoming") {
         // Préparé par le robot ; calculé à la volée seulement s'il n'existe pas encore
         const season = currentSeason();
-        const body = (env.PRONO_CACHE && (await env.PRONO_CACHE.get(allKey(season)))) || JSON.stringify(await remember(`upcoming:${season}`, 60000, () => buildUpcoming(env, season)));
-        return new Response(body, { headers: { ...CORS, "Cache-Control": "public, max-age=120" } });
+        const body = (env.PRONO_CACHE && (await env.PRONO_CACHE.get(allKey(season)))) || JSON.stringify(await remember(`upcoming:${season}`, 60000, async () => buildUpcoming(env, season, Date.now(), ((await kvGet(env, INDEX_KEY)) || {})._free)));
+        const who = await viewer(env, request);
+        if (who === "all") return new Response(body, { headers: { ...CORS, ...cacheFor(who, env, 120) } });
+        const locked = await remember(`anon:all:${season}`, 60000, async () => {
+          const o = JSON.parse(body);
+          return JSON.stringify({ ...o, acces: "visiteur", matchs: o.matchs.map((m) => (m.gratuit ? m : lockPrediction(m))) });
+        });
+        return new Response(locked, { headers: { ...CORS, ...cacheFor(who, env, 120) } });
       }
 
       if (path === "/match-details") {
@@ -95,6 +121,8 @@ export default {
         if (!matchId || !source) throw new Error("Paramètres manquants");
         const season = parseInt(q("season")) || currentSeason();
         const leagueId = parseInt(q("leagueId")) || null;
+        const who = await viewer(env, request);
+        if (who !== "all" && !(leagueId && (await freeIds(env)).has(freeKey(leagueId, matchId)))) return json({ success: false, verrouille: true, error: "Inscris-toi gratuitement pour voir cette analyse." }, 401, PRIVATE);
         const [pred, h, compos] = await Promise.all([
           findPrediction(env, matchId, leagueId, season),
           getH2H(env, { source, teamDomId: q("teamDomId"), teamExtId: q("teamExtId"), leagueId }, season),
@@ -104,7 +132,7 @@ export default {
           ? { domicile: { ...(pred.teams.domicile.stats || {}), classement: pred.teams.domicile.classement }, exterieur: { ...(pred.teams.exterieur.stats || {}), classement: pred.teams.exterieur.classement } }
           : { domicile: {}, exterieur: {} };
         const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
-        return json({ success: true, stats, h2h: h.h2h, compositions: lineups }, 200, { "Cache-Control": "public, max-age=1800" });
+        return json({ success: true, stats, h2h: h.h2h, compositions: lineups }, 200, cacheFor(who, env, 1800));
       }
 
       if (path === "/verdict") {

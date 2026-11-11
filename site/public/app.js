@@ -23,11 +23,13 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } },
     del(k) { try { localStorage.removeItem(k); } catch { /* navigation privée */ } },
   };
+  const session = { token: store.get("token"), pseudo: store.get("pseudo") };
   const cache = new Map();
   async function api(path, ttl = 60000) {
     const hit = cache.get(path);
     if (hit && Date.now() - hit.t < ttl) return hit.data;
-    const res = await fetch(API + path);
+    // Connecté : le moteur renvoie toutes les probabilités ; sinon, seulement les 2 matchs offerts du jour
+    const res = await fetch(API + path, session.token ? { headers: { Authorization: "Bearer " + session.token } } : undefined);
     const data = await res.json();
     if (!res.ok || data.success === false) throw new Error(data.error || `Erreur ${res.status}`);
     cache.set(path, { t: Date.now(), data });
@@ -35,8 +37,7 @@
   }
 
   // ---------- Compte joueur ----------
-  const session = { token: store.get("token"), pseudo: store.get("pseudo") };
-  let meCache = null, meDirty = false, pendingPick = null;
+  let meCache = null, meDirty = false, pendingPick = null, returnTo = null;
   async function call(path, body) {
     const headers = {};
     if (body) headers["Content-Type"] = "application/json";
@@ -54,6 +55,7 @@
   }
   function setSession(token, pseudo) {
     session.token = token || null; session.pseudo = pseudo || null; meCache = null; meDirty = false;
+    cache.clear(); // ce que le moteur renvoie dépend de la connexion
     if (token) { store.set("token", token); store.set("pseudo", pseudo); } else { store.del("token"); store.del("pseudo"); }
     paintAccount();
   }
@@ -107,6 +109,9 @@
     }
   }
   view.addEventListener("click", (e) => {
+    // Invitation à s'inscrire depuis un match réservé : après l'inscription, on revient sur ce match
+    const after = e.target.closest("[data-after]");
+    if (after) returnTo = after.dataset.after;
     const b = e.target.closest(".pick");
     if (!b || b.disabled) return;
     const box = b.closest(".picks");
@@ -225,14 +230,15 @@
     if (!isAll) store.set("league", current);
     if (lastDuels !== current) { duelDay = "all"; lastDuels = current; }
     const byId = new Map(every.map((l) => [l.id, l]));
-    const allChip = `<button type="button" class="chip chip-all" data-league="all" aria-pressed="${isAll}" aria-label="Toutes les compétitions">Tout</button>`;
+    const allChip = `<button type="button" class="chip chip-all" data-league="all" aria-pressed="${isAll}" aria-label="Toutes les compétitions">${ico("grid")}<span>Tout</span></button>`;
+    const visitor = !session.token;
 
     view.innerHTML = rail(list, current, allChip, `
       <section class="hero hero-logo">
         <div>
           <p class="kicker">${isAll ? "Toutes les compétitions" : esc(league.nom) + (league.pays ? " · " + esc(league.pays) : "")}</p>
           <h1>Choisis ton camp.</h1>
-          <p>Les probabilités de chaque match. Touche ton camp pour jouer dans l'Arène.</p>
+          <p>${visitor ? `2 matchs offerts chaque jour. <a href="#/compte">Inscris-toi gratuitement</a> pour voir toutes les probabilités.` : "Les probabilités de chaque match. Touche ton camp pour jouer dans l'Arène."}</p>
         </div>
         <img src="duelprono-logo.webp" alt="" width="112" height="112">
       </section>
@@ -269,25 +275,33 @@
         const on = strip.querySelector('[aria-pressed="true"]');
         if (on) strip.scrollLeft = on.offsetLeft - strip.clientWidth / 2 + on.offsetWidth / 2;
         let lastDay = "";
-        box.innerHTML = preds.filter((p) => duelDay === "all" || keyOf(p.date) === duelDay).map((p) => {
+        const card = (p, withDay = true) => {
         const day = fmtDay(p.date);
-        const head = day !== lastDay ? `<h2 class="day">${esc(day)}</h2>` : "";
-        lastDay = day;
-        const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
-        const status = isLive(p.status) ? `<span class="live">En direct</span>` : `<span class="tag">Fiabilité ${esc(p.donnees?.fiabilite || "—")}</span>`;
+        const head = withDay && day !== lastDay ? `<h2 class="day">${esc(day)}</h2>` : "";
+        if (withDay) lastDay = day;
+        const locked = !!p.verrouille, D = p.teams.domicile, E = p.teams.exterieur;
         const lid = isAll ? p.leagueId : current, lg = byId.get(lid);
         // Page d'accueil : chaque carte rappelle sa compétition
         const comp = isAll && lg ? `<span class="lg-tag">${lg.logo ? `<img src="${esc(lg.logo)}" alt="" width="18" height="18" data-fallback="">` : ""}${esc(lg.nom)}</span>` : "";
-        const href = `#/duel/${lid}/${encodeURIComponent(p.matchId)}`;
-        return `${head}
-          <article class="duel">
-            <a class="duel-link" href="${href}" aria-label="${esc(D.name)} contre ${esc(E.name)}, voir l'analyse">
-              <div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${comp}${status}</div>
+        const duelHref = `#/duel/${lid}/${encodeURIComponent(p.matchId)}`;
+        const status = isLive(p.status) ? `<span class="live">En direct</span>` : locked ? `<span class="tag">🔒 Inscrits</span>` : visitor && p.gratuit ? `<span class="tag tag-free">Offert</span>` : `<span class="tag">Fiabilité ${esc(p.donnees?.fiabilite || "—")}</span>`;
+        const top = `<div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${comp}${status}</div>
               <div class="teams">
                 <div class="team">${crest(D)}<b>${esc(D.name)}</b></div>
                 <span class="vs">VS</span>
                 <div class="team">${crest(E)}<b>${esc(E.name)}</b></div>
-              </div>
+              </div>`;
+        // Match réservé aux inscrits : l'affiche seulement, et une invitation à s'inscrire
+        if (locked) return `${head}
+          <article class="duel is-locked">
+            <a class="duel-link" href="#/compte" data-after="${esc(duelHref)}" aria-label="${esc(D.name)} contre ${esc(E.name)}, probabilités réservées aux inscrits">${top}</a>
+            <a class="lock-cta" href="#/compte" data-after="${esc(duelHref)}"><span class="lock-ico" aria-hidden="true">🔒</span><span><b>Probabilités réservées aux inscrits</b><small>Inscription gratuite, en 30 secondes</small></span></a>
+          </article>`;
+        const P = p.poisson, href = duelHref;
+        return `${head}
+          <article class="duel">
+            <a class="duel-link" href="${href}" aria-label="${esc(D.name)} contre ${esc(E.name)}, voir l'analyse">
+              ${top}
             </a>
             ${picks(p, lid, myPick(mine, lid, p.matchId))}
             <div class="bar" aria-hidden="true"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
@@ -295,7 +309,12 @@
             <a class="more" href="${href}">Voir l'analyse complète
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
           </article>`;
-        }).join("");
+        };
+        const shown = preds.filter((p) => duelDay === "all" || keyOf(p.date) === duelDay);
+        // Visiteur, page d'accueil : les 2 matchs offerts du jour passent en tête
+        const offered = visitor && isAll && duelDay === "all" ? shown.filter((p) => p.gratuit && !p.verrouille) : [];
+        box.innerHTML = (offered.length ? `<h2 class="day day-free">Offert${offered.length > 1 ? "s" : ""} aujourd'hui</h2>` + offered.map((p) => card(p, false)).join("") : "")
+          + shown.filter((p) => !offered.includes(p)).map((p) => card(p)).join("");
       };
       paint();
     } catch (e) {
@@ -381,6 +400,22 @@
     const lg = list.find((l) => l.id === Number(leagueId));
     if (!p) {
       view.innerHTML = `<div class="empty">Ce duel n'est plus à l'affiche (il est peut-être terminé : regarde le Verdict).<br><button type="button" onclick="location.hash='#/'">Retour aux duels</button></div>`;
+      return;
+    }
+    if (p.verrouille) {
+      const D = p.teams.domicile, E = p.teams.exterieur, here = `#/duel/${leagueId}/${encodeURIComponent(matchId)}`;
+      view.innerHTML = `
+        <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
+        <section class="match-hero">
+          <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b></div>
+          <div class="kickoff">${isLive(p.status) ? `<span class="live">En direct</span>` : `<strong>${esc(fmtTime(p.date))}</strong>`}<span>${esc(fmtDay(p.date))}</span></div>
+          <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b></div>
+        </section>
+        <section class="panel cta-panel lock-panel">
+          <h2>${ico("shield")}Analyse réservée aux inscrits</h2>
+          <p class="note">Probabilités, statistiques, compositions et face-à-face : tout est gratuit, il suffit de créer un compte. Chaque jour, 2 matchs restent offerts à tous.</p>
+          <a class="cta" href="#/compte" data-after="${esc(here)}">Créer mon compte gratuit</a>
+        </section>`;
       return;
     }
     const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
@@ -516,7 +551,7 @@
     setTab("verdict");
     const list = await getLeagues();
     const sel = store.get("verdictLeague") || "all";
-    const all = `<button type="button" class="chip chip-all" data-league="all" aria-pressed="${sel === "all"}" aria-label="Toutes les compétitions">Tout</button>`;
+    const all = `<button type="button" class="chip chip-all" data-league="all" aria-pressed="${sel === "all"}" aria-label="Toutes les compétitions">${ico("grid")}<span>Tout</span></button>`;
     view.innerHTML = rail(list, Number(sel), all, `
       <section class="hero">
         <p class="kicker">Transparence totale</p>
@@ -673,7 +708,7 @@
     setSession(d.token, d.pseudo);
     const pick = pendingPick; pendingPick = null;
     if (pick) { location.hash = "#/ligue/" + pick.leagueId; await sendPick(pick); cache.clear(); route(); }
-    else { toast(`Bienvenue dans l'arène, ${d.pseudo} !`); location.hash = "#/arene"; }
+    else { toast(`Bienvenue dans l'arène, ${d.pseudo} !`); const to = returnTo; returnTo = null; location.hash = to || "#/arene"; }
   }
   function bindForm(id, path, fields, done) {
     const f = document.getElementById(id);
@@ -891,6 +926,7 @@
       <p>Ces conditions fixent les règles d'utilisation du site Duel Prono. En créant un compte, tu les acceptes.</p>
       <h2>2. Le service</h2>
       <p>Duel Prono affiche des probabilités sur des matchs de football, calculées par un modèle statistique, et propose un jeu de pronostics gratuit avec un classement hebdomadaire.</p>
+      <p>Sans compte, les probabilités de 2 matchs sont offertes chaque jour. Avec un compte, gratuit, elles sont toutes accessibles.</p>
       <h2>3. Un jeu gratuit, sans argent</h2>
       <ul>
         <li>Jouer est gratuit. Aucune mise n'est demandée.</li>

@@ -218,7 +218,27 @@ console.log("\n— Arène —");
   // Pronostics
   const s2 = await call("/account/signup", { body: { pseudo: "Platoche", email: "p@exemple.fr", motDePasse: "motdepasse2" } });
   const s3 = await call("/account/signup", { body: { pseudo: "Titi", email: "t@exemple.fr", motDePasse: "motdepasse3" } });
-  const L = await get61(A);
+  // Accès réservé : 2 matchs offerts par jour aux visiteurs, tout pour les inscrits
+  { const anon = await call("/upcoming"), full = await call("/upcoming", { token: s1.token });
+    const open = anon.matchs.filter((m) => !m.verrouille), shut = anon.matchs.filter((m) => m.verrouille);
+    check("Visiteur : seulement 2 matchs avec probabilités, les mêmes pour tous", open.length === 2 && open.every((m) => m.gratuit && m.poisson) && anon.matchs.length === full.matchs.length && anon.gratuits.jour === "2026-11-09", open.map((m) => `${m.teams.domicile.name} – ${m.teams.exterieur.name}`).join(" · "));
+    check("Visiteur : aucune probabilité dans les matchs réservés", shut.length > 20 && shut.every((m) => !("poisson" in m) && !("lambdas" in m) && !("donnees" in m) && m.teams.domicile.name && m.date) && !/proba|lambda|cote/i.test(JSON.stringify(shut)));
+    check("Inscrit : toutes les probabilités", full.matchs.length > 20 && full.matchs.every((m) => m.poisson && !m.verrouille));
+    const f = open[0], lgA = await call(`/league-predictions?leagueId=${f.leagueId}`), lgF = await call(`/league-predictions?leagueId=${f.leagueId}`, { token: s1.token });
+    const freeIn = lgA.predictions.filter((p) => !p.verrouille), lockIn = lgA.predictions.filter((p) => p.verrouille);
+    check("Visiteur : même règle dans la page d'une compétition", freeIn.length >= 1 && freeIn.length <= 2 && freeIn.every((p) => p.gratuit && p.poisson.matrix) && lockIn.length >= 8 && lockIn.every((p) => !p.poisson && !p.lambdas && !p.cotesJustes) && lgF.predictions.every((p) => p.poisson && p.lambdas));
+    const l0 = lockIn[0], det = (m, lid, tok) => call(`/match-details?matchId=${encodeURIComponent(m.matchId)}&source=${m.source}&teamDomId=${m.teams.domicile.id}&teamExtId=${m.teams.exterieur.id}&leagueId=${lid}`, { token: tok });
+    check("Visiteur : analyse d'un match réservé refusée, celle d'un match offert ouverte", (await det(l0, f.leagueId)).status === 401 && (await det(f, f.leagueId)).status === 200 && (await det(l0, f.leagueId, s1.token)).status === 200 && (await det(l0, "")).status === 401);
+    check("Faux jeton : traité comme un visiteur", (await call("/upcoming", { token: "f".repeat(64) })).matchs.filter((m) => !m.verrouille).length === 2);
+    const before = anon.gratuits.ids.join();
+    await run(t + 6 * 3600000); SIM.now += 61000;
+    const later = await call("/upcoming");
+    check("Les 2 matchs offerts ne changent pas dans la journée", later.gratuits.ids.join() === before && later.gratuits.jour === "2026-11-09" && later.matchs.filter((m) => !m.verrouille).length <= 2, `${later.matchs.filter((m) => !m.verrouille).length} encore à l'affiche en fin de journée`);
+    await run(Date.UTC(2026, 10, 9, 23, 30)); SIM.now += 61000;
+    const next = await call("/upcoming");
+    check("Le lendemain : 2 nouveaux matchs offerts", next.gratuits.jour === "2026-11-10" && next.gratuits.ids.length === 2 && next.gratuits.ids.join() !== before && next.matchs.filter((m) => !m.verrouille).length === 2);
+  }
+  const L = await call("/league-predictions?leagueId=61", { token: s1.token });
   const upcoming = L.predictions.filter((x) => Date.parse(x.date) > SIM.now && x.status !== "IN_PLAY").slice(0, 4);
   const m0 = upcoming[0];
   const fav = (x) => (x.poisson.proba1 >= x.poisson.proba2 ? "1" : "2"), out = (x) => (x.poisson.proba1 >= x.poisson.proba2 ? "2" : "1");

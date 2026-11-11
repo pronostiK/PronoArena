@@ -21,7 +21,7 @@ const bots = [];
 for (const [i, pseudo] of ["Zizou", "Platoche", "Titi", "LaPulga", "Kyky", "Rocheteau"].entries()) bots.push(await ask("/account/signup", { ip: "10.0.0." + i, body: { pseudo, email: `${pseudo}@exemple.fr`, motDePasse: "motdepasse" + i, accepte: true } }));
 const play = async () => {
   for (const lid of [61, 39, 62]) {
-    const L = await ask(`/league-predictions?leagueId=${lid}`);
+    const L = await ask(`/league-predictions?leagueId=${lid}`, { token: bots[0].token });
     for (const [k, m] of L.predictions.entries()) for (const [i, b] of bots.entries()) {
       if ((k + i) % 3 === 2) continue;
       const P = m.poisson, fav = P.proba1 >= P.proba2 ? "1" : "2";
@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp10">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp10">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp11">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp11">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -70,6 +70,9 @@ await shot("1-duels-visiteur");
   const nextOf = Object.fromEntries(api.competitions.map((c) => [c.id, Date.parse(c.prochain)]));
   check("Compétitions classées par prochain match", got.length === want.length && got.every((id, i) => i === 0 || nextOf[id] >= nextOf[got[i - 1]]), got.slice(0, 5).join(" → "));
   const tags = await page.locator(".duel .lg-tag").allTextContents();
+  const openCards = page.locator(".duel:not(.is-locked)"), shut = page.locator(".duel.is-locked");
+  check("Visiteur : 2 matchs offerts en tête, tous les autres réservés aux inscrits", (await openCards.count()) <= 2 && (await openCards.count()) >= 1 && (await shut.count()) >= 20 && (await page.locator(".day-free").count()) === 1 && (await page.locator(".duel").first().evaluate((e) => !e.classList.contains("is-locked"))) && (await shut.locator(".pick, .bar, .badges").count()) === 0, `${await openCards.count()} offert(s), ${await shut.count()} réservés`);
+  check("Visiteur : aucun pourcentage dans une carte réservée", !/%/.test(await shut.first().textContent()) && /réservées aux inscrits/.test(await shut.first().textContent()));
   check("Accueil : matchs de plusieurs compétitions, chacun avec le nom de la sienne", (await page.locator(".duel").count()) >= 20 && tags.length === (await page.locator(".duel").count()) && new Set(tags).size >= 5, `${tags.length} matchs, ${new Set(tags).size} compétitions`); }
 check("Compétitions affichées en logos", (await page.locator(".chip-logo img").count()) >= 10 && (await page.locator(".chip-name").count()) === 0, `${await page.locator(".chip-logo img").count()} logos`);
 await page.click(".chip[data-league='39']"); await page.waitForSelector(".chip[data-league='39'][aria-pressed='true']"); await page.waitForSelector(".duel");
@@ -101,9 +104,8 @@ await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".po
 await shot("2-arene-visiteur");
 // Il touche un prono : on lui demande de créer un compte, puis le prono est enregistré tout seul
 await page.click(".tabbar a[data-tab='duels']"); await page.waitForSelector(".duel");
-const target = page.locator(".picks:not(.locked)").first();
-check("Duels : aucun point affiché sous les probabilités", (await page.locator(".duel .pts").count()) === 0 && !/pts/.test(await page.locator("#duels").textContent()));
-await target.locator(".pick[data-pick='2']").click();
+const wantedMatch = await page.locator(".duel.is-locked .lock-cta").first().getAttribute("data-after");
+await page.locator(".duel.is-locked .lock-cta").first().click();
 await page.waitForSelector("#f-signup");
 await shot("3-inscription");
 await page.fill("#f-signup [name=pseudo]", "Zizou"); await page.fill("#f-signup [name=email]", "moi@exemple.fr"); await page.fill("#f-signup [name=motDePasse]", "motdepasse9");
@@ -113,9 +115,13 @@ await page.check("#f-signup [name=accepte]");
 await page.click("#f-signup button[type=submit]"); await page.waitForFunction(() => /déjà pris/.test(document.querySelector("#f-signup .form-err").textContent));
 check("Pseudo déjà pris : message clair", (await page.textContent("#f-signup .form-err")) === "Ce pseudo est déjà pris.");
 await page.fill("#f-signup [name=pseudo]", "Hitch"); await page.click("#f-signup button[type=submit]");
-await page.waitForSelector(".pick[aria-pressed='true']");
+await page.waitForSelector(".match-hero"); await page.waitForSelector(".tabs button[data-pane='m']");
+check("Après l'inscription : retour sur le match voulu, analyse ouverte", (await page.evaluate(() => location.hash)) === wantedMatch && (await page.locator(".lock-panel").count()) === 0 && /%/.test(await page.locator("[data-panel='m']").textContent()));
+await page.click(".tabbar a[data-tab='duels']"); await page.waitForSelector(".duel");
+check("Inscrit : plus aucun match réservé", (await page.locator(".duel.is-locked").count()) === 0 && (await page.locator(".day-free").count()) === 0 && (await page.locator(".duel").count()) >= 20);
+await page.locator(".picks:not(.locked)").first().locator(".pick[data-pick='2']").click(); await page.waitForSelector(".pick[aria-pressed='true']");
 const saved = page.locator(".pick[aria-pressed='true']").first();
-check("Prono enregistré après création du compte", (await saved.getAttribute("data-pick")) === "2" && /Mon prono/.test(await saved.textContent()), (await saved.locator("small").textContent()));
+check("Prono enregistré", (await saved.getAttribute("data-pick")) === "2" && /Mon prono/.test(await saved.textContent()), (await saved.locator("small").textContent()));
 check("Compte affiché en haut", (await page.textContent("#account")).includes("Hitch"));
 await page.waitForTimeout(3200);
 // Deux autres pronos, changement d'avis sur le premier
@@ -176,7 +182,11 @@ await page.reload(); await page.waitForSelector(".me-hero");
 check("Toujours connecté après rechargement", (await page.textContent("#account")).includes("Hitch"));
 await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout");
 await page.click("#logout"); await page.waitForSelector(".duel");
-check("Déconnexion", (await page.textContent("#account")).trim() === "Connexion" && (await page.locator(".pick[aria-pressed='true']").count()) === 0);
+check("Déconnexion : les matchs redeviennent réservés", (await page.textContent("#account")).trim() === "Connexion" && (await page.locator(".pick[aria-pressed='true']").count()) === 0 && (await page.locator(".duel.is-locked").count()) >= 20);
+{ const lockedHref = await page.locator(".duel.is-locked .lock-cta").first().getAttribute("data-after");
+  await page.goto("http://localhost:8787/" + lockedHref); await page.waitForSelector(".lock-panel");
+  check("Visiteur : l'adresse directe d'un match réservé n'affiche aucune probabilité", !/%/.test(await page.locator("#view").textContent()) && (await page.locator(".tabs").count()) === 0);
+  await shot("12-analyse-reservee", false); await page.goto("http://localhost:8787/#/"); await page.waitForSelector(".duel"); }
 await page.click("#account"); await page.click(".tabs button[data-mode='login']");
 await page.fill("#f-login [name=identifiant]", "moi2@exemple.fr"); await page.fill("#f-login [name=motDePasse]", "mauvais"); await page.click("#f-login button[type=submit]");
 await page.waitForSelector("#f-login .form-err:not([hidden])"); await shot("9-connexion-erreur", false);
@@ -210,7 +220,7 @@ check("Polices hébergées sur le site (aucun appel à Google)", !outside.some((
 await page.unroute("**/api/leagues");
 await page.setViewportSize({ width: 1440, height: 900 });
 const pc = await ask("/account/signup", { ip: "10.0.1.1", body: { pseudo: "Hitch", email: "pc@exemple.fr", motDePasse: "motdepasse9", accepte: true } });
-{ const L = await ask("/league-predictions?leagueId=61"); for (const m of L.predictions.slice(2, 6)) await ask("/picks", { token: pc.token, body: { leagueId: 61, matchId: m.matchId, choix: "1" } }); }
+{ const L = await ask("/league-predictions?leagueId=61", { token: pc.token }); for (const m of L.predictions.slice(2, 6)) await ask("/picks", { token: pc.token, body: { leagueId: 61, matchId: m.matchId, choix: "1" } }); }
 await page.goto("http://localhost:8787/#/"); await page.evaluate(([t, p]) => { localStorage.setItem("token", t); localStorage.setItem("pseudo", p); localStorage.setItem("league", "61"); }, [pc.token, pc.pseudo]);
 const wide = async (name) => { const w = await page.evaluate(() => document.documentElement.scrollWidth); check(`Ordinateur : pas de débordement (${name})`, w <= 1440, `${w} px`); await page.screenshot({ path: `${OUT}/pc-${name}.png` }); };
 await page.reload(); await page.waitForSelector(".duel");

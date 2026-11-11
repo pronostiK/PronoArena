@@ -16,8 +16,31 @@ export const allKey = (season) => `preds:all@${season}`;
 // Version allégée de chaque pronostic (ce qu'il faut pour une carte), sur les 7 prochains jours,
 // + la date du prochain match de chaque compétition (pour trier la liste des compétitions).
 const UPCOMING_DAYS = 7, UPCOMING_MAX = 200;
-export async function buildUpcoming(env, season, now = Date.now()) {
-  const matchs = [], prochains = {};
+
+// ---------- Matchs offerts aux visiteurs non inscrits ----------
+// Chaque jour (heure de Paris), 2 matchs sont visibles par tout le monde ; les autres sont réservés aux inscrits.
+// Le choix est fait une fois par jour et ne bouge plus de la journée : les mêmes 2 matchs pour tous.
+export const FREE_PER_DAY = 2;
+export const freeKey = (leagueId, matchId) => `${leagueId}:${matchId}`;
+const FREE_PRIORITY = [2, 61, 39, 140, 135, 78, 3, 5, 848, 62, 94, 88, 40, 71, 15, 4]; // les affiches d'abord
+const parisDay = (ts) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(ts));
+export function chooseFree(cands, now) {
+  const rank = (a, b) => FREE_PRIORITY.indexOf(a.leagueId) - FREE_PRIORITY.indexOf(b.leagueId) || b.elo - a.elo || a.ts - b.ts;
+  const ahead = cands.filter((c) => c.ts > now);
+  const picked = ahead.filter((c) => parisDay(c.ts) === parisDay(now)).sort(rank).slice(0, FREE_PER_DAY);
+  // Pas assez de matchs aujourd'hui : on complète avec les prochains à venir
+  if (picked.length < FREE_PER_DAY) picked.push(...ahead.filter((c) => !picked.includes(c)).sort((a, b) => a.ts - b.ts || rank(a, b)).slice(0, FREE_PER_DAY - picked.length));
+  return picked.map((c) => c.key);
+}
+const slimTeam = (x) => ({ id: x.id, name: x.name, logo: x.logo });
+// Ce qu'un visiteur non inscrit reçoit pour un match réservé : l'affiche, sans aucune probabilité
+export const lockPrediction = (p, leagueId) => ({
+  matchId: p.matchId, leagueId: p.leagueId ?? leagueId, date: p.date, status: p.status, source: p.source, verrouille: true,
+  teams: { domicile: slimTeam(p.teams.domicile), exterieur: slimTeam(p.teams.exterieur) },
+});
+
+export async function buildUpcoming(env, season, now = Date.now(), prevFree = null) {
+  const matchs = [], prochains = {}, cands = [];
   for (const id of Object.keys(LEAGUES).map(Number)) {
     const raw = await env.PRONO_CACHE.get(predsKey(id, season));
     if (!raw) continue;
@@ -25,8 +48,9 @@ export async function buildUpcoming(env, season, now = Date.now()) {
     if (!preds.length) continue;
     prochains[id] = Math.min(...preds.map((p) => Date.parse(p.date)));
     for (const p of preds) {
+      cands.push({ key: freeKey(id, p.matchId), leagueId: id, ts: Date.parse(p.date), elo: (p.teams.domicile.elo || 0) + (p.teams.exterieur.elo || 0) });
       if (Date.parse(p.date) > now + UPCOMING_DAYS * 86400000) continue;
-      const P = p.poisson, t = (x) => ({ id: x.id, name: x.name, logo: x.logo });
+      const P = p.poisson, t = slimTeam;
       matchs.push({
         matchId: p.matchId, leagueId: id, date: p.date, status: p.status, source: p.source,
         teams: { domicile: t(p.teams.domicile), exterieur: t(p.teams.exterieur) },
@@ -36,7 +60,11 @@ export async function buildUpcoming(env, season, now = Date.now()) {
     }
   }
   matchs.sort((a, b) => Date.parse(a.date) - Date.parse(b.date) || a.leagueId - b.leagueId);
-  return { success: true, season, jours: UPCOMING_DAYS, count: Math.min(matchs.length, UPCOMING_MAX), prochains, matchs: matchs.slice(0, UPCOMING_MAX) };
+  const jour = parisDay(now);
+  const gratuits = prevFree?.jour === jour && prevFree.ids?.length ? prevFree : { jour, ids: chooseFree(cands, now) };
+  const free = new Set(gratuits.ids);
+  for (const m of matchs) if (free.has(freeKey(m.leagueId, m.matchId))) m.gratuit = true;
+  return { success: true, season, jours: UPCOMING_DAYS, count: Math.min(matchs.length, UPCOMING_MAX), prochains, gratuits, matchs: matchs.slice(0, UPCOMING_MAX) };
 }
 
 // Source principale, ou ESPN si football-data est en panne depuis plus de 12 h

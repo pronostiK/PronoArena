@@ -5,7 +5,10 @@
   // Adresse publique du site. L'ancienne adresse en workers.dev reste active.
   "routes": [
     { "pattern": "duelprono.com", "custom_domain": true },
-    { "pattern": "www.duelprono.com", "custom_domain": true }
+    { "pattern": "www.duelprono.com", "custom_domain": true },
+    // duelprono.fr affiche le même site, qui renvoie aussitôt vers duelprono.com (début de app.js)
+    { "pattern": "duelprono.fr", "custom_domain": true },
+    { "pattern": "www.duelprono.fr", "custom_domain": true }
   ],
   "workers_dev": true,
   "assets": { "directory": "./public" }

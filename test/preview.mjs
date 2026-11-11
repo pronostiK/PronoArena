@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp12">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp12">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp13">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp13">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -155,7 +155,7 @@ check("Analyse : mon prono affiché", (await page.locator(".pick[aria-pressed='t
   await page.click(".brand"); await page.waitForSelector(".lg-tag");
   check("Le logo du site ramène à l'accueil « Tout »", (await page.locator(".rail .chip-all").getAttribute("aria-pressed")) === "true");
   await page.goBack(); await page.waitForSelector(".duel"); await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300); }
-check("Analyse : ni cote, ni « remboursé », onglet Probas", !/cote|Remboursé|Marchés/i.test(await page.locator("#view").textContent()) && (await page.locator(".tabs button").first().textContent()) === "Probas");
+check("Analyse : cotes, « Remboursé si nul » et onglet Marchés présents", /cote \d/.test(await page.locator("[data-panel='m']").textContent()) && /Remboursé si nul/.test(await page.locator("[data-panel='m']").textContent()) && (await page.locator(".tabs button").first().textContent()) === "Marchés");
 await shot("5-analyse", false);
 // Arène et compte
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium"); await page.waitForSelector(".mp");

@@ -405,16 +405,16 @@
         </section>`;
       return;
     }
-    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
+    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur, C = p.cotesJustes || {};
     const isNat = Number(leagueId) === 5;
 
     const marches = `
       <section class="panel">
         <h2>${ico("trophy")}Résultat</h2>
         <div class="probs probs-lg">
-          <div>${mini(D)}<b class="c1">${pct(P.proba1)}%</b></div>
-          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.probaN)}%</b></div>
-          <div>${mini(E)}<b class="c2">${pct(P.proba2)}%</b></div>
+          <div>${mini(D)}<b class="c1">${pct(P.proba1)}%</b><small>cote ${esc(C.cote1 ?? "—")}</small></div>
+          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.probaN)}%</b><small>cote ${esc(C.coteN ?? "—")}</small></div>
+          <div>${mini(E)}<b class="c2">${pct(P.proba2)}%</b><small>cote ${esc(C.cote2 ?? "—")}</small></div>
         </div>
         <div class="bar" aria-hidden="true" style="height:8px"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
         <div class="badges">${badges(p)}</div>
@@ -422,7 +422,7 @@
       <section class="panel">
         <h2>${ico("split")}Double chance</h2>
         <div class="grid3">${tile("1X", pct(P.proba1X) + "%")}${tile("X2", pct(P.probaX2) + "%")}${tile("12", pct(P.proba12) + "%")}</div>
-        <h3>${ico("shield")}Vainqueur, hors match nul</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
+        <h3>${ico("shield")}Remboursé si nul</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
         <h3>${ico("clock")}Mi-temps</h3>
         <div class="probs">
           <div>${mini(D)}<b class="c1">${pct(P.miTemps?.proba1)}%</b></div>
@@ -483,7 +483,7 @@
         ${SD.domicile && SE.exterieur ? cmp(`Buts marqués (dom. / ext.)`, SD.domicile.butsMarques, SE.exterieur.butsMarques, dec) : ""}
       </section>` : ""}`;
 
-    const tabsDef = [["m", "Probas"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
+    const tabsDef = [["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
     view.innerHTML = `
       <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels de ${esc(lg?.nom || "la compétition")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
       <section class="match-hero">

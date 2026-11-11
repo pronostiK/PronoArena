@@ -57,8 +57,8 @@
     // Analyse
     "Ton prono": "Your pick", "Modifiable jusqu'au coup d'envoi. Ton prono compte pour le classement de l'Arène.": "You can change it until kick-off. Your pick counts in the Arena ranking.",
     "Coup d'envoi donné : les pronos sont bloqués.": "The match has kicked off: picks are locked.",
-    "Probas": "Probs", "Compos": "Line-ups", "Face-à-face": "Head-to-head",
-    "Résultat": "Result", "Vainqueur, hors match nul": "Winner, draw excluded", "Mi-temps": "Half-time",
+    "Marchés": "Markets", "Compos": "Line-ups", "Face-à-face": "Head-to-head",
+    "Résultat": "Result", "Remboursé si nul": "Draw no bet", "Mi-temps": "Half-time",
     "Buts": "Goals", "Buts attendus": "Expected goals", "Total attendu": "Expected total", "+0,5": "+0.5", "+1,5": "+1.5", "+2,5": "+2.5", "+3,5": "+3.5",
     "Les deux équipes marquent": "Both teams score", "Buts par équipe": "Goals per team",
     "Victoire et plus": "Win and more", "Victoire sans encaisser": "Win to nil", "Victoire + les deux marquent": "Win + both teams score", "Victoire par 2 buts ou +": "Win by 2+ goals",
@@ -150,6 +150,7 @@
     [/^⚽ Match ouvert · \+2,5 (\d+)%$/, (m) => `⚽ Open game · +2.5 ${m[1]}%`],
     [/^🔒 Match fermé · −2,5 (\d+)%$/, (m) => `🔒 Tight game · −2.5 ${m[1]}%`],
     [/^⚽ Les deux marquent (\d+)%$/, (m) => `⚽ Both teams score ${m[1]}%`],
+    [/^cote (.+)$/, (m) => `odds ${m[1]}`],
     [/^Oui (\d+)%$/, (m) => `Yes ${m[1]}%`],
     [/^Non (\d+)%$/, (m) => `No ${m[1]}%`],
     [/^(\d+)(?:er|e) · Elo (\d+)$/, (m) => `${ord(m[1])} · Elo ${m[2]}`],

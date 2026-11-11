@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp4">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp4">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp5">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp5">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -197,6 +197,7 @@ await page.reload(); await page.waitForSelector(".duel");
 { const tb = await page.locator(".tabbar").boundingBox(), d = await page.locator(".duel").evaluateAll((els) => els.slice(0, 2).map((e) => e.getBoundingClientRect()).map((b) => [Math.round(b.left), Math.round(b.top), Math.round(b.width)]));
   check("Ordinateur : navigation en haut, plus de barre en bas", tb.y < 5 && tb.height < 90);
   check("Ordinateur : matchs sur deux colonnes", d[0][1] === d[1][1] && d[1][0] > d[0][0] + 300, `cartes de ${d[0][2]} px`);
+  check("Ordinateur : pas de barre de défilement visible dans la colonne, qui défile quand même", await page.locator(".rail").evaluate((e) => e.offsetWidth === e.clientWidth && e.scrollHeight > e.clientHeight && (e.scrollTop = 200, e.scrollTop > 0)));
   check("Ordinateur : noms des compétitions à côté des logos", (await page.locator(".rail .chip-logo").first().evaluate((e) => getComputedStyle(e, "::after").content)).includes("Ligue 1")); }
 await wide("duels");
 await page.locator(".duel .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400); await wide("analyse");

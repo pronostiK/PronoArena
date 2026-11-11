@@ -615,11 +615,11 @@
       const line = (r) => `<div class="rk${inBoard === r ? " me" : ""}"><span class="rk-n">${r.rang}</span>${avatar(r.pseudo)}<span class="rk-name"><b>${esc(r.pseudo)}${fan(r)}</b><small>${r.justes} juste${r.justes > 1 ? "s" : ""} sur ${r.joues - r.attente}${r.attente ? ` · ${r.attente} en attente` : ""}</small></span><b class="rk-pts">${r.points}<small> pts</small></b></div>`;
       let ranking;
       if (!rows.length) {
-        ranking = `<div class="empty">${which === "courante" ? "Personne n'a encore pronostiqué cette semaine. Prends la première place !" : "Aucun pronostic la semaine dernière."}</div>`;
+        ranking = `<div class="empty board">${which === "courante" ? "Personne n'a encore pronostiqué cette semaine. Prends la première place !" : "Aucun pronostic la semaine dernière."}</div>`;
       } else {
         const podium = rows.length >= 3 ? `<div class="podium">${place(rows[1], "p2")}${place(rows[0], "p1")}${place(rows[2], "p3")}</div>` : "";
         const rest = rows.length >= 3 ? rows.slice(3) : rows;
-        ranking = `<section class="panel">
+        ranking = `<section class="panel board">
             <h2>${ico("trophy")}${esc(weekLabel(board.semaine))}</h2>
             ${podium}
             ${rest.length ? `<div class="rks">${rest.map(line).join("")}</div>` : ""}
@@ -671,6 +671,7 @@
   }
   async function renderCompte() {
     setTab("compte");
+    view.dataset.page = session.token ? "espace" : "compte";
     if (!session.token) {
       const mode = store.get("compteMode") === "login" ? "login" : "signup";
       view.innerHTML = `
@@ -947,6 +948,8 @@
     const h = location.hash.replace(/^#\/?/, "");
     const parts = h.split("/");
     window.scrollTo(0, 0);
+    // Type de page, pour la mise en page ordinateur (voir la fin de app.css)
+    view.dataset.page = DOCS[parts[0]] ? "doc" : ["duel", "verdict", "arene", "compte"].includes(parts[0]) ? parts[0] : "duels";
     if (parts[0] === "duel" && parts[1] && parts[2]) return renderDuel(parts[1], decodeURIComponent(parts[2]));
     if (parts[0] === "verdict") return renderVerdict();
     if (parts[0] === "arene") { arenaWeek = "courante"; return renderArena(); }

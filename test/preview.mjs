@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp3">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp3">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp4">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp4">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -186,6 +186,26 @@ for (const [h, t] of [["a-propos", "À propos"], ["conditions", "Conditions d'ut
 }
 check("Liens d'information en bas de chaque page", (await page.locator(".legal-links a").count()) === 4);
 check("Polices hébergées sur le site (aucun appel à Google)", !outside.some((h) => /google|gstatic/.test(h)) && await page.evaluate(() => document.fonts.check("900 20px Archivo") && document.fonts.check("400 14px 'Space Grotesk'")), `serveurs extérieurs contactés : ${outside.join(", ") || "aucun"}`);
+// ---- Version ordinateur ----
+await page.unroute("**/api/leagues");
+await page.setViewportSize({ width: 1440, height: 900 });
+const pc = await ask("/account/signup", { ip: "10.0.1.1", body: { pseudo: "Hitch", email: "pc@exemple.fr", motDePasse: "motdepasse9", accepte: true } });
+{ const L = await ask("/league-predictions?leagueId=61"); for (const m of L.predictions.slice(2, 6)) await ask("/picks", { token: pc.token, body: { leagueId: 61, matchId: m.matchId, choix: "1" } }); }
+await page.goto("http://localhost:8787/#/"); await page.evaluate(([t, p]) => { localStorage.setItem("token", t); localStorage.setItem("pseudo", p); localStorage.setItem("league", "61"); }, [pc.token, pc.pseudo]);
+const wide = async (name) => { const w = await page.evaluate(() => document.documentElement.scrollWidth); check(`Ordinateur : pas de débordement (${name})`, w <= 1440, `${w} px`); await page.screenshot({ path: `${OUT}/pc-${name}.png` }); };
+await page.reload(); await page.waitForSelector(".duel");
+{ const tb = await page.locator(".tabbar").boundingBox(), d = await page.locator(".duel").evaluateAll((els) => els.slice(0, 2).map((e) => e.getBoundingClientRect()).map((b) => [Math.round(b.left), Math.round(b.top), Math.round(b.width)]));
+  check("Ordinateur : navigation en haut, plus de barre en bas", tb.y < 5 && tb.height < 90);
+  check("Ordinateur : matchs sur deux colonnes", d[0][1] === d[1][1] && d[1][0] > d[0][0] + 300, `cartes de ${d[0][2]} px`);
+  check("Ordinateur : noms des compétitions à côté des logos", (await page.locator(".rail .chip-logo").first().evaluate((e) => getComputedStyle(e, "::after").content)).includes("Ligue 1")); }
+await wide("duels");
+await page.locator(".duel .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400); await wide("analyse");
+await page.click(".tabs button[data-pane='c']"); await page.waitForTimeout(400); await wide("compos");
+await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await wide("verdict");
+SIM.now += 61000; await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".board"); await page.waitForSelector(".mp"); await wide("arene");
+await page.click("#account"); await page.waitForSelector("#logout"); await wide("espace");
+await page.goto("http://localhost:8787/#/confidentialite"); await page.waitForSelector(".doc"); await wide("confidentialite");
+await page.click("#account"); await page.waitForSelector("#logout"); await page.click("#logout"); await page.waitForSelector(".duel"); await page.click("#account"); await page.waitForSelector("#f-login"); await wide("connexion");
 check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
 await browser.close(); server.close();
 process.exit(checks.every(Boolean) ? 0 : 1);

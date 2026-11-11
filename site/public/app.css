@@ -408,3 +408,88 @@ a.more { color: var(--orange); }
 .check { flex-direction: row !important; align-items: flex-start; gap: 10px !important; font-weight: 400 !important; font-size: 13px !important; line-height: 1.45; color: var(--text-2); }
 .check input { flex: none; width: 22px; height: 22px; margin: 0; padding: 0; accent-color: var(--orange); }
 .check a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ============================================================
+   VERSION ORDINATEUR (écran de 1000 px et plus)
+   En dessous, c'est la mise en page téléphone ci-dessus qui s'applique.
+   ============================================================ */
+@media (min-width: 1000px) {
+  .app { max-width: 1240px; padding-bottom: 24px; }
+
+  /* En-tête fixe, avec la navigation au centre (plus de barre en bas) */
+  .topbar { position: sticky; top: 0; z-index: 9; height: 76px; padding: 0 24px; background: rgba(18,18,18,.94); backdrop-filter: blur(8px); }
+  .brand-name { font-size: 24px; }
+  .account { max-width: 260px; min-height: 44px; font-size: 15px; }
+  .tabbar { top: 0; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: auto; max-width: none; height: 76px; display: flex; align-items: center; gap: 6px; padding: 0; background: transparent; border: 0; }
+  .tabbar a { flex-direction: row; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 999px; font-size: 15px; transition: background .15s, color .15s; }
+  .tabbar a:hover { color: var(--text); background: var(--surface); }
+  .tabbar a[aria-current="page"] { background: #3a2312; }
+  .toast { bottom: 32px; }
+  main { padding-top: 12px; }
+  .legal { margin: 28px 24px 8px; font-size: 12px; }
+
+  /* Colonne des compétitions : logo + nom */
+  .chips.rail { width: 236px; align-items: stretch; gap: 6px; padding: 4px 4px 16px 24px; top: 92px; max-height: calc(100vh - 112px); scrollbar-width: thin; }
+  .rail .chip-logo, .rail .chip-all, .rail .chip-logo:has(.chip-name) { width: 100%; height: 54px; min-height: 54px; display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 0 12px 0 7px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); box-shadow: none; opacity: 1; color: var(--text-2); font-size: 14px; font-weight: 500; text-align: left; white-space: nowrap; }
+  .rail .chip-logo img { flex: none; width: 40px; height: 40px; padding: 4px; border-radius: 10px; background: #f4f1ec; }
+  .rail .chip-logo::after { content: attr(aria-label); overflow: hidden; text-overflow: ellipsis; }
+  .rail .chip-logo:has(.chip-name)::after { content: none; }
+  .rail .chip-all { justify-content: center; padding: 0 12px; font-weight: 700; }
+  .rail .chip:hover { border-color: rgba(255,107,0,.6); color: var(--text); }
+  .rail .chip[aria-pressed="true"] { background: #3a2312; border-color: var(--orange); box-shadow: none; color: var(--text); font-weight: 700; }
+  .rail .chip-all[aria-pressed="true"] { background: var(--orange); color: var(--bg); }
+
+  .rail-main .hero, .rail-main .panel, .rail-main .empty, .rail-main .error { margin-left: 16px; margin-right: 24px; }
+  .rail-main .list { padding-left: 16px; padding-right: 24px; }
+  .rail-main .hero { padding: 24px 28px; }
+  .rail-main .hero h1, .hero h1 { font-size: 34px; }
+  .hero p { font-size: 16px; }
+  .rail-main .hero-logo img { width: 120px; height: 120px; margin: -14px 0; }
+  .days { margin: 0 24px 14px 16px; }
+  .day-btn { min-width: 76px; padding: 10px 12px 9px; }
+  .day-btn:hover { border-color: rgba(255,107,0,.6); }
+
+  /* Listes de matchs sur deux colonnes */
+  .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .list > .day { grid-column: 1 / -1; margin-top: 10px; }
+  .rail-main .duel, .rail-main .res { padding: 18px; }
+  .rail-main .picks { gap: 8px; }
+  .crest { width: 52px; height: 52px; }
+  .crest-lg { width: 84px; height: 84px; }
+  .crest-xs { width: 24px; height: 24px; } .crest-xxs { width: 18px; height: 18px; }
+  .team b { font-size: 15px; }
+
+  /* Analyse d'un match : en-tête centré, panneaux sur deux colonnes */
+  #view[data-page="duel"] > .back, #view[data-page="duel"] > .match-hero, #view[data-page="duel"] > .panel, #view[data-page="duel"] > .tabs { max-width: 820px; margin-left: auto; margin-right: auto; }
+  #view[data-page="duel"] > .match-hero, #view[data-page="duel"] > .panel, #view[data-page="duel"] > .tabs { margin-bottom: 16px; }
+  .match-hero { padding: 28px 24px; }
+  .match-hero .team b { font-size: 20px; }
+  .kickoff strong { font-size: 36px; }
+  .tabs button { height: 46px; font-size: 15px; }
+  #view[data-page="duel"] > [data-panel]:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; padding: 0 24px; }
+  #view[data-page="duel"] > [data-panel] > .panel { margin: 0; }
+  #view[data-page="duel"] > [data-panel] > .panel:only-child { grid-column: 1 / -1; width: 100%; max-width: 620px; justify-self: center; }
+
+  /* Arène : classement à gauche, le reste à droite */
+  #view[data-page="arene"] > .hero, #view[data-page="arene"] > .chips { margin-left: 24px; margin-right: 24px; }
+  #view[data-page="arene"] > .chips { padding-left: 0; padding-right: 0; }
+  #arena { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; padding: 0 24px; }
+  #arena > * { margin: 0; grid-column: 2; }
+  #arena > .board { grid-column: 1; grid-row: 1 / span 4; }
+  #arena > .error, #arena > .list { grid-column: 1 / -1; }
+  .pod b { font-size: 16px; } .pod.p1 .pod-step { height: 110px; } .pod.p2 .pod-step { height: 78px; } .pod.p3 .pod-step { height: 54px; }
+  .avatar-lg { width: 60px; height: 60px; font-size: 24px; }
+
+  /* Mon espace : deux colonnes */
+  #view[data-page="espace"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; padding: 12px 24px 0; }
+  #view[data-page="espace"] > * { margin: 0; }
+  #view[data-page="espace"] > .hero, #view[data-page="espace"] > .list, #view[data-page="espace"] > .error { grid-column: 1 / -1; }
+
+  /* Connexion et pages d'information : colonne centrale */
+  #view[data-page="compte"] > * { max-width: 480px; margin-left: auto; margin-right: auto; }
+  #view[data-page="compte"] > .panel, #view[data-page="compte"] > .hero, #view[data-page="compte"] > .tabs { margin-bottom: 16px; }
+  #view[data-page="doc"] > * { max-width: 780px; margin-left: auto; margin-right: auto; }
+  #view[data-page="doc"] > .hero { margin-bottom: 16px; }
+  .doc { padding: 28px 32px; }
+  .doc p, .doc li { font-size: 15px; }
+}

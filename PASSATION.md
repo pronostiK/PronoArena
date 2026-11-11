@@ -16,6 +16,8 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Logo officiel Duel Prono (casque de gladiateur + Colisée, fourni par l'utilisateur) : `site/public/duelprono-logo.webp`, `duelprono-logo-small.webp`, `duelprono-icone.png`, `duelprono-icone-180.png` (si une image change, changer aussi son nom de fichier, et le `?v=` de app.js / app.css dans index.html, sinon les téléphones gardent l'ancienne version). Affiché dans l'en-tête, le bandeau des Duels et l'écran de connexion.
 - Duels : calendrier en haut (« À venir » + un bouton par jour de match, comme PronostiK) ; la colonne n'affiche que les compétitions qui ont au moins un match à venir.
 - **Positionnement : site de probabilités + jeu gratuit, pas un site de paris.** Jamais les mots « pari », « cote », « bookmaker », « remboursé », « marchés » dans ce que voit le visiteur. Les points du jeu ne sont pas affichés sur les Duels (décision de l'utilisateur : ne pas mélanger points et probabilités) ; ils apparaissent après le choix (message), dans l'Arène et dans Mon espace.
+- **Deux mises en page** : téléphone (par défaut) et ordinateur à partir de 1000 px de large (bloc « VERSION ORDINATEUR » à la fin de `app.css`) : navigation en haut, colonne des compétitions avec logo + nom, matchs sur deux colonnes, Arène et Mon espace sur deux colonnes. Toute nouveauté doit être vérifiée dans les deux (`test/preview.mjs` fait les deux).
+- Boîte mail contact@duelprono.com créée chez Amen le 11/11/2026 (à tester une fois le domaine actif chez Cloudflare).
 - Style : sombre + orange (#FF6B00), polices Archivo + Space Grotesk, visuel (logos, icônes, barres), peu de texte.
 
 ## Architecture (Cloudflare, offre gratuite — attention aux quotas)

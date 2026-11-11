@@ -217,7 +217,6 @@
     const league = list.find((l) => l.id === current) || { nom: "Ligue 1" };
 
     view.innerHTML = rail(list, current, "", `
-      <div class="days" id="days" role="group" aria-label="Choisir un jour" hidden></div>
       <section class="hero hero-logo">
         <div>
           <p class="kicker">${esc(league.nom)}${league.pays ? " · " + esc(league.pays) : ""}</p>
@@ -226,6 +225,7 @@
         </div>
         <img src="duelprono-logo.webp" alt="" width="112" height="112">
       </section>
+      <div class="days" id="days" role="group" aria-label="Choisir un jour" hidden></div>
       <div class="list" id="duels"><div class="skel"></div><div class="skel"></div></div>`);
 
     bindRail((id) => { store.set("league", id); duelDay = "all"; renderDuels(); });

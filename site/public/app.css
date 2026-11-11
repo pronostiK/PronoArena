@@ -1,3 +1,10 @@
+/* Polices hébergées sur le site : aucun appel à un service extérieur */
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/archivo-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 900; font-display: swap; src: url('fonts/archivo-latin-900-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/space-grotesk-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/space-grotesk-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/space-grotesk-latin-700-normal.woff2') format('woff2'); }
+
 :root {
   --bg: #121212;
   --surface: #1c1c1c;
@@ -387,3 +394,17 @@ a.more { color: var(--orange); }
 /* Boutons de prono sans points : plus compacts, le choix du joueur écrit dans le bouton */
 .pick { min-height: 62px; }
 .pick[aria-pressed="true"] small { color: var(--orange-txt); font-weight: 700; }
+
+/* Pages d'information (à propos, conditions, confidentialité, mentions légales) */
+.legal-links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; }
+.legal-links a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; min-height: 28px; display: inline-flex; align-items: center; }
+.doc { gap: 10px; }
+.doc h2 { margin-top: 10px; }
+.doc h2:first-child { margin-top: 0; }
+.doc p, .doc li { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-2); }
+.doc ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.doc a { text-decoration: underline; text-underline-offset: 3px; }
+.doc .maj { font-size: 12px; color: var(--muted); }
+.check { flex-direction: row !important; align-items: flex-start; gap: 10px !important; font-weight: 400 !important; font-size: 13px !important; line-height: 1.45; color: var(--text-2); }
+.check input { flex: none; width: 22px; height: 22px; margin: 0; padding: 0; accent-color: var(--orange); }
+.check a { text-decoration: underline; text-underline-offset: 3px; }

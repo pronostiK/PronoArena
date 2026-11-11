@@ -186,7 +186,7 @@ console.log("\n— Arène —");
   const run = async (until) => { for (; t <= until; t += 600000) { SIM.now = t; await runRobot(A, t); } SIM.now = t; };
   await run(t + 40 * 600000);
   const call = async (path, { body, token, method } = {}) => {
-    const r = await worker.fetch(new Request("https://w" + path, { method: method || (body ? "POST" : "GET"), headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "CF-Connecting-IP": "1.2.3.4" }, body: body ? JSON.stringify(body) : undefined }), A, { waitUntil() {} });
+    const r = await worker.fetch(new Request("https://w" + path, { method: method || (body ? "POST" : "GET"), headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "CF-Connecting-IP": "1.2.3.4" }, body: body ? JSON.stringify(path === "/account/signup" && !("accepte" in body) ? { ...body, accepte: true } : body) : undefined }), A, { waitUntil() {} });
     return { status: r.status, ...(await r.json()) };
   };
 
@@ -201,6 +201,8 @@ console.log("\n— Arène —");
   const bad = [{ pseudo: "ab", email: "a@b.fr", motDePasse: "motdepasse1" }, { pseudo: "<script>", email: "a@b.fr", motDePasse: "motdepasse1" }, { pseudo: "Valide", email: "pasunmail", motDePasse: "motdepasse1" }, { pseudo: "Valide", email: "a@b.fr", motDePasse: "court" }, { pseudo: "admin", email: "a@b.fr", motDePasse: "motdepasse1" }];
   let badOk = true; for (const b of bad) badOk = badOk && (await call("/account/signup", { body: b })).status === 400;
   check("Inscriptions invalides refusées (pseudo, e-mail, mot de passe trop court)", badOk);
+  const noAge = await call("/account/signup", { body: { pseudo: "Mineur", email: "m@exemple.fr", motDePasse: "motdepasse1", accepte: false } });
+  check("Inscription refusée sans la case « 18 ans et conditions »", noAge.status === 400 && /18 ans/.test(noAge.error) && d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Mineur'").get().n === 0);
   check("Connexion par pseudo", (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "motdepasse1" } })).status === 200);
   const l2 = await call("/account/login", { body: { identifiant: "zizou@exemple.fr", motDePasse: "motdepasse1" } });
   check("Connexion par e-mail", l2.status === 200 && l2.pseudo === "Zizou");

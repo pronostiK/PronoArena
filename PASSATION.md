@@ -46,10 +46,13 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Routes : POST /account/signup, /account/login, /account/logout, /account/delete ; GET /me ; POST /picks ; GET /arena[?semaine=precedente]. /status affiche le nombre de joueurs et de pronos.
 - Espace personnel (écran Compte) : bilan semaine + total, tous ses pronos (à venir / terminés), prénom et ville (privés), club favori (blason affiché au classement), changement d'e-mail et de mot de passe. Routes POST /account/profile, /account/email, /account/password.
 - Anti-abus : 10 essais de connexion par quart d'heure, 5 inscriptions par heure et par adresse.
-- Pas encore fait : « mot de passe oublié » (il faut un service d'envoi d'e-mails), page mentions légales / confidentialité.
+- Pas encore fait : « mot de passe oublié » (il faut un service d'envoi d'e-mails).
+- Pages d'information (11/11/2026), dans `site/public/app.js` (objet `DOCS`) : À propos, Conditions d'utilisation, Confidentialité, Mentions légales ; liens en bas de chaque page. L'éditeur est un particulier non professionnel qui reste anonyme (LCEN art. 6 III) : **ne jamais écrire son nom dans le site ni dans le dépôt.** Contact : contact@duelprono.com. Site réservé aux 18 ans et plus : case obligatoire à l'inscription, vérifiée aussi par le moteur. Textes non relus par un juriste.
+- **À refaire avant le bloc 3 (abonnement payant)** : l'éditeur devient professionnel, donc identité ou société + SIRET dans les mentions légales, conditions de vente, droit de rétractation.
+- Polices Archivo et Space Grotesk hébergées dans `site/public/fonts/` (plus aucun appel à Google).
 
 ## Tests
-- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 97 tests.
+- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 98 tests.
 - `test/preview.mjs <dossier>` : parcours joueur complet dans Chrome (inscription, prono, Arène, déconnexion, suppression) + captures téléphone (PLAYWRIGHT_PATH=/opt/npm-tools/node_modules/playwright).
 
 ## Fait

@@ -18,7 +18,7 @@ const ask = async (p, { body, token, ip } = {}) => (await worker.fetch(new Reque
 // Remplissage, puis 6 joueurs pronostiquent, 2 jours passent (matchs notés), puis nouveaux pronos en attente
 await robot(190);
 const bots = [];
-for (const [i, pseudo] of ["Zizou", "Platoche", "Titi", "LaPulga", "Kyky", "Rocheteau"].entries()) bots.push(await ask("/account/signup", { ip: "10.0.0." + i, body: { pseudo, email: `${pseudo}@exemple.fr`, motDePasse: "motdepasse" + i } }));
+for (const [i, pseudo] of ["Zizou", "Platoche", "Titi", "LaPulga", "Kyky", "Rocheteau"].entries()) bots.push(await ask("/account/signup", { ip: "10.0.0." + i, body: { pseudo, email: `${pseudo}@exemple.fr`, motDePasse: "motdepasse" + i, accepte: true } }));
 const play = async () => {
   for (const lid of [61, 39, 62]) {
     const L = await ask(`/league-predictions?leagueId=${lid}`);
@@ -42,8 +42,8 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp2">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp2">');
-  res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png" }[path.extname(f)] || "text/plain" });
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp3">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp3">');
+  res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
 
@@ -51,8 +51,8 @@ const OUT = process.argv[2];
 const browser = await chromium.launch({ executablePath: "/usr/bin/google-chrome" });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "fr-FR", timezoneId: "Europe/Paris" });
 await page.clock.setFixedTime(new Date(SIM.now)); // l'horloge du navigateur suit le monde simulé
-const errors = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => m.type() === "error" && !/404|ERR_|401|409/.test(m.text()) && errors.push(m.text()));
-await page.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
+const errors = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => m.type() === "error" && !/404|ERR_|400|401|409/.test(m.text()) && errors.push(m.text()));
+const outside = []; page.on("request", (r) => { const h = new URL(r.url()).hostname; if (h !== "localhost" && !outside.includes(h)) outside.push(h); });
 // Logos des compétitions : remplacés ici par une pastille numérotée (pas d'accès à Internet pendant le test)
 let logosDown = false;
 await page.route(/espncdn\.com\/i\/leaguelogos/, (r) => logosDown ? r.abort() : r.fulfill({ contentType: "image/svg+xml", body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#1b3a6b"/><text x="20" y="25" font-size="12" text-anchor="middle" fill="#fff" font-family="sans-serif">${r.request().url().match(/(\d+)\.png/)[1]}</text></svg>` }));
@@ -100,6 +100,9 @@ await page.waitForSelector("#f-signup");
 await shot("3-inscription");
 await page.fill("#f-signup [name=pseudo]", "Zizou"); await page.fill("#f-signup [name=email]", "moi@exemple.fr"); await page.fill("#f-signup [name=motDePasse]", "motdepasse9");
 await page.click("#f-signup button[type=submit]"); await page.waitForSelector("#f-signup .form-err:not([hidden])");
+check("Inscription : case « 18 ans et conditions » obligatoire", /18 ans/.test(await page.textContent("#f-signup .form-err")));
+await page.check("#f-signup [name=accepte]");
+await page.click("#f-signup button[type=submit]"); await page.waitForFunction(() => /déjà pris/.test(document.querySelector("#f-signup .form-err").textContent));
 check("Pseudo déjà pris : message clair", (await page.textContent("#f-signup .form-err")) === "Ce pseudo est déjà pris.");
 await page.fill("#f-signup [name=pseudo]", "Hitch"); await page.click("#f-signup button[type=submit]");
 await page.waitForSelector(".pick[aria-pressed='true']");
@@ -173,6 +176,16 @@ await page.setViewportSize({ width: 390, height: 844 });
 await page.route("**/api/leagues", async (r) => { const j = await (await r.fetch()).json(); for (const c of j.competitions) if ([39, 62, 2].includes(c.id)) c.matchsAVenir = 0; await r.fulfill({ json: j }); });
 await page.goto("http://localhost:8787/#/verdict"); await page.reload(); await page.goto("http://localhost:8787/#/"); await page.waitForSelector(".duel");
 check("Championnats sans match retirés de la colonne", (await page.locator(".rail .chip").count()) === 11 && (await page.locator(".rail .chip[data-league='39'], .rail .chip[data-league='62'], .rail .chip[data-league='2']").count()) === 0, `${await page.locator(".rail .chip").count()} logos au lieu de 14`);
+await page.setViewportSize({ width: 390, height: 844 });
+for (const [h, t] of [["a-propos", "À propos"], ["conditions", "Conditions d'utilisation"], ["confidentialite", "Confidentialité"], ["mentions-legales", "Mentions légales"]]) {
+  await page.goto("http://localhost:8787/#/" + h); await page.waitForSelector(".doc");
+  check(`Page « ${t} »`, (await page.textContent(".hero h1")) === t && (await page.locator(".doc h2").count()) >= 4);
+  await shot("11-" + h);
+  await page.setViewportSize({ width: 320, height: 640 }); const w = await page.evaluate(() => document.documentElement.scrollWidth); await page.setViewportSize({ width: 390, height: 844 });
+  if (w > 320) check(`Pas de débordement à 320 px (#/${h})`, false, `${w} px`);
+}
+check("Liens d'information en bas de chaque page", (await page.locator(".legal-links a").count()) === 4);
+check("Polices hébergées sur le site (aucun appel à Google)", !outside.some((h) => /google|gstatic/.test(h)) && await page.evaluate(() => document.fonts.check("900 20px Archivo") && document.fonts.check("400 14px 'Space Grotesk'")), `serveurs extérieurs contactés : ${outside.join(", ") || "aucun"}`);
 check("Aucune erreur JavaScript", errors.length === 0, errors.join(" | "));
 await browser.close(); server.close();
 process.exit(checks.every(Boolean) ? 0 : 1);

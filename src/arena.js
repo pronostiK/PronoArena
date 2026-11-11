@@ -77,6 +77,7 @@ export async function signup(env, body, ip, now = Date.now()) {
   if (RESERVED.includes(pseudo.toLowerCase())) throw new HttpError(400, "Ce pseudo est réservé. Choisis-en un autre.");
   if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new HttpError(400, "Adresse e-mail invalide.");
   if (mdp.length < 8 || mdp.length > 72) throw new HttpError(400, "Mot de passe : 8 caractères minimum.");
+  if (body.accepte !== true) throw new HttpError(400, "Coche la case : il faut avoir 18 ans ou plus et accepter les conditions d'utilisation.");
   await throttle(db, `inscription:${(await sha256(ip || "?")).slice(0, 24)}`, 5, HOUR, now);
 
   const taken = await db.prepare("SELECT pseudo, email FROM joueurs WHERE pseudo = ?1 OR email = ?2").bind(pseudo, email).first();

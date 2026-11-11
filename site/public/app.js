@@ -665,7 +665,7 @@
       e.preventDefault();
       const err = f.querySelector(".form-err"), btn = f.querySelector("button[type=submit]");
       err.hidden = true; btn.disabled = true;
-      try { await done(await call(path, Object.fromEntries(fields.map((k) => [k, f.elements[k].value])))); }
+      try { await done(await call(path, Object.fromEntries(fields.map((k) => [k, f.elements[k].type === "checkbox" ? f.elements[k].checked : f.elements[k].value])))); }
       catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
     };
   }
@@ -688,6 +688,7 @@
           <label>Pseudo<input name="pseudo" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="16" required><small>3 à 16 lettres ou chiffres. Visible au classement.</small></label>
           <label>E-mail<input name="email" type="email" autocomplete="email" inputmode="email" maxlength="120" required><small>Jamais affiché, jamais partagé.</small></label>
           <label>Mot de passe<input name="motDePasse" type="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>8 caractères minimum.</small></label>
+          <label class="check"><input name="accepte" type="checkbox" required><span>J'ai 18 ans ou plus et j'accepte les <a href="#/conditions">conditions d'utilisation</a> et la <a href="#/confidentialite">politique de confidentialité</a>.</span></label>
           <p class="form-err" role="alert" hidden></p>
           <button type="submit" class="cta">Créer mon compte</button>
           <p class="note">Jeu gratuit, sans mise ni gain d'argent. Tes données servent uniquement au jeu et tu peux supprimer ton compte à tout moment.</p>
@@ -699,7 +700,7 @@
           <button type="submit" class="cta">Me connecter</button>
         </form>`;
       view.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { store.set("compteMode", b.dataset.mode); renderCompte(); }));
-      bindForm("f-signup", "/account/signup", ["pseudo", "email", "motDePasse"], afterAuth);
+      bindForm("f-signup", "/account/signup", ["pseudo", "email", "motDePasse", "accepte"], afterAuth);
       bindForm("f-login", "/account/login", ["identifiant", "motDePasse"], afterAuth);
       return;
     }
@@ -830,6 +831,117 @@
     bindForm("f-delete", "/account/delete", ["motDePasse"], () => { setSession(null); cache.clear(); toast("Compte supprimé."); location.hash = "#/"; });
   }
 
+  // ---------- Pages d'information ----------
+  const MAIL = "contact@duelprono.com";
+  const mailto = `<a href="mailto:${MAIL}">${MAIL}</a>`;
+  const DOCS = {
+    "a-propos": { kicker: "Qui sommes-nous", titre: "À propos", html: `
+      <h2>Le principe</h2>
+      <p>Duel Prono présente chaque match de football comme un duel et affiche ses probabilités : victoire, nul, nombre de buts, scores les plus probables.</p>
+      <p>Le site est aussi un jeu gratuit. Tu choisis ton camp avant le coup d'envoi, tu marques des points quand tu as vu juste, et un classement repart de zéro chaque lundi.</p>
+      <h2>Comment les probabilités sont calculées</h2>
+      <ul>
+        <li>Les 40 derniers matchs de chaque équipe sont pris en compte ; les 5 plus récents comptent double.</li>
+        <li>Le niveau de chaque équipe est suivi d'une saison à l'autre, en attaque comme en défense, à domicile comme à l'extérieur.</li>
+        <li>Un modèle statistique en déduit les buts attendus, puis la probabilité de chaque résultat.</li>
+      </ul>
+      <p>Aucun avis humain, aucun « tuyau » : uniquement des calculs, refaits automatiquement tout au long de la journée.</p>
+      <h2>La transparence</h2>
+      <p>Chaque probabilité est figée au coup d'envoi et ne peut plus être modifiée. L'onglet <a href="#/verdict">Verdict</a> compare ensuite nos calculs aux vrais résultats et affiche le taux de réussite réel, bon ou mauvais.</p>
+      <h2>Ce que Duel Prono n'est pas</h2>
+      <p>Duel Prono n'est pas un site de paris. On n'y mise pas d'argent et on n'y gagne ni argent ni lot. Une probabilité n'est jamais une certitude : même un résultat annoncé à 80 % échoue une fois sur cinq.</p>
+      <h2>Nous écrire</h2>
+      <p>${mailto}</p>` },
+    "conditions": { kicker: "Règles du site", titre: "Conditions d'utilisation", html: `
+      <p class="maj">Dernière mise à jour : 11 novembre 2026</p>
+      <h2>1. Objet</h2>
+      <p>Ces conditions fixent les règles d'utilisation du site Duel Prono. En créant un compte, tu les acceptes.</p>
+      <h2>2. Le service</h2>
+      <p>Duel Prono affiche des probabilités sur des matchs de football, calculées par un modèle statistique, et propose un jeu de pronostics gratuit avec un classement hebdomadaire.</p>
+      <h2>3. Un jeu gratuit, sans argent</h2>
+      <ul>
+        <li>Jouer est gratuit. Aucune mise n'est demandée.</li>
+        <li>Les points et le classement n'ont aucune valeur : ils ne donnent droit à aucun gain, aucun lot, aucune récompense.</li>
+        <li>Duel Prono n'est pas un opérateur de jeux d'argent, ne prend aucun pari et ne renvoie vers aucun site de paris.</li>
+      </ul>
+      <h2>4. Les probabilités</h2>
+      <p>Les probabilités sont des estimations statistiques fournies à titre d'information, sans aucune garantie de résultat. Elles ne constituent pas un conseil. L'usage que tu en fais relève de ta seule responsabilité, et Duel Prono ne peut être tenu responsable d'une perte, quelle qu'elle soit.</p>
+      <h2>5. Ton compte</h2>
+      <ul>
+        <li>Le site est réservé aux personnes âgées de 18 ans ou plus.</li>
+        <li>Un seul compte par personne, avec une adresse e-mail valable.</li>
+        <li>Ton pseudo est public. Il ne doit être ni injurieux, ni trompeur, ni celui de quelqu'un d'autre.</li>
+        <li>Tu es responsable de ton mot de passe.</li>
+        <li>Tu peux supprimer ton compte à tout moment depuis « Mon espace ».</li>
+      </ul>
+      <h2>6. Règles du jeu</h2>
+      <ul>
+        <li>Un pronostic par match : victoire à domicile, nul ou victoire à l'extérieur.</li>
+        <li>Il peut être modifié jusqu'au coup d'envoi, plus après.</li>
+        <li>Un pronostic juste rapporte des points, d'autant plus nombreux que le résultat était jugé peu probable (de 10 à 100). Un pronostic faux rapporte 0 point.</li>
+        <li>Le classement va du lundi au dimanche (heure de Paris) et repart de zéro chaque lundi.</li>
+        <li>Toute triche (comptes multiples, automatisation, exploitation d'une erreur) peut entraîner la suppression du compte.</li>
+      </ul>
+      <h2>7. Disponibilité</h2>
+      <p>Le site dépend de sources de données extérieures et peut être interrompu, incomplet ou en retard. Il est fourni tel quel, sans garantie de disponibilité.</p>
+      <h2>8. Propriété</h2>
+      <p>Le nom Duel Prono, son logo, ses textes et ses calculs appartiennent à l'éditeur du site. Les noms et emblèmes des clubs et des compétitions appartiennent à leurs propriétaires respectifs ; ils sont affichés uniquement pour identifier les matchs, sans lien de partenariat.</p>
+      <h2>9. Évolution</h2>
+      <p>Ces conditions peuvent évoluer. La date de mise à jour figure en haut de la page. Si une formule payante est proposée un jour, elle fera l'objet de conditions de vente séparées.</p>
+      <h2>10. Droit applicable</h2>
+      <p>Ces conditions sont soumises au droit français. Pour toute question : ${mailto}</p>` },
+    "confidentialite": { kicker: "Tes données", titre: "Confidentialité", html: `
+      <p class="maj">Dernière mise à jour : 11 novembre 2026</p>
+      <h2>En bref</h2>
+      <p>Duel Prono garde le strict minimum pour faire fonctionner ton compte. Pas de publicité, pas de revente, pas de pistage.</p>
+      <h2>Les données enregistrées</h2>
+      <ul>
+        <li><b>À l'inscription</b> : ton pseudo, ton adresse e-mail et ton mot de passe. Le mot de passe est transformé de façon irréversible : personne ne peut le lire, pas même nous.</li>
+        <li><b>Si tu les renseignes</b> : ton prénom, ta ville et ton club favori.</li>
+        <li><b>Quand tu joues</b> : tes pronostics et tes points.</li>
+        <li><b>Pour la sécurité</b> : une empreinte anonymisée de ton adresse IP, gardée 24 heures au plus, pour bloquer les inscriptions et connexions abusives.</li>
+      </ul>
+      <h2>Ce qui est public</h2>
+      <p>Seuls ton pseudo, le blason de ton club favori, tes points et ton nombre de pronostics apparaissent au classement. Ton e-mail, ton prénom et ta ville ne sont jamais affichés.</p>
+      <h2>À quoi servent ces données</h2>
+      <p>Uniquement à faire fonctionner ton compte et le jeu (exécution du service que tu as demandé) et à protéger le site contre les abus. Ton e-mail sert à te connecter et à te contacter au sujet de ton compte. Il ne reçoit aucune publicité.</p>
+      <h2>Cookies et stockage</h2>
+      <p>Le site n'utilise aucun cookie publicitaire ni outil de mesure d'audience. Il range dans ton navigateur ta connexion (valable 90 jours) et tes réglages d'affichage. Ce stockage est indispensable au fonctionnement du compte.</p>
+      <h2>Qui a accès aux données</h2>
+      <ul>
+        <li><b>L'hébergeur</b>, Cloudflare, qui stocke les données en Europe de l'Ouest pour notre compte. Cloudflare est une société américaine : des traitements techniques peuvent avoir lieu hors de l'Union européenne, dans le cadre des garanties prévues par la réglementation.</li>
+        <li><b>Les images des clubs et des compétitions</b> sont chargées depuis les serveurs de nos fournisseurs de données sportives (football-data.org et ESPN), qui voient donc l'adresse IP de ton appareil, comme tout site que tu visites.</li>
+      </ul>
+      <p>Aucune donnée n'est vendue ni transmise à des fins commerciales.</p>
+      <h2>Durée de conservation</h2>
+      <p>Tes données sont gardées tant que ton compte existe. Quand tu le supprimes, ton compte, tes informations et tous tes pronostics sont effacés immédiatement et définitivement.</p>
+      <h2>Tes droits</h2>
+      <p>Tu peux consulter et modifier tes informations, ou supprimer ton compte, depuis « Mon espace ». Pour toute autre demande (copie de tes données, opposition, question), écris à ${mailto}. Tu peux aussi adresser une réclamation à la CNIL (cnil.fr).</p>
+      <h2>Mineurs</h2>
+      <p>Le site est réservé aux personnes de 18 ans ou plus. Un compte créé par un mineur sera supprimé.</p>` },
+    "mentions-legales": { kicker: "Informations légales", titre: "Mentions légales", html: `
+      <h2>Éditeur</h2>
+      <p>Le site Duel Prono est édité par un particulier, à titre non professionnel. Comme la loi le permet (article 6, III de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique), l'éditeur a choisi de préserver son anonymat ; ses coordonnées ont été communiquées à l'hébergeur.</p>
+      <h2>Contact</h2>
+      <p>${mailto}</p>
+      <h2>Hébergeur</h2>
+      <p>Cloudflare, Inc.<br>101 Townsend Street, San Francisco, CA 94107, États-Unis<br>www.cloudflare.com</p>
+      <h2>Données personnelles</h2>
+      <p>Voir la page <a href="#/confidentialite">Confidentialité</a>.</p>
+      <h2>Avertissement</h2>
+      <p>Duel Prono n'est pas un opérateur de jeux d'argent et ne prend aucun pari. Les probabilités affichées sont des estimations statistiques, sans garantie de résultat. Le jeu est gratuit, sans mise ni gain.</p>
+      <h2>Propriété intellectuelle</h2>
+      <p>Le nom, le logo, les textes et les calculs de Duel Prono ne peuvent pas être reproduits sans autorisation. Les noms et emblèmes des clubs et des compétitions appartiennent à leurs propriétaires respectifs.</p>` },
+  };
+  function renderDoc(key) {
+    setTab("");
+    const d = DOCS[key];
+    view.innerHTML = `
+      <div class="back"><a href="#/" aria-label="Retour aux duels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>Duel Prono</span></div>
+      <section class="hero"><p class="kicker">${d.kicker}</p><h1>${d.titre}</h1></section>
+      <section class="panel doc">${d.html}</section>`;
+  }
+
   // ---------- Navigation ----------
   function route() {
     const h = location.hash.replace(/^#\/?/, "");
@@ -839,6 +951,7 @@
     if (parts[0] === "verdict") return renderVerdict();
     if (parts[0] === "arene") { arenaWeek = "courante"; return renderArena(); }
     if (parts[0] === "compte") return renderCompte();
+    if (DOCS[parts[0]]) return renderDoc(parts[0]);
     return renderDuels();
   }
   window.addEventListener("hashchange", route);

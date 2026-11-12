@@ -6,6 +6,7 @@ import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
 import { buildModel, computeTeamRatings, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
+import { flagTeams } from "./flags.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 export const predsKey = (leagueId, season) => `preds:${leagueId}@${season}`;
@@ -89,6 +90,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const cur = await kvGet(env, srcKey(src, season));
   if (!cur) return null;
   const prev = lg.cup || secours ? null : await kvGet(env, srcKey(src, season - 1));
+  if (lg.national && provider === "sp") { flagTeams(cur.teams); if (prev) flagTeams(prev.teams); } // pas de logos chez SportAPI : drapeaux
 
   const finishedCur = toFinished(cur);
   const finishedAll = prev ? [...toFinished(prev), ...finishedCur] : finishedCur;

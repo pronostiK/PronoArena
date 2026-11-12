@@ -21,7 +21,7 @@ export function ratingsDecay(finished, nowTs, opts) {
     const v = { hf: 0, ha: 0, hw: 0, af: 0, aa: 0, aw: 0 };
     for (const f of recent) {
       const x = Math.pow(0.5, Math.max(0, nowTs - f.ts) / DAY / H);
-      if (f.homeId === id) { v.hf += x * f.hg / avgHome; v.ha += x * f.ag / avgAway; v.hw += x; }
+      if (String(f.homeId) === id) { v.hf += x * f.hg / avgHome; v.ha += x * f.ag / avgAway; v.hw += x; }
       else { v.af += x * f.ag / avgAway; v.aa += x * f.hg / avgHome; v.aw += x; }
     }
     const attAll = (v.hf + v.af + K) / (v.hw + v.aw + K), defAll = (v.ha + v.aa + K) / (v.hw + v.aw + K);

@@ -3,7 +3,7 @@ import { NOW, SIM, STRENGTH, installFetch, makeKV, makeD1, calls, DB as WORLD } 
 import worker from "../src/index.js";
 import { runRobot } from "../src/robot.js";
 import { robotSources } from "../src/config.js";
-import { calculate_poisson_match } from "../src/model.js";
+import { calculate_poisson_match, buildModel, calculate_match_prediction, teamStats, computeTeamRatings } from "../src/model.js";
 import { weekOf, pointsFor } from "../src/arena.js";
 import { nationName, nationsPredict, fitLambdas, applyResults } from "../src/nations.js";
 import SEED from "../src/nations-seed.js";
@@ -253,6 +253,17 @@ const rep = await runRobot(failEnv, SIM.now);
 globalThis.fetch = saved;
 check("API en panne : le robot note l'erreur sans planter", rep.filter((x) => x.includes("@")).every((x) => x.includes("ERREUR")));
 const s = calculate_poisson_match(1.4, 1.1);
+{
+  // Identifiants numériques ou en texte : exactement les mêmes forces, statistiques et probabilités
+  const raw = WORLD["fd:FL1@2025"].filter((m) => m.ts < NOW).map((m) => ({ id: m.id, homeId: m.h, awayId: m.a, hg: m.hg, ag: m.ag, ts: m.ts, season: 2025 }));
+  const asText = raw.map((m) => ({ ...m, homeId: String(Number(m.homeId)), awayId: String(Number(m.awayId)) }));
+  const asNum = raw.map((m) => ({ ...m, homeId: Number(m.homeId), awayId: Number(m.awayId) }));
+  const mT = buildModel(asText), mN = buildModel(asNum);
+  const [dT, eT] = [asText[0].homeId, asText[0].awayId], [dN, eN] = [Number(dT), Number(eT)];
+  const pT = calculate_match_prediction({ matchId: 1, teamDomId: dT, teamExtId: eT, date: "2026-01-01" }, { model: mT, leagueId: 61, season: 2025 });
+  const pN = calculate_match_prediction({ matchId: 1, teamDomId: dN, teamExtId: eN, date: "2026-01-01" }, { model: mN, leagueId: 61, season: 2025 });
+  check("Identifiants numériques ou texte : mêmes forces, mêmes probabilités, mêmes statistiques", JSON.stringify(mT.ratings) === JSON.stringify(mN.ratings) && JSON.stringify(pT.poisson) === JSON.stringify(pN.poisson) && JSON.stringify(teamStats(dT, asText)) === JSON.stringify(teamStats(dN, asNum)) && Object.keys(mT.ratings).length > 10 && mN.ratings[dN].played > 10, `${Object.keys(mN.ratings).length} équipes`);
+}
 check("Probabilités 1N2 = 100 %", Math.abs(s.proba1 + s.probaN + s.proba2 - 1) < 0.003);
 
 

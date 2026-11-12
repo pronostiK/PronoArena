@@ -98,7 +98,7 @@ export function computeTeamRatings(finished) {
     const v = { hf: 0, ha: 0, hw: 0, af: 0, aa: 0, aw: 0 };
     recent.forEach((f, i) => {
       const x = i < MODEL.recentMatches ? MODEL.recentWeight : 1;
-      if (f.homeId === id) { v.hf += x * f.hg / avgHome; v.ha += x * f.ag / avgAway; v.hw += x; }
+      if (String(f.homeId) === id) { v.hf += x * f.hg / avgHome; v.ha += x * f.ag / avgAway; v.hw += x; }
       else { v.af += x * f.ag / avgAway; v.aa += x * f.hg / avgHome; v.aw += x; }
     });
     const attAll = (v.hf + v.af + K) / (v.hw + v.aw + K);
@@ -139,12 +139,13 @@ export function buildModel(finished) {
 
 // ---------- Forme et statistiques d'une équipe ----------
 export function teamStats(teamId, matches) {
-  const mine = matches.filter((f) => f.homeId === teamId || f.awayId === teamId).sort((a, b) => b.ts - a.ts);
+  teamId = String(teamId); // identifiants toujours comparés comme du texte (clés d'objet = texte)
+  const mine = matches.filter((f) => String(f.homeId) === teamId || String(f.awayId) === teamId).sort((a, b) => b.ts - a.ts);
   if (!mine.length) return null;
   let v = 0, n = 0, d = 0, bm = 0, be = 0, o25 = 0, btts = 0, cs = 0, hp = 0, hbm = 0, hbe = 0, ap = 0, abm = 0, abe = 0;
   const forme = [];
   for (const f of mine) {
-    const home = f.homeId === teamId;
+    const home = String(f.homeId) === teamId;
     const gf = home ? f.hg : f.ag, ga = home ? f.ag : f.hg;
     const res = gf > ga ? "V" : gf === ga ? "N" : "D";
     if (res === "V") v++; else if (res === "N") n++; else d++;
@@ -153,7 +154,7 @@ export function teamStats(teamId, matches) {
     if (gf > 0 && ga > 0) btts++;
     if (ga === 0) cs++;
     if (home) { hp++; hbm += gf; hbe += ga; } else { ap++; abm += gf; abe += ga; }
-    if (forme.length < 5) forme.push({ r: res, score: `${gf}-${ga}`, adversaire: home ? f.awayId : f.homeId, domicile: home, date: new Date(f.ts).toISOString().slice(0, 10) });
+    if (forme.length < 5) forme.push({ r: res, score: `${gf}-${ga}`, adversaire: String(home ? f.awayId : f.homeId), domicile: home, date: new Date(f.ts).toISOString().slice(0, 10) });
   }
   const P = mine.length, pct = (x) => Math.round((100 * x) / P);
   const pts5 = forme.reduce((s, f) => s + (f.r === "V" ? 3 : f.r === "N" ? 1 : 0), 0);

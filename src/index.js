@@ -169,6 +169,14 @@ export default {
 
       // TEMPORAIRE (12/11/2026) : test de SportAPI (championnats voulus, historique), à supprimer dès que le test est lu.
       // Aucune écriture, clé jamais affichée, un échec n'est pas gardé.
+      if (path === "/test-sportapi" && q("mode") === "ligues") {
+        const key = env.SPORTAPI_KEY;
+        if (!key) return json({ success: true, cle: "absente" });
+        const r = await fetch("https://sportapi.ai/api/leagues", { headers: { "X-Api-Key": key, Accept: "application/json" } });
+        const d = await r.json().catch(() => null);
+        const groupes = Array.isArray(d) ? d : Object.values(d || {}).find((v) => Array.isArray(v)) || [];
+        return json({ success: true, http: r.status, total: groupes.reduce((n, g) => n + (g.leagues?.length || 0), 0), ligues: groupes.flatMap((g) => (g.leagues || []).map((l) => `${g.country} | ${l.id} | ${l.name} | ${l.format}${l.has_standings ? "" : " | sans classement"}`)) });
+      }
       if (path === "/test-sportapi") {
         if (testSportapi && Date.now() - testSportapi.t < 3600000) return json({ success: true, ...testSportapi.out });
         const key = env.SPORTAPI_KEY;

@@ -358,11 +358,27 @@ console.log("\n— Arène —");
   check("Anti-abus : pas plus de 3 e-mails par heure pour une même adresse", blockedF >= 1, `${blockedF} demande(s) bloquée(s)`);
   s1.token = (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "mdp-retrouve-9" } })).token;
 
+  // E-mail de bienvenue
+  SIM.now += 61 * 60000; SIM.mails.length = 0;
+  const w1 = await call("/account/signup", { body: { pseudo: "Nouveau1", email: "Nouveau1@exemple.fr", motDePasse: "secret-bienvenue-1" } });
+  const wm = SIM.mails[0];
+  check("Bienvenue : un e-mail avec le pseudo et l'e-mail du compte", w1.status === 200 && SIM.mails.length === 1 && wm.to[0] === "nouveau1@exemple.fr" && wm.subject === "Bienvenue sur Duel Prono" && /Pseudo : Nouveau1/.test(wm.text) && /E-mail : nouveau1@exemple\.fr/.test(wm.text) && /duelprono\.com\/#\/compte/.test(wm.html));
+  check("Bienvenue : le mot de passe n'est jamais dans l'e-mail", !JSON.stringify(wm).includes("secret-bienvenue-1"));
+  SIM.mails.length = 0;
+  const w2 = await call("/account/signup", { body: { pseudo: "Nouveau2", email: "nouveau2@exemple.fr", motDePasse: "secret-bienvenue-2", lang: "en" } });
+  check("Bienvenue : en anglais si le site est en anglais", w2.status === 200 && SIM.mails[0]?.subject === "Welcome to Duel Prono" && /Username: Nouveau2/.test(SIM.mails[0].text));
+  SIM.mailDown = true;
+  const w3 = await call("/account/signup", { body: { pseudo: "Nouveau3", email: "nouveau3@exemple.fr", motDePasse: "secret-bienvenue-3" } });
+  SIM.mailDown = false;
+  check("Bienvenue : un envoi raté ne bloque pas l'inscription", w3.status === 200 && w3.token?.length === 64 && (await call("/me", { token: w3.token })).status === 200);
+  SIM.mails.length = 0;
+  check("Bienvenue : aucun e-mail si le pseudo ou l'e-mail est déjà pris", (await call("/account/signup", { body: { pseudo: "Nouveau1", email: "autre@exemple.fr", motDePasse: "secret-bienvenue-4" } })).status === 409 && SIM.mails.length === 0);
+
   // Quotas et vie du compte
   const perDay = (d1.stats.queries - q0) / ((Date.parse(last.date) + 4 * 3600000 - Date.parse(m0.date)) / 86400000);
   check("Base : le robot reste très en dessous des limites gratuites", perDay < 1000, `≈ ${Math.round(perDay)} appels base/jour pendant une journée de matchs`);
   const st = await call("/status");
-  check("/status montre l'Arène", st.arene.ouverte && st.arene.joueurs === 3 && st.arene.pronostics === 12 && st.arene.enAttenteDeResultat === 0);
+  check("/status montre l'Arène", st.arene.ouverte && st.arene.joueurs === 6 && st.arene.pronostics === 12 && st.arene.enAttenteDeResultat === 0);
   check("Déconnexion : le jeton ne marche plus", (await call("/account/logout", { token: s3.token, method: "POST" })).status === 200 && (await call("/me", { token: s3.token })).status === 401);
   check("Suppression de compte : mot de passe exigé", (await call("/account/delete", { token: s2.token, body: { motDePasse: "faux-mot-de-passe" } })).status === 401);
   const del = await call("/account/delete", { token: s2.token, body: { motDePasse: "motdepasse2" } });

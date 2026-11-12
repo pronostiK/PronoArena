@@ -87,7 +87,12 @@ export async function signup(env, body, ip, now = Date.now()) {
     const r = await db.prepare("INSERT INTO joueurs (pseudo, email, mdp, cree_le) VALUES (?1, ?2, ?3, ?4)").bind(pseudo, email, await hashPassword(mdp), now).run();
     id = r.meta.last_row_id;
   } catch { throw new HttpError(409, "Ce pseudo ou cet e-mail est déjà utilisé."); }
-  return { success: true, pseudo, token: await openSession(db, id, now) };
+  const token = await openSession(db, id, now);
+  // E-mail de bienvenue : rappelle le pseudo et l'e-mail, jamais le mot de passe. Un envoi raté ne bloque pas l'inscription.
+  if (env.RESEND_API_KEY) {
+    try { await sendMail(env, email, WELCOME[body.lang === "en" ? "en" : "fr"](pseudo, email), `bienvenue-${id}`); } catch { /* le compte est créé, le joueur est connecté */ }
+  }
+  return { success: true, pseudo, token };
 }
 
 export async function login(env, body, now = Date.now()) {
@@ -194,6 +199,20 @@ const MAILS = {
     subject: "Duel Prono: new password",
     text: `Hello ${pseudo},\n\nTo choose a new password, open this link (valid for 1 hour):\n${link}\n\nIf you did not ask for this, ignore this message: your password stays the same.\n\nDuel Prono`,
     html: `<p>Hello ${pseudo},</p><p>To choose a new password, tap this button (link valid for 1 hour):</p><p><a href="${link}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#FF6B00;color:#121212;font-weight:bold;text-decoration:none">Choose a new password</a></p><p style="color:#666;font-size:13px">If you did not ask for this, ignore this message: your password stays the same.</p><p>Duel Prono</p>`,
+  }),
+};
+const escHtml = (x) => String(x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const BTN = "display:inline-block;padding:12px 20px;border-radius:10px;background:#FF6B00;color:#121212;font-weight:bold;text-decoration:none";
+const WELCOME = {
+  fr: (pseudo, email) => ({
+    subject: "Bienvenue sur Duel Prono",
+    text: `Bonjour ${pseudo},\n\nTon compte Duel Prono est créé. Garde ce message : il contient tes identifiants.\n\nPseudo : ${pseudo}\nE-mail : ${email}\n\nTu peux te connecter avec ton pseudo ou ton e-mail :\n${SITE}/#/compte\n\nPour ta sécurité, ton mot de passe n'est jamais envoyé par e-mail. Si tu l'oublies, touche « Mot de passe oublié ? » sur l'écran de connexion.\n\nSi tu n'as pas créé ce compte, écris-nous à contact@duelprono.com.\n\nDuel Prono`,
+    html: `<p>Bonjour ${pseudo},</p><p>Ton compte Duel Prono est créé. Garde ce message : il contient tes identifiants.</p><p style="padding:12px 16px;border-radius:10px;background:#f4f4f4"><b>Pseudo :</b> ${pseudo}<br><b>E-mail :</b> ${escHtml(email)}</p><p>Tu peux te connecter avec ton pseudo ou ton e-mail :</p><p><a href="${SITE}/#/compte" style="${BTN}">Me connecter</a></p><p style="color:#666;font-size:13px">Pour ta sécurité, ton mot de passe n'est jamais envoyé par e-mail. Si tu l'oublies, touche « Mot de passe oublié ? » sur l'écran de connexion.</p><p style="color:#666;font-size:13px">Si tu n'as pas créé ce compte, écris-nous à contact@duelprono.com.</p><p>Duel Prono</p>`,
+  }),
+  en: (pseudo, email) => ({
+    subject: "Welcome to Duel Prono",
+    text: `Hello ${pseudo},\n\nYour Duel Prono account is ready. Keep this message: it holds your log-in details.\n\nUsername: ${pseudo}\nEmail: ${email}\n\nYou can log in with your username or your email:\n${SITE}/#/compte\n\nFor your safety, your password is never sent by email. If you forget it, tap "Forgot password?" on the log-in screen.\n\nIf you did not create this account, write to us at contact@duelprono.com.\n\nDuel Prono`,
+    html: `<p>Hello ${pseudo},</p><p>Your Duel Prono account is ready. Keep this message: it holds your log-in details.</p><p style="padding:12px 16px;border-radius:10px;background:#f4f4f4"><b>Username:</b> ${pseudo}<br><b>Email:</b> ${escHtml(email)}</p><p>You can log in with your username or your email:</p><p><a href="${SITE}/#/compte" style="${BTN}">Log in</a></p><p style="color:#666;font-size:13px">For your safety, your password is never sent by email. If you forget it, tap "Forgot password?" on the log-in screen.</p><p style="color:#666;font-size:13px">If you did not create this account, write to us at contact@duelprono.com.</p><p>Duel Prono</p>`,
   }),
 };
 async function sendMail(env, to, mail, key) {

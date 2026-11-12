@@ -735,7 +735,7 @@
       e.preventDefault();
       const err = f.querySelector(".form-err"), btn = f.querySelector("button[type=submit]");
       err.hidden = true; btn.disabled = true;
-      try { await done(await call(path, Object.fromEntries(fields.map((k) => [k, f.elements[k].type === "checkbox" ? f.elements[k].checked : f.elements[k].value])))); }
+      try { await done(await call(path, Object.fromEntries([["lang", I18N.lang], ...fields.map((k) => [k, f.elements[k].type === "checkbox" ? f.elements[k].checked : f.elements[k].value])]))); }
       catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
     };
   }

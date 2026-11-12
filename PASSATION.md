@@ -107,3 +107,11 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Après mise en ligne du bloc 2 : créer un vrai compte sur le site, vérifier /status (rubrique « arene ») et que l'inscription ne dépasse pas la limite de calcul de l'offre gratuite.
 - **Bloc 3** : abonnement 5 €/mois (Stripe), limite 2 pronos/jour en gratuit.
 - Plus tard : corners et cartons (stats détaillées ESPN, plus lourd pour le quota).
+
+## État au 12/11/2026 soir (reprise)
+- SportAPI : code en ligne, le robot remplit tout seul (lignes `sp:` de `/status`). À vérifier : `/status` tout « à jour » ⇒ Turquie, Belgique, Écosse, CAN visibles. Ensuite : ouvrir `api.duelprono.com/test-sp-dump`, envoyer le résultat à Claude pour le test sur matchs passés (Brier vs naïf), puis SUPPRIMER la route `/test-sp-dump` (src/index.js).
+- Chantier modèle : voir `test/lab/RAPPORT-MODELE.md`. Décroissance, forces conjointes, Elo clubs : aucun gain retenu, modèle inchangé. Calibration par issue (B et C) fournie (`test/backtest.mjs`). Piste en attente de l'avis des auditeurs (Perplexity, ChatGPT) : recalibration légère des gros favoris (réglée sur A, jugée sur B et C). Marchés de buts (+2,5, les deux marquent) : pas mieux que la moyenne, ne pas les mettre en avant.
+- Rôles : Claude programme et calcule ; Perplexity (et ChatGPT) auditent. Dossier d'audit : `test/lab/` (+ test anti-fuite `canary.py`).
+- Fournisseur candidat « Soccer Data » (soccer-data.co) : vrais xG, blessures par équipe, cotes (plan Pro 19 $/mois). Plan gratuit 50 appels/jour, saison actuelle seulement. Étape prévue : l'utilisateur crée le compte gratuit et met la clé en secret Cloudflare `SOCCERDATA_KEY` ; Claude vérifie la couverture des 5 grands championnats puis, si bon, un mois de Pro avec le même test sur matchs passés. Jamais d'abonnement sans preuve.
+- Coupe de France (sp:28) : reportée (clubs amateurs sans logo).
+- Toujours en attente côté utilisateur : confirmation visuelle « 3e du groupe » (Arménie–Chypre) ; capture DNS de duelprono.com (enregistrements mail Amen).

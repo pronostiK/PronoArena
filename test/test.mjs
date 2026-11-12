@@ -1,7 +1,7 @@
 // Tests Duel Prono V7 : robot, pronostics, stats, coupes, face-à-face, état, limites Cloudflare gratuites
 import { NOW, SIM, STRENGTH, installFetch, makeKV, makeD1, calls, DB as WORLD } from "./sim.mjs";
 import worker from "../src/index.js";
-import { runRobot } from "../src/robot.js";
+import { runRobot, pickDue } from "../src/robot.js";
 import { robotSources } from "../src/config.js";
 import { calculate_poisson_match, buildModel, calculate_match_prediction, teamStats, computeTeamRatings } from "../src/model.js";
 import { weekOf, pointsFor } from "../src/arena.js";
@@ -179,8 +179,13 @@ check("Marchés cohérents (sans encaisser + avec BTTS = victoire)", Math.abs(P0
 check("Forme : logos des adversaires", L1.predictions[0].teams.domicile.stats.formeDetail.every((f) => f.logo));
 const C2 = (await get("/league-predictions?leagueId=2")).predictions[0];
 check("Forme en coupe : adversaires de championnat nommés", C2.teams.domicile.stats.formeDetail.every((f) => !/^\d+$/.test(f.adversaire)));
-const L2b = (await get("/league-predictions?leagueId=62")).predictions[0];
-const mdL2 = await get(`/match-details?matchId=${L2b.matchId}&source=espn&teamDomId=${L2b.teams.domicile.id}&teamExtId=${L2b.teams.exterieur.id}&leagueId=62`);
+const L2all = (await get("/league-predictions?leagueId=62")).predictions;
+// Les compositions arrivent équipe par équipe quand aucun match ne se joue : on cherche un match de Ligue 2 dont les deux onze sont là
+let mdL2 = { compositions: {} };
+for (const q of L2all) {
+  const md = await get(`/match-details?matchId=${q.matchId}&source=espn&teamDomId=${q.teams.domicile.id}&teamExtId=${q.teams.exterieur.id}&leagueId=62`);
+  if (md.compositions.domicile?.xi?.length === 11 && md.compositions.exterieur?.xi?.length === 11) { mdL2 = md; break; }
+}
 check("Compositions ESPN (Ligue 2)", mdL2.compositions.domicile?.xi?.length === 11 && mdL2.compositions.exterieur?.xi?.length === 11, mdL2.compositions.domicile?.f);
 const mdL1 = await get(`/match-details?matchId=${p.matchId}&source=football-data&teamDomId=${d.id}&teamExtId=${p.teams.exterieur.id}&leagueId=61`);
 check("Compositions football-data (via correspondance ESPN)", mdL1.compositions.domicile?.xi?.length === 11 || mdL1.compositions.exterieur?.xi?.length === 11);
@@ -264,6 +269,12 @@ const s = calculate_poisson_match(1.4, 1.1);
   const pN = calculate_match_prediction({ matchId: 1, teamDomId: dN, teamExtId: eN, date: "2026-01-01" }, { model: mN, leagueId: 61, season: 2025 });
   check("Identifiants numériques ou texte : mêmes forces, mêmes probabilités, mêmes statistiques", JSON.stringify(mT.ratings) === JSON.stringify(mN.ratings) && JSON.stringify(pT.poisson) === JSON.stringify(pN.poisson) && JSON.stringify(teamStats(dT, asText)) === JSON.stringify(teamStats(dN, asNum)) && Object.keys(mT.ratings).length > 10 && mN.ratings[dN].played > 10, `${Object.keys(mN.ratings).length} équipes`);
 }
+{
+  // Le chargement de l'historique SportAPI passe devant les matchs en direct (sinon il reste bloqué les soirs de matchs)
+  const src = [{ src: "espn:uefa.nations", season: 2026, kind: "live", main: true }, { src: "sp:16", season: 2025, kind: "history", main: false }];
+  const idx = { "espn:uefa.nations@2026": { updatedAt: 0, complete: true, live: true, nextTs: NOW - 600000 }, "sp:16@2025": { updatedAt: NOW - 3000000, complete: false } };
+  check("Robot : l'historique SportAPI incomplet passe avant les matchs en direct", pickDue(src, idx, NOW)[0].src === "sp:16");
+}
 check("Probabilités 1N2 = 100 %", Math.abs(s.proba1 + s.probaN + s.proba2 - 1) < 0.003);
 
 
@@ -313,7 +324,7 @@ console.log("\n— Arène —");
     check("Inscrit : toutes les probabilités", full.matchs.length > 20 && full.matchs.every((m) => m.poisson && !m.verrouille));
     const f = open[0], lgA = await call(`/league-predictions?leagueId=${f.leagueId}`), lgF = await call(`/league-predictions?leagueId=${f.leagueId}`, { token: s1.token });
     const freeIn = lgA.predictions.filter((p) => !p.verrouille), lockIn = lgA.predictions.filter((p) => p.verrouille);
-    check("Visiteur : même règle dans la page d'une compétition", freeIn.length >= 1 && freeIn.length <= 2 && freeIn.every((p) => p.gratuit && p.poisson.matrix) && lockIn.length >= 8 && lockIn.every((p) => !p.poisson && !p.lambdas && !p.cotesJustes) && lgF.predictions.every((p) => p.poisson && p.lambdas));
+    check("Visiteur : même règle dans la page d'une compétition", freeIn.length >= 1 && freeIn.length <= 2 && freeIn.every((p) => p.gratuit && p.poisson.matrix) && lockIn.length === lgA.predictions.length - freeIn.length && lockIn.length >= Math.min(8, lgA.predictions.length - 2) && lockIn.every((p) => !p.poisson && !p.lambdas && !p.cotesJustes) && lgF.predictions.every((p) => p.poisson && p.lambdas));
     const l0 = lockIn[0], det = (m, lid, tok) => call(`/match-details?matchId=${encodeURIComponent(m.matchId)}&source=${m.source}&teamDomId=${m.teams.domicile.id}&teamExtId=${m.teams.exterieur.id}&leagueId=${lid}`, { token: tok });
     check("Visiteur : analyse d'un match réservé refusée, celle d'un match offert ouverte", (await det(l0, f.leagueId)).status === 401 && (await det(f, f.leagueId)).status === 200 && (await det(l0, f.leagueId, s1.token)).status === 200 && (await det(l0, "")).status === 401);
     check("Faux jeton : traité comme un visiteur", (await call("/upcoming", { token: "f".repeat(64) })).matchs.filter((m) => !m.verrouille).length === 2);

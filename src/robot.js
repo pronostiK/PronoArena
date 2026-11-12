@@ -33,9 +33,12 @@ export function pickDue(sources, index, now) {
       const urgent = s.kind === "live" && targetDelay(meta, s.kind, now) === 15 * MIN;
       // Premier chargement : les compétitions affichées passent avant les sources de secours
       const first = s.main && !meta?.error && (!meta || meta.complete === false);
+      // SportAPI : le chargement de l'historique (saison précédente) passe avant tout, même avant les matchs en direct,
+      // sinon il reste bloqué les soirs de matchs et la compétition n'est jamais publiée. Coût : 15 appels par passage, pendant ~4 h.
+      const fill = s.src.startsWith("sp:") && !meta?.error && (!meta || meta.complete === false);
       // Les sources ESPN / football-data en direct sont revues à chaque passage ; SportAPI (quota d'appels par jour) toutes les 15 min seulement
       const dueNow = overdue >= 0 || (urgent && !s.src.startsWith("sp:"));
-      return { ...s, k, urgent, dueNow, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) + (first && overdue >= 0 ? 1e12 : 0) };
+      return { ...s, k, urgent, dueNow, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) + (first && overdue >= 0 ? 1e12 : 0) + (fill ? 1e14 : 0) };
     })
     .filter((s) => s.dueNow)
     .sort((a, b) => b.overdue - a.overdue);

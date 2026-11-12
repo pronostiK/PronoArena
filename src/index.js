@@ -29,6 +29,7 @@ const CORS = {
 const PRIVATE = { "Cache-Control": "no-store" };
 // Mémoire partagée entre visiteurs (5 min) pour les calculs lourds : économise le quota de lectures
 const memo = new Map();
+let testAbsents = null; // TEMPORAIRE, voir /test-absents
 async function remember(key, ttl, fn) {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.t < ttl) return hit.v;
@@ -167,15 +168,19 @@ export default {
       }
 
       // TEMPORAIRE (12/11/2026) : test des absents chez API-Football, à supprimer dès que le test est lu.
-      // Résultat gardé 1 h en mémoire (4 appels par heure au plus), la clé n'est jamais affichée.
+      // Appels espacés, nouvel essai si l'API répond « trop vite », un échec n'est jamais gardé ; clé jamais affichée.
       if (path === "/test-absents") {
-        const out = await remember("test-absents", 3600000, async () => {
-          const key = env.API_FOOTBALL_KEY;
-          if (!key) return { cle: "absente" };
-          const get = async (chemin) => {
+        if (testAbsents && Date.now() - testAbsents.t < 3600000) return json({ success: true, ...testAbsents.out });
+        const key = env.API_FOOTBALL_KEY;
+        if (!key) return json({ success: true, cle: "absente" });
+        const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+        let tropVite = false;
+        const get = async (chemin) => {
+          for (let essai = 0; essai < 3; essai++) {
             try {
               const r = await fetch("https://v3.football.api-sports.io" + chemin, { headers: { "x-apisports-key": key } });
               const d = await r.json();
+              if (d.errors?.rateLimit) { if (essai < 2) { await pause(15000); continue; } tropVite = true; }
               const lignes = Array.isArray(d.response) ? d.response : [];
               return {
                 appel: chemin, http: r.status, erreurs: d.errors, resultats: d.results ?? lignes.length,
@@ -185,15 +190,12 @@ export default {
                 compte: d.response && !Array.isArray(d.response) ? d.response : undefined,
               };
             } catch (e) { return { appel: chemin, erreur: String(e.message || e) }; }
-          };
-          return {
-            compte: await get("/status"),
-            ligue_des_nations: await get("/injuries?league=5&season=2026&date=2026-11-12"),
-            premier_league: await get("/injuries?league=39&season=2026"),
-            ligue_1: await get("/injuries?league=61&season=2026"),
-          };
-        });
-        return json({ success: true, ...out });
+          }
+        };
+        const out = {};
+        for (const [nom, chemin] of [["ligue_des_nations", "/injuries?league=5&season=2026&date=2026-11-12"], ["premier_league", "/injuries?league=39&season=2026"], ["ligue_1", "/injuries?league=61&season=2026"], ["compte", "/status"]]) { out[nom] = await get(chemin); await pause(2000); }
+        if (!tropVite) testAbsents = { t: Date.now(), out };
+        return json({ success: true, ...(tropVite ? { avertissement: "L'API a refusé des appels (trop de requêtes par minute) : réessaie dans 2 minutes." } : {}), ...out });
       }
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });

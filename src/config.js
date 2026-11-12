@@ -64,6 +64,12 @@ export const LEAGUES = {
   848: { name: "Conference League", logo: logo(20296), country: "Europe", src: "espn:uefa.europa.conf", cup: true, domestic: ESPN_DOMESTIC },
   5: { name: "Ligue des Nations", logo: logo(2395), country: "Europe", src: "espn:uefa.nations", cup: true, national: true },
   15: { name: "Coupe du monde", logo: logo(4), country: "Monde", src: "fd:WC", cup: true, national: true, robot: false },
+  // SportAPI (sportapi.ai) : la clé « sp:<id> » est l'identifiant de la compétition chez SportAPI
+  203: { name: "Süper Lig", logo: logo(18), country: "Turquie", src: "sp:16" },
+  144: { name: "Pro League", logo: logo(6), country: "Belgique", src: "sp:5" },
+  179: { name: "Scottish Premiership", logo: logo(45), country: "Écosse", src: "sp:88" },
+  // CAN : qualifications (72) et phase finale (123) réunies ; sélections notées par l'Elo des sélections
+  6: { name: "CAN", logo: logo(76), country: "Afrique", src: "sp:72+123", cup: true, national: true },
   4: { name: "Euro", logo: logo(74), country: "Europe", src: "fd:EC", cup: true, national: true, robot: false },
 };
 

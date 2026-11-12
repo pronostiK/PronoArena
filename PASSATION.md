@@ -28,7 +28,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Moteur : worker `prono-arena-worker` (racine du dépôt, `src/`), URL prono-arena-worker.hitch-legende.workers.dev
 - Site : worker `prono-arena` (dossier `site/`, répertoire racine `site`), URL prono-arena.hitch-legende.workers.dev
 - Base D1 `prono-arena` (binding `DB`, id 44108fa4-5b70-4731-a0e4-33605e47a1dc, tables dans `schema.sql`) : joueurs, sessions, pronos, limites.
-- Cache KV `PRONO_CACHE`. Secrets dans Cloudflare : `FOOTBALL_DATA_KEY` (et `API_FOOTBALL_KEY`, inutilisée).
+- Cache KV `PRONO_CACHE`. Secrets dans Cloudflare : `FOOTBALL_DATA_KEY`, `SPORTAPI_KEY`, `RESEND_API_KEY` (et `API_FOOTBALL_KEY`, inutilisée).
 - Robot (cron toutes les 10 min) : prépare tout, les visiteurs ne font que lire. Jamais d'appel API au clic.
 - Quotas mesurés : ~144 requêtes/jour pour le robot, ~350 écritures KV/jour (limite 1000), visiteur ≈ 5 requêtes.
 - Le compte Cloudflare héberge aussi PronostiK : quotas partagés.
@@ -73,8 +73,19 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - `test/tune.mjs` : réglage sur 2024-25, vérification unique sur 2025-26+. Meilleurs réglages trouvés (fenêtre 80 matchs, 8 récents ×1,5) : 0,6088 → 0,6056 sur les matchs jamais vus. **Appliqués le 12/11/2026 avec l'accord de l'utilisateur.**
 - Absents : **ESPN ne les fournit pas** (vérifié en réel le 12/11/2026 sur Atlético-MG – Mirassol : la fiche ne contient ni blessés ni suspendus, et les compositions n'y apparaissent qu'environ 1 h avant le match). football-data gratuit non plus ; API-Football gratuit n'a pas la saison en cours. Pas d'absents sur le site tant qu'il n'y a pas de source fiable (payante). Rappel : l'étude de PronostiK montre que les absents n'améliorent presque pas les probabilités.
 
+## SportAPI — 3e source de données (12/11/2026)
+- Clé : secret `SPORTAPI_KEY` (en-tête `X-Api-Key`). Jamais dans le dépôt ni dans la conversation.
+- Source `sp:<id SportAPI>` (ex. `sp:16` Turquie) ; `sp:72+123` réunit plusieurs compétitions SportAPI (CAN : qualifications + phase finale). Code : `refreshSportapi` dans `src/sources.js`.
+- Un appel `/api/fixtures/date/AAAA-MM-JJ` renvoie TOUTES les compétitions du jour : le robot met donc à jour d'un coup toutes les sources `sp:` d'une saison (une seule place par passage). Remplissage : curseur commun depuis le 1er juillet, 15 appels max par passage (limite de 50 appels sortants par exécution gratuite, partagée avec ESPN 30 et football-data). Mise à jour courante : aujourd'hui + hier à chaque passage (15 min si match en cours), demain toutes les 3 h, J+2 à J+14 toutes les 12 h ≈ 100 appels/jour (quota gratuit : 2 000/jour et 14 000/mois jusqu'au 30/11/2026, puis 1 000/jour et 7 000/mois ; formule Starter 10 $/mois = 10 000/jour).
+- Historique disponible seulement depuis 2025-26 (rien en 2024). Pas de cotes, pas de blessures, pas de compositions (les identifiants d'équipes ne sont pas ceux d'ESPN : jamais de compositions pour `sp:`).
+- « Tout ou rien » : une compétition SportAPI n'est publiée (liste des compétitions, pronostics) que lorsque sa saison en cours ET la précédente (hors coupes) sont entièrement chargées (`ready()` dans `robot.js`, `matchsAVenir` forcé à 0 dans `/leagues` d'ici là).
+- Compétitions ajoutées (identifiants du site) : 203 Süper Lig (sp:16), 144 Pro League belge (sp:5), 179 Scottish Premiership (sp:88), 6 CAN (sp:72+123, sélections : Elo des sélections, rang dans le groupe tant que les groupes se lisent). Logos ESPN 18, 6, 45, 76.
+- Coupe de France (sp:28) NON ajoutée : beaucoup de clubs amateurs sans logo (tout ou rien). À reprendre avec un écusson par défaut.
+- Piège : les sources `sp:` ne doivent jamais entrer dans les compositions (`compos.js`) ; `FREE_PRIORITY` (`build.js`) doit contenir tout nouvel identifiant (sinon -1 = passe devant la Ligue des champions).
+- Route temporaire `/test-sp-dump` (copie des matchs SportAPI enregistrés, pour le test sur matchs passés) : À SUPPRIMER après lecture.
+
 ## Tests
-- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 128 tests, plus 4 contrôles de traduction (`test/i18n.mjs`).
+- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 160 tests, plus 4 contrôles de traduction (`test/i18n.mjs`).
 - `test/preview.mjs <dossier>` : parcours joueur complet dans Chrome (inscription, prono, Arène, déconnexion, suppression) + captures téléphone (PLAYWRIGHT_PATH=/opt/npm-tools/node_modules/playwright).
 
 ## Fait

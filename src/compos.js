@@ -77,7 +77,7 @@ export async function refreshOneCompo(env, index, season, now) {
   for (const [k, ids] of Object.entries(index)) {
     if (!k.startsWith("teams:")) continue;
     const lg = LEAGUES[k.slice(6)];
-    if (!lg || lg.src === "espn:uefa.nations") continue; // pas de compositions pour les sélections
+    if (!lg || lg.src === "espn:uefa.nations" || lg.src.startsWith("sp:")) continue; // pas de compositions pour les sélections ni pour SportAPI (ses identifiants ne sont pas ceux d'ESPN)
     for (const id of ids) { const e = lg.src.startsWith("fd:") ? compos.idmap[id] : id; if (e) wanted.add(e); }
   }
 
@@ -111,7 +111,7 @@ export async function refreshOneCompo(env, index, season, now) {
 }
 
 export function composFor(compos, provider, teamId) {
-  if (!compos) return null;
+  if (!compos || provider === "sportapi") return null; // pas de composition pour SportAPI (ses identifiants ne sont pas ceux d'ESPN)
   const id = provider === "football-data" ? compos.idmap?.[teamId] : teamId;
   const c = id && compos.teams?.[id];
   return c && !c.indisponible ? c : null;

@@ -15,7 +15,7 @@ const realNow = Date.now; Date.now = () => SIM.now;
 let T = 0;
 const tick = async (env, t) => { SIM.now = t; return runRobot(env, t); };
 
-const env = { FOOTBALL_DATA_KEY: "x", ...makeKV() };
+const env = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() };
 const get = async (path) => { const r = await worker.fetch(new Request("https://w" + path), env, { waitUntil: () => {} }); return r.json(); };
 
 const get61 = async (e) => (await worker.fetch(new Request("https://w/league-predictions?leagueId=61"), e, { waitUntil() {} })).json();
@@ -35,13 +35,49 @@ check("Aucune erreur de source", status.sources.every((s) => !s.etat.startsWith(
 const fillWrites = env.stats.writes - writes0;
 
 // Régime de croisière : 24 h de robot après remplissage
-const w1 = env.stats.writes, fd1 = calls.fd, espn1 = calls.espn;
+const w1 = env.stats.writes, fd1 = calls.fd, espn1 = calls.espn, sp1 = calls.sp;
 T = NOW + (runs + 1) * 600000;
 for (let i = 0; i < 144; i++) { await tick(env, T); T += 600000; }
 const dayWrites = env.stats.writes - w1;
 check("Écritures cache par jour < 600 (limite gratuite 1000)", dayWrites < 600, `${dayWrites} écritures/jour (remplissage initial : ${fillWrites})`);
 check("Appels football-data raisonnables (< 400/jour)", calls.fd - fd1 < 400, `${calls.fd - fd1} appels/jour`);
 console.log(`     info : ESPN ${calls.espn - espn1} appels/jour`);
+check("Appels SportAPI : très en dessous du quota (2 000/jour jusqu'au 30/11, puis 7 000/mois ≈ 230/jour)", calls.sp - sp1 < 200, `${calls.sp - sp1} appels/jour`);
+check("SportAPI : la clé est envoyée dans l'en-tête X-Api-Key", SIM.spAuth === "sp_test");
+
+// ---- 1 bis. SportAPI : Turquie, Belgique, Écosse ----
+console.log("\n— SportAPI —");
+for (const [id, nom, n] of [[203, "Süper Lig (Turquie)", 18], [144, "Pro League (Belgique)", 16], [179, "Scottish Premiership (Écosse)", 12]]) {
+  const C = await get(`/league-predictions?leagueId=${id}`);
+  const p0 = C.predictions?.[0];
+  check(`${nom} : pronostics présents, source SportAPI`, C.count >= 5 && C.predictions.every((x) => x.source === "sportapi"), `${C.count} pronostics`);
+  check(`${nom} : logos des deux équipes, classement à ${n} équipes`, C.predictions.every((x) => x.teams.domicile.logo && x.teams.exterieur.logo) && C.classement.length === n && C.classement.every((r) => r.logo));
+  check(`${nom} : saison précédente intégrée, forme et rang au classement`, C.modele.matchsAnalyses > 100 && p0.teams.domicile.stats?.forme?.length >= 4 && p0.teams.domicile.classement?.rang >= 1 && !p0.teams.domicile.classement.groupe, `${C.modele.matchsAnalyses} matchs analysés`);
+  const top = C.classement[0], bottom = C.classement.at(-1);
+  check(`${nom} : classement cohérent avec les forces réelles`, STRENGTH[top.id] > STRENGTH[bottom.id]);
+}
+{
+  const CAN = await get("/league-predictions?leagueId=6");
+  const c0 = CAN.predictions?.[0];
+  check("CAN (qualifications SportAPI) : pronostics présents, source SportAPI", CAN.count > 0 && CAN.predictions.every((x) => x.source === "sportapi"), `${CAN.count} pronostics`);
+  check("CAN : calcul par l'Elo des sélections, aucune sélection inconnue", CAN.predictions.every((x) => x.donnees.calcul === "elo-selections") && CAN.modele.selections?.inconnues.length === 0);
+  check("CAN : rang dans le groupe (pas au classement général)", CAN.predictions.every((x) => x.teams.domicile.classement?.groupe === true && x.teams.domicile.classement.rang >= 1 && x.teams.domicile.classement.rang <= 4));
+  check("CAN : le meilleur Elo est favori (Égypte contre Tunisie)", (() => { const p = CAN.predictions.find((x) => x.teams.domicile.name === "Egypt" && x.teams.exterieur.name === "Tunisia") || CAN.predictions.find((x) => x.teams.domicile.name === "Tunisia" && x.teams.exterieur.name === "Egypt"); return !p || (p.teams.domicile.name === "Egypt" ? p.poisson.proba1 > p.poisson.proba2 : p.poisson.proba2 > p.poisson.proba1); })());
+}
+const spIds = (await get("/league-predictions?leagueId=203")).classement.map((r) => r.id);
+check("SportAPI : compétitions qu'on ne suit pas ignorées", !spIds.includes("q1") && !JSON.stringify(await get("/upcoming")).includes("Autre A"));
+check("SportAPI : pas de compositions (identifiants différents d'ESPN)", (await get(`/match-details?matchId=${(await get("/league-predictions?leagueId=203")).predictions[0].matchId}&source=sportapi&teamDomId=${(await get("/league-predictions?leagueId=203")).predictions[0].teams.domicile.id}&teamExtId=${(await get("/league-predictions?leagueId=203")).predictions[0].teams.exterieur.id}&leagueId=203`)).compositions?.domicile == null);
+{
+  // « Tout ou rien » : tant que le remplissage n'est pas terminé, la compétition n'est pas publiée
+  const envP = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() }, nowSaved = SIM.now;
+  for (let i = 0; i < 3; i++) await tick(envP, NOW + i * 600000);
+  SIM.now = nowSaved;
+  const r = await (await worker.fetch(new Request("https://w/league-predictions?leagueId=203"), envP, { waitUntil() {} })).json();
+  const stP = await (await worker.fetch(new Request("https://w/status"), envP, { waitUntil() {} })).json();
+  const lgP = await (await worker.fetch(new Request("https://w/leagues"), envP, { waitUntil() {} })).json();
+  check("SportAPI « tout ou rien » : compétitions masquées de la liste tant que le chargement n'est pas fini", [203, 144, 179, 6].every((id) => lgP.competitions.find((c) => c.id === id)?.matchsAVenir === 0));
+  check("SportAPI « tout ou rien » : Süper Lig non publiée pendant le remplissage", r.count === 0 && stP.sources.find((x) => x.source === "sp:16@2025").etat !== "à jour", stP.sources.find((x) => x.source === "sp:16@2025").etat);
+}
 
 // ---- 2. Pronostics de championnat ----
 console.log("\n— Ligue 1 —");
@@ -169,8 +205,8 @@ const UP = await get("/upcoming");
 check("Accueil : tous les matchs des 7 prochains jours, de plusieurs compétitions, triés par date", UP.success && UP.matchs.length >= 20 && new Set(UP.matchs.map((m) => m.leagueId)).size >= 6 && UP.matchs.every((m, i) => (i === 0 || Date.parse(m.date) >= Date.parse(UP.matchs[i - 1].date)) && Date.parse(m.date) < SIM.now + 7 * 86400000 && Math.abs(m.poisson.proba1 + m.poisson.probaN + m.poisson.proba2 - 1) < 0.01 && m.teams.domicile.name), `${UP.matchs.length} matchs, ${new Set(UP.matchs.map((m) => m.leagueId)).size} compétitions`);
 { const l1 = (await get("/league-predictions?leagueId=61")).predictions, next = LG.competitions.find((c) => c.id === 61).prochain;
   check("Compétitions : date du prochain match fournie pour le tri", LG.competitions.filter((c) => c.matchsAVenir > 0).every((c) => c.prochain) && Date.parse(next) === Math.min(...l1.map((p) => Date.parse(p.date)).filter((t) => t > SIM.now - 3 * 3600000)), next); }
-check("Chaque compétition a son logo", LG.competitions.every((c) => /^https:\/\/a\.espncdn\.com\/i\/leaguelogos\/soccer\/500\/\d+\.png$/.test(c.logo)) && new Set(LG.competitions.map((c) => c.logo)).size === 16);
-check("Liste des compétitions avec matchs à venir", LG.competitions.length === 16 && LG.competitions.find((c) => c.id === 71)?.matchsAVenir > 0, "Brésil inclus");
+check("Chaque compétition a son logo", LG.competitions.every((c) => /^https:\/\/a\.espncdn\.com\/i\/leaguelogos\/soccer\/500\/\d+\.png$/.test(c.logo)) && new Set(LG.competitions.map((c) => c.logo)).size === 20);
+check("Liste des compétitions avec matchs à venir", LG.competitions.length === 20 && LG.competitions.find((c) => c.id === 71)?.matchsAVenir > 0, "Brésil inclus");
 
 // ---- 6. Panne football-data : bascule sur ESPN ----
 console.log("\n— Secours —");
@@ -191,20 +227,27 @@ console.log("\n— ESPN bloqué —");
   check("ESPN refuse (403) : le robot se met en pause au lieu d'insister", st.espn.etat === "en pause" && calls.espnRefus <= 6, `${calls.espnRefus} appels refusés en 6 h (36 passages), pause jusqu'à ${st.espn.jusqua}`);
   check("Pendant la pause, les championnats football-data continuent", (await get("/league-predictions?leagueId=61")).count > 0 && st.sources.find((s) => s.source === "fd:FL1@2026").etat === "à jour");
   SIM.espnBlocked = false;
+  // SportAPI refuse (429) : le robot note l'erreur, le reste du site continue, les pronostics déjà publiés restent
+  SIM.spDown = true; calls.sp = 0;
+  for (let i = 0; i < 6 * 8; i++) { await tick(env, T); T += 600000; }
+  const stS = await get("/status");
+  check("SportAPI en panne : erreur notée, les autres compétitions continuent", stS.sources.filter((x) => x.source.startsWith("sp:") && x.source.endsWith("@2026")).every((x) => x.etat.startsWith("erreur")) && (await get("/league-predictions?leagueId=61")).count > 0 && (await get("/league-predictions?leagueId=144")).count >= 5, `${calls.sp} appel(s) refusé(s) en 8 h`);
+  SIM.spDown = false;
   for (let i = 0; i < 6 * 6; i++) { await tick(env, T); T += 600000; } // ESPN répond de nouveau
   const st2 = await get("/status");
+  check("SportAPI répond de nouveau : reprise automatique", st2.sources.filter((s) => s.source.startsWith("sp:")).every((s) => s.etat === "à jour"));
   check("ESPN répond de nouveau : reprise automatique", st2.espn.etat === "ok" && st2.sources.filter((s) => s.source.startsWith("espn:")).every((s) => !s.etat.startsWith("erreur")), st2.progression);
 }
 
 // ---- 7. Sécurité de fonctionnement ----
 console.log("\n— Robustesse —");
-const env2 = { FOOTBALL_DATA_KEY: "x", ...makeKV() };
+const env2 = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() };
 const r = await worker.fetch(new Request("https://w/league-predictions?leagueId=39"), env2, {});
 const j = await r.json();
 check("Site utilisable avant le premier passage du robot", j.success && j.count === 10);
 check("Compétition inconnue : réponse vide propre", (await get("/league-predictions?leagueId=999")).count === 0);
 check("Route inconnue : erreur 404 propre", (await worker.fetch(new Request("https://w/xyz"), env, {})).status === 404);
-const failEnv = { FOOTBALL_DATA_KEY: "x", ...makeKV() };
+const failEnv = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() };
 const saved = globalThis.fetch; globalThis.fetch = async () => ({ ok: false, status: 429 });
 const rep = await runRobot(failEnv, SIM.now);
 globalThis.fetch = saved;
@@ -217,7 +260,7 @@ check("Probabilités 1N2 = 100 %", Math.abs(s.proba1 + s.probaN + s.proba2 - 1) 
 console.log("\n— Arène —");
 {
   const d1 = await makeD1();
-  const A = { FOOTBALL_DATA_KEY: "x", ...makeKV(), DB: d1.DB };
+  const A = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV(), DB: d1.DB };
   // Lundi 9 nov. 2026, 9 h (Paris) : début de semaine
   let t = Date.UTC(2026, 10, 9, 8, 0);
   const run = async (until) => { for (; t <= until; t += 600000) { SIM.now = t; await runRobot(A, t); } SIM.now = t; };

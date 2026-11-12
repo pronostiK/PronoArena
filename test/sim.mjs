@@ -1,6 +1,6 @@
 // Monde simulé : championnats, coupes, deux saisons, fausses API football-data et ESPN, faux cache KV.
 export const NOW = Date.UTC(2026, 10, 10, 17, 0); // 10 nov. 2026
-export const SIM = { now: NOW, fdDown: new Set(), espnBlocked: false, mails: [], mailDown: false };
+export const SIM = { spDown: false, spAuth: null, now: NOW, fdDown: new Set(), espnBlocked: false, mails: [], mailDown: false };
 const isDone = (x) => x.ts + 2 * 3600000 < SIM.now;
 const isLive = (x) => x.ts <= SIM.now && !isDone(x);
 const DAY = 86400000;
@@ -22,6 +22,8 @@ export const LEAGUE_TEAMS = {
   "fd:DED": teams("7", 18, 2.0, 0.82), "fd:ELC": teams("8", 24, 1.6, 0.7), "fd:BSA": teams("9", 20, 1.7, 0.75),
   "espn:fra.2": teams("e1", 18, 1.6, 0.7),
 };
+// SportAPI : Turquie (16), Belgique (5), Écosse (88) — identifiants d'équipes propres à ce fournisseur
+for (const [id, n] of [[16, 18], [5, 16], [88, 12]]) LEAGUE_TEAMS[`sp:${id}`] = teams(`s${id}_`, n, 1.8, 0.75);
 // ESPN domestiques : on réutilise d'autres ids (fournisseur différent)
 for (const k of ["eng.1", "esp.1", "ita.1", "ger.1", "fra.1", "por.1", "ned.1", "bel.1", "tur.1", "sco.1", "eng.2", "bra.1"]) LEAGUE_TEAMS[`espn:${k}`] = teams(`x${k.replace(".", "")}_`, 18, 1.9, 0.85);
 
@@ -64,13 +66,18 @@ DB["espn:uefa.champions@2026"] = cup(["espn:eng.1", "espn:esp.1", "espn:ita.1", 
 DB["espn:uefa.europa@2026"] = cup(["espn:eng.1", "espn:esp.1", "espn:ita.1", "espn:ger.1", "espn:fra.1", "espn:por.1", "espn:ned.1", "espn:bel.1", "espn:tur.1"], 36);
 DB["espn:uefa.europa.conf@2026"] = cup(["espn:bel.1", "espn:sco.1", "espn:tur.1", "espn:ned.1"], 36);
 DB["espn:uefa.nations@2026"] = playSeason(Array.from({ length: 16 }, (_, i) => { STRENGTH[`n${i}`] = 2 - i * 0.08; return `n${i}`; }), Date.UTC(2026, 8, 5), Date.UTC(2027, 2, 30), 0.4, NOW);
+// CAN (SportAPI, compétition 72) : deux groupes de 4 sélections africaines, matchs aller-retour
+const AFRICA = ["Egypt", "Morocco", "Senegal", "Nigeria", "Cameroon", "Ghana", "Tunisia", "Mali"];
+AFRICA.forEach((_, i) => { STRENGTH[`c${i}`] = 2 - i * 0.12; });
+DB["sp:72@2026"] = [["c0", "c2", "c4", "c6"], ["c1", "c3", "c5", "c7"]].flatMap((g, gi) => playSeason(g, Date.UTC(2026, 8, 3), Date.UTC(2026, 11, 20), 1, NOW).map((m) => ({ ...m, id: `can${gi}${m.id}` })));
 // Un match en cours pour tester le "direct"
 DB["fd:FL1@2026"].find((m) => m.ts > NOW).ts = NOW - 30 * 60000;
 
-export const calls = { fd: 0, espn: 0, h2h: 0 };
+export const calls = { fd: 0, espn: 0, h2h: 0, sp: 0 };
 // Ligue des Nations simulée : de vraies sélections (les notes Elo se retrouvent par le nom)
 export const NATIONS = ["Spain", "France", "England", "Portugal", "Netherlands", "Belgium", "Italy", "Germany", "Croatia", "Denmark", "Turkey", "Switzerland", "Czechia", "Bosnia-Herzegovina", "Norway", "San Marino"];
-const teamName = (id) => (/^n\d+$/.test(id) ? NATIONS[+id.slice(1)] : `Équipe ${id}`);
+const AFRICA_NAMES = AFRICA;
+const teamName = (id) => (/^n\d+$/.test(id) ? NATIONS[+id.slice(1)] : /^c\d+$/.test(id) ? AFRICA_NAMES[+id.slice(1)] : `Équipe ${id}`);
 export function installFetch() {
   globalThis.fetch = async (url, opts) => {
     const u = new URL(url);
@@ -87,6 +94,19 @@ export function installFetch() {
       const list = DB[`fd:${m[1]}@${u.searchParams.get("season")}`];
       if (!list) return { ok: false, status: 404 };
       return { ok: true, json: async () => ({ matches: list.map((x) => ({ id: x.id, utcDate: new Date(x.ts).toISOString(), status: isDone(x) ? "FINISHED" : isLive(x) ? "IN_PLAY" : "TIMED", homeTeam: { id: x.h, name: `Équipe ${x.h}`, crest: `${x.h}.png` }, awayTeam: { id: x.a, name: `Équipe ${x.a}`, crest: `${x.a}.png` }, score: { fullTime: { home: isDone(x) ? x.hg : null, away: isDone(x) ? x.ag : null } } })) }) };
+    }
+    if ((m = u.pathname.match(/^\/api\/fixtures\/date\/(\d{4}-\d{2}-\d{2})$/)) && u.hostname === "sportapi.ai") {
+      calls.sp++; SIM.spAuth = opts?.headers?.["X-Api-Key"];
+      if (SIM.spDown) return { ok: false, status: 429 };
+      // Comme le vrai SportAPI : toutes les compétitions du jour dans la même réponse (+ des compétitions qu'on ne suit pas)
+      const rows = [];
+      for (const [k, list] of Object.entries(DB)) {
+        if (!k.startsWith("sp:")) continue;
+        const lid = Number(k.slice(3).split("@")[0]);
+        for (const x of list) if (new Date(x.ts).toISOString().slice(0, 10) === m[1]) rows.push({ id: x.id, league_id: lid, status: isDone(x) ? "FT" : isLive(x) ? "LIVE" : "Scheduled", kickoff_utc: new Date(x.ts).toISOString(), home_id: x.h, away_id: x.a, home_team: teamName(x.h), away_team: teamName(x.a), home_logo: `${x.h}.png`, away_logo: `${x.a}.png`, home_score: isDone(x) ? x.hg : null, away_score: isDone(x) ? x.ag : null });
+      }
+      rows.push({ id: "z" + m[1], league_id: 999, status: "FT", kickoff_utc: m[1] + "T12:00:00Z", home_id: "q1", away_id: "q2", home_team: "Autre A", away_team: "Autre B", home_score: 1, away_score: 0 });
+      return { ok: true, json: async () => ({ success: true, date: m[1], data: rows }) };
     }
     if (u.hostname === "api.resend.com") { const b = JSON.parse(opts?.body || "{}"); SIM.mails.push({ ...b, auth: opts?.headers?.Authorization }); return { ok: !SIM.mailDown, status: SIM.mailDown ? 500 : 200, json: async () => ({ id: "m" + SIM.mails.length }) }; }
     if (u.hostname === "raw.githubusercontent.com") { calls.seed = (calls.seed || 0) + 1; return { ok: false, status: 404 }; }

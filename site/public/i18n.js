@@ -36,8 +36,8 @@
     "Connexion": "Log in", "Arène": "Arena", "À propos": "About", "Conditions d'utilisation": "Terms of use", "Confidentialité": "Privacy", "Mentions légales": "Legal notice",
     "Probabilités calculées par un modèle statistique, sans garantie de résultat. Duel Prono est un jeu gratuit, sans mise ni gain d'argent. Réservé aux 18 ans et plus.": "Probabilities calculated by a statistical model, with no guarantee of results. Duel Prono is a free game, with no stakes and no cash prizes. For ages 18 and over.",
     // Compétitions et pays
-    "Ligue des champions": "Champions League", "Ligue des Nations": "Nations League", "Coupe du monde": "World Cup",
-    "Angleterre": "England", "Espagne": "Spain", "Italie": "Italy", "Allemagne": "Germany", "Pays-Bas": "Netherlands", "Brésil": "Brazil", "Monde": "World",
+    "Ligue des champions": "Champions League", "Süper Lig": "Turkish Super Lig", "Ligue des Nations": "Nations League", "Coupe du monde": "World Cup",
+    "Angleterre": "England", "Espagne": "Spain", "Italie": "Italy", "Allemagne": "Germany", "Pays-Bas": "Netherlands", "Brésil": "Brazil", "Turquie": "Turkey", "Belgique": "Belgium", "Écosse": "Scotland", "Afrique": "Africa", "CAN": "AFCON", "Monde": "World",
     // Duels
     "Toutes les compétitions": "All competitions", "Choisis ton camp.": "Pick your side.",
     "Les probabilités de chaque match. Touche ton camp pour jouer dans l'Arène.": "The probabilities for every match. Tap your side to play in the Arena.",

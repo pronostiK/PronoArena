@@ -132,10 +132,105 @@ export async function fetchEspnIncremental(league, season, prev, now = Date.now(
   };
 }
 
+// ---------- SportAPI (un jour par appel, mais toutes les compétitions du jour dans la même réponse) ----------
+// Un appel par date alimente d'un coup toutes les compétitions SportAPI suivies : on met donc à jour
+// toutes les sources "sp:" d'une même saison ensemble (refreshSportapi). Une source "sp:72+123"
+// réunit plusieurs compétitions SportAPI (ex. CAN : qualifications + phase finale).
+export const SP_BUDGET = 15; // appels par passage du robot (le plan gratuit limite à 50 appels sortants par exécution)
+const spBudget = { left: SP_BUDGET };
+const spMemo = new Map();
+export const resetSpBudget = () => { spBudget.left = SP_BUDGET; spMemo.clear(); };
+export const spBudgetLeft = () => spBudget.left;
+const SP_FINISHED = ["FT", "AET", "PENS"];
+const SP_SKIP = ["Postponed", "Cancelled", "Canceled", "Suspended", "Abandoned"];
+export const SP_RECENT_DAYS = 2;     // aujourd'hui et hier, à chaque mise à jour
+export const spLeagueIds = (src) => src.slice(3).split("+").map(Number);
+const isoDay = (ts) => new Date(ts).toISOString().slice(0, 10);
+
+async function spDay(env, date) {
+  if (spMemo.has(date)) return spMemo.get(date);
+  if (!env.SPORTAPI_KEY) throw new Error("SportAPI : clé SPORTAPI_KEY absente");
+  if (spBudget.left-- <= 0) throw new Error("SportAPI : budget d'appels du passage épuisé");
+  const p = (async () => {
+    const res = await fetch(`https://sportapi.ai/api/fixtures/date/${date}`, { headers: { "X-Api-Key": env.SPORTAPI_KEY, Accept: "application/json" } });
+    if (!res.ok) throw new Error(`SportAPI ${date} [${res.status}]`);
+    const d = await res.json();
+    if (!Array.isArray(d?.data)) throw new Error(`SportAPI ${date} : réponse inattendue`);
+    return d.data;
+  })();
+  spMemo.set(date, p);
+  p.catch(() => {}); // l'erreur est gérée par l'appelant
+  return p;
+}
+
+// Met à jour d'un coup toutes les sources "sp:" d'une saison. Renvoie { src: { changed, data } }
+export async function refreshSportapi(env, srcs, season, now = Date.now(), extra = 40) {
+  const start = Date.UTC(season, 6, 1), seasonEnd = Date.UTC(season + 1, 6, 1);
+  const current = now >= start && now < seasonEnd;
+  const end = Math.min(now, seasonEnd);
+  const prevs = await Promise.all(srcs.map((s) => kvGet(env, srcKey(s, season))));
+  const state = new Map(srcs.map((s, i) => {
+    const pv = prevs[i];
+    return [s, { ids: spLeagueIds(s), teams: { ...(pv?.teams || {}) }, fin: new Map((pv?.finished || []).map((f) => [String(f[0]), f])), up: new Map((pv?.upcoming || []).map((u) => [String(u[0]), u])) }];
+  }));
+  // Curseur commun : le plus en retard (une source ajoutée plus tard repart du début de saison)
+  let cursor = Math.min(...prevs.map((pv) => pv?.cursor ?? start));
+  const dayAt = {};
+  for (const pv of prevs) for (const [k, v] of Object.entries(pv?.dayAt || {})) dayAt[k] = Math.max(dayAt[k] || 0, v);
+  let complete = prevs.every((pv) => pv && pv.complete);
+
+  const days = [];
+  if (current) for (let d = SP_RECENT_DAYS - 1; d >= 0; d--) days.push(now - d * DAY);
+  let budget = Math.max(0, Math.min(extra, spBudget.left) - days.length);
+  while (!complete && budget > 0) {
+    if (cursor >= end - (current ? DAY : 0)) { complete = true; break; }
+    days.push(cursor); cursor += DAY; budget--;
+  }
+  if (cursor >= end - (current ? DAY : 0)) complete = true;
+  // Calendrier des 2 semaines à venir : demain revu toutes les 3 h, les jours suivants toutes les 12 h
+  if (current) for (let d = 1; d <= 14 && budget > 0; d++) {
+    const t = now + d * DAY;
+    if (t >= seasonEnd) break;
+    if (now - (dayAt[isoDay(t)] || 0) > (d === 1 ? 3 : 12) * 3600000) { days.push(t); budget--; }
+  }
+
+  for (const t of days) {
+    const rows = await spDay(env, isoDay(t));
+    dayAt[isoDay(t)] = now;
+    for (const m of rows) {
+      const ts = Date.parse(m.kickoff_utc);
+      if (!Number.isFinite(ts) || ts < start || ts >= seasonEnd || !m.home_id || !m.away_id) continue;
+      const h = String(m.home_id), a = String(m.away_id), id = String(m.id), lid = Number(m.league_id);
+      for (const st of state.values()) {
+        if (!st.ids.includes(lid)) continue;
+        if (SP_SKIP.includes(m.status)) { st.up.delete(id); continue; }
+        st.teams[h] = [m.home_team || "Domicile", m.home_logo || null];
+        st.teams[a] = [m.away_team || "Extérieur", m.away_logo || null];
+        if (SP_FINISHED.includes(m.status)) {
+          const hg = Number(m.home_score), ag = Number(m.away_score);
+          if (m.home_score == null || m.away_score == null || !Number.isFinite(hg) || !Number.isFinite(ag)) continue;
+          st.fin.set(id, [id, h, a, hg, ag, ts]); st.up.delete(id);
+        } else st.up.set(id, [id, h, a, ts, m.status || "Scheduled"]);
+      }
+    }
+  }
+  for (const k of Object.keys(dayAt)) if (dayAt[k] < now - 2 * DAY && k < isoDay(now)) delete dayAt[k];
+
+  const out = {};
+  for (const [src, st] of state) {
+    for (const [id, u] of st.up) if (u[3] < now - 6 * 3600000 || st.fin.has(id)) st.up.delete(id);
+    const data = { src, season, updatedAt: now, teams: st.teams, finished: [...st.fin.values()].sort((x, y) => x[5] - y[5]), upcoming: current ? [...st.up.values()] : [], complete, cursor, dayAt };
+    const changed = await kvPutIfChanged(env, srcKey(src, season), data, (o) => [o.finished, o.upcoming, o.complete, o.cursor]);
+    out[src] = { changed, data };
+  }
+  return out;
+}
+
 export async function fetchSource(src, season, env, prev, now = Date.now(), extra = ESPN_EXTRA_DAYS) {
   const [provider, code] = src.split(":");
   if (provider === "fd") return fetchFootballData(code, season, env.FOOTBALL_DATA_KEY);
   if (provider === "espn") return fetchEspnIncremental(code, season, prev, now, extra);
+  if (provider === "sp") throw new Error("SportAPI : mise à jour groupée (refreshSportapi)");
   throw new Error(`Source inconnue ${src}`);
 }
 
@@ -155,5 +250,5 @@ export const toUpcoming = (s, provider) => (s?.upcoming || []).map(([matchId, h,
   matchId, teamDomId: h, teamExtId: a,
   domName: s.teams[h]?.[0] || "Domicile", extName: s.teams[a]?.[0] || "Extérieur",
   domLogo: s.teams[h]?.[1] || null, extLogo: s.teams[a]?.[1] || null,
-  date: new Date(ts).toISOString(), ts, status, source: provider === "fd" ? "football-data" : "espn",
+  date: new Date(ts).toISOString(), ts, status, source: provider === "fd" ? "football-data" : provider === "sp" ? "sportapi" : "espn",
 }));

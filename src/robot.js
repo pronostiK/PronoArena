@@ -4,7 +4,7 @@
 // puis recalcule les pronostics des compétitions concernées.
 // ============================================================
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
-import { kvGet, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS } from "./sources.js";
+import { kvGet, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS, refreshSportapi, resetSpBudget, spBudgetLeft } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcoming, allKey } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
@@ -33,9 +33,11 @@ export function pickDue(sources, index, now) {
       const urgent = s.kind === "live" && targetDelay(meta, s.kind, now) === 15 * MIN;
       // Premier chargement : les compétitions affichées passent avant les sources de secours
       const first = s.main && !meta?.error && (!meta || meta.complete === false);
-      return { ...s, k, urgent, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) + (first && overdue >= 0 ? 1e12 : 0) };
+      // Les sources ESPN / football-data en direct sont revues à chaque passage ; SportAPI (quota d'appels par jour) toutes les 15 min seulement
+      const dueNow = overdue >= 0 || (urgent && !s.src.startsWith("sp:"));
+      return { ...s, k, urgent, dueNow, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) + (first && overdue >= 0 ? 1e12 : 0) };
     })
-    .filter((s) => s.overdue >= 0)
+    .filter((s) => s.dueNow)
     .sort((a, b) => b.overdue - a.overdue);
 }
 
@@ -65,6 +67,7 @@ export async function runRobot(env, now = Date.now()) {
   const index = (await kvGet(env, INDEX_KEY)) || {};
   const report = [];
   resetEspnBudget();
+  resetSpBudget();
   // ESPN refuse parfois les appels (403 / 429) : on arrête tout de suite et on attend avant de réessayer,
   // de plus en plus longtemps (30 min, 1 h, 2 h, 4 h), au lieu d'insister et d'aggraver le blocage.
   let espnPaused = (index._espnPause?.until || 0) > now;
@@ -79,16 +82,60 @@ export async function runRobot(env, now = Date.now()) {
   let compoDone = false;
   // Pas de composition tant que des données manquent (remplissage) ou qu'un match se joue
   const pending = pickDue(robotSources(season), index, now);
-  const busy = pending.some((x) => x.urgent || !index[x.k] || index[x.k].complete === false);
+  // (un match SportAPI en cours ne bloque pas les compositions : ses appels sont comptés à part et peu nombreux)
+  const busy = pending.some((x) => (x.urgent && !x.src.startsWith("sp:")) || !index[x.k] || index[x.k].complete === false);
   if (!busy && !espnPaused) try { const r = await refreshOneCompo(env, index, season, now); if (r) { report.push(r); compoDone = true; } }
   catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; if (refused(e)) pauseEspn("compositions refusées"); }
   // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
-  const all = pickDue(robotSources(season), index, now);
+  // SportAPI : un seul appel alimente toutes ses compétitions d'une saison, donc une seule place par saison
+  const spSeen = new Set();
+  const all = pickDue(robotSources(season), index, now).filter((x) => !x.src.startsWith("sp:") || (!spSeen.has(x.season) && spSeen.add(x.season)));
   const nUrgent = all.filter((x) => x.urgent).length;
   const due = all.slice(0, Math.max(MAX_PER_RUN - (compoDone ? 1 : 0), Math.min(6, nUrgent)));
   const toRebuild = new Set();
 
+  const ready = (id) => {
+    const lg = LEAGUES[id];
+    if (!lg.src.startsWith("sp:")) return true;
+    return [`${lg.src}@${season}`, ...(lg.cup ? [] : [`${lg.src}@${season - 1}`])].every((k) => index[k]?.complete && !index[k]?.error);
+  };
+  // Après une mise à jour réussie d'une source : état dans l'index et compétitions à recalculer
+  const afterOk = async (s, data, changed) => {
+    const next = (data.upcoming || []).map((u) => u[3]).filter((t) => t > now - 3 * 3600000).sort((a, b) => a - b)[0] || null;
+    const live = (data.upcoming || []).some((u) => /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/.test(u[4]));
+    index[s.k] = { updatedAt: now, lastOk: now, complete: data.complete, nextTs: next, live, finished: data.finished.length, upcoming: data.upcoming.length, changed };
+    // Sources ESPN : dernier match de chaque équipe et noms (pour les compositions)
+    if (s.kind === "live" && s.src.startsWith("espn:")) {
+      index[`last:${s.k}`] = lastEvents(data);
+      index[`names:${s.src.slice(5)}`] = Object.fromEntries(Object.entries(data.teams).map(([id, t]) => [id, t[0]]));
+    }
+    // Saison en cours OU saison précédente : les pronostics qui en dépendent sont recalculés
+    // (pendant le remplissage, on attend que les données soient complètes : économise les écritures)
+    for (const id of leaguesUsing(s.src)) {
+      if (!ready(id)) continue; // SportAPI : « tout ou rien », on ne publie une compétition que lorsque ses saisons sont entièrement chargées
+      const missing = s.kind === "live" && !(await env.PRONO_CACHE.get(predsKey(id, season)));
+      if ((changed && data.complete !== false) || missing) toRebuild.add(id);
+    }
+    report.push(`${s.k}: ok (${data.finished.length} terminés, ${data.upcoming.length} à venir${changed ? ", mis à jour" : ""})`);
+  };
+  const afterError = (s, e) => {
+    index[s.k] = { ...(index[s.k] || {}), updatedAt: now, error: String(e.message || e) };
+    // Source en panne : on revérifie les compétitions concernées (bascule sur le secours si besoin)
+    if (s.kind === "live") for (const id of leaguesUsing(s.src)) toRebuild.add(id);
+    report.push(`${s.k}: ERREUR ${e.message}`);
+  };
+
   for (const s of due) {
+    if (s.src.startsWith("sp:")) {
+      // SportAPI : toutes les sources "sp:" de cette saison sont mises à jour ensemble
+      const group = robotSources(season).filter((x) => x.src.startsWith("sp:") && x.season === s.season);
+      if (spBudgetLeft() <= 0) { report.push(`${s.k}: reporté (budget du passage)`); continue; }
+      try {
+        const res = await refreshSportapi(env, group.map((x) => x.src), s.season, now, spBudgetLeft());
+        for (const g of group) await afterOk(g.kind ? { ...g, k: `${g.src}@${g.season}` } : g, res[g.src].data, res[g.src].changed);
+      } catch (e) { for (const g of group) afterError({ ...g, k: `${g.src}@${g.season}` }, e); }
+      continue;
+    }
     // ESPN : un appel par jour ; on garde la mise à jour dans le budget du passage
     let extra = ESPN_EXTRA_DAYS;
     if (s.src.startsWith("espn:") && espnPaused) continue; // on ne touche pas à ESPN pendant la pause
@@ -100,27 +147,10 @@ export async function runRobot(env, now = Date.now()) {
     }
     try {
       const { changed, data } = await refreshSource(env, s.src, s.season, now, extra);
-      const next = (data.upcoming || []).map((u) => u[3]).filter((t) => t > now - 3 * 3600000).sort((a, b) => a - b)[0] || null;
-      const live = (data.upcoming || []).some((u) => /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/.test(u[4]));
-      index[s.k] = { updatedAt: now, lastOk: now, complete: data.complete, nextTs: next, live, finished: data.finished.length, upcoming: data.upcoming.length, changed };
-      // Sources ESPN : dernier match de chaque équipe et noms (pour les compositions)
-      if (s.kind === "live" && s.src.startsWith("espn:")) {
-        index[`last:${s.k}`] = lastEvents(data);
-        index[`names:${s.src.slice(5)}`] = Object.fromEntries(Object.entries(data.teams).map(([id, t]) => [id, t[0]]));
-      }
-      // Saison en cours OU saison précédente : les pronostics qui en dépendent sont recalculés
-      // (pendant le remplissage, on attend que les données soient complètes : économise les écritures)
-      for (const id of leaguesUsing(s.src)) {
-        const missing = s.kind === "live" && !(await env.PRONO_CACHE.get(predsKey(id, season)));
-        if ((changed && data.complete !== false) || missing) toRebuild.add(id);
-      }
+      await afterOk(s, data, changed);
       if (s.src.startsWith("espn:")) delete index._espnPause; // ESPN répond de nouveau
-      report.push(`${s.k}: ok (${data.finished.length} terminés, ${data.upcoming.length} à venir${changed ? ", mis à jour" : ""})`);
     } catch (e) {
-      index[s.k] = { ...(index[s.k] || {}), updatedAt: now, error: String(e.message || e) };
-      // Source en panne : on revérifie les compétitions concernées (bascule sur le secours si besoin)
-      if (s.kind === "live") for (const id of leaguesUsing(s.src)) toRebuild.add(id);
-      report.push(`${s.k}: ERREUR ${e.message}`);
+      afterError(s, e);
       if (s.src.startsWith("espn:") && refused(e)) pauseEspn(String(e.message));
     }
   }

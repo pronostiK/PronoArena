@@ -29,7 +29,6 @@ const CORS = {
 const PRIVATE = { "Cache-Control": "no-store" };
 // Mémoire partagée entre visiteurs (5 min) pour les calculs lourds : économise le quota de lectures
 const memo = new Map();
-let testSportapi = null; // TEMPORAIRE, voir /test-sportapi
 async function remember(key, ttl, fn) {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.t < ttl) return hit.v;
@@ -149,7 +148,7 @@ export default {
       if (path === "/leagues") {
         const season = currentSeason();
         const index = (await kvGet(env, "robot:index")) || {};
-        const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, logo: lg.logo, pays: lg.country, coupe: !!lg.cup, prochain: index[`next:${id}`] ? new Date(index[`next:${id}`]).toISOString() : null, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
+        const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, logo: lg.logo, pays: lg.country, coupe: !!lg.cup, prochain: index[`next:${id}`] ? new Date(index[`next:${id}`]).toISOString() : null, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false || lg.src.startsWith("sp:") ? 0 : null) })); // SportAPI : masquée tant que ses données ne sont pas complètes (« tout ou rien »)
         return json({ success: true, saison: season, options: { motDePasseOublie: resetAvailable(env) }, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
       }
 
@@ -167,68 +166,14 @@ export default {
         return json({ success: true, competition: lg, resultats: out });
       }
 
-      // TEMPORAIRE (12/11/2026) : test de SportAPI (championnats voulus, historique), à supprimer dès que le test est lu.
-      // Aucune écriture, clé jamais affichée, un échec n'est pas gardé.
-      if (path === "/test-sportapi" && q("mode") === "verif") {
-        const key = env.SPORTAPI_KEY;
-        if (!key) return json({ success: true, cle: "absente" });
-        const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
-        const VOULUES = { 16: "Turquie", 5: "Belgique", 88: "Écosse Premiership", 28: "Coupe de France", 35: "Ligue des Nations", 123: "CAN", 72: "CAN qualifs" };
+      // TEMPORAIRE (12/11/2026) : copie des matchs SportAPI déjà enregistrés, pour le test sur matchs passés (à supprimer ensuite).
+      if (path === "/test-sp-dump") {
         const out = {};
-        for (const date of ["2026-11-13", "2026-11-12", "2025-12-06", "2026-03-15"]) {
-          const r = await fetch(`https://sportapi.ai/api/fixtures/date/${date}`, { headers: { "X-Api-Key": key, Accept: "application/json" } });
-          const d = await r.json().catch(() => null);
-          const m = Array.isArray(d?.data) ? d.data : [];
-          const statuts = {}; for (const x of m) statuts[x.status] = (statuts[x.status] || 0) + 1;
-          out[date] = {
-            http: r.status, cles: d ? Object.keys(d) : null, total: m.length, statuts,
-            ligues_presentes: [...new Set(m.map((x) => x.league_id))].length,
-            voulues: m.filter((x) => VOULUES[x.league_id]).map((x) => `${VOULUES[x.league_id]} | ${x.id} | ${x.status} | ${x.kickoff_utc} | ${x.home_id} ${x.home_team} ${x.home_score ?? "-"}-${x.away_score ?? "-"} ${x.away_team} ${x.away_id} | stage=${x.stage || ""} | logos=${x.home_logo ? "oui" : "non"}/${x.away_logo ? "oui" : "non"}`),
-          };
-          await pause(1200);
+        for (const s of ["sp:16", "sp:5", "sp:88", "sp:72+123"]) for (const y of [2025, 2026]) {
+          const d = await kvGet(env, srcKey(s, y));
+          if (d) out[`${s}@${y}`] = { complete: d.complete, equipes: Object.fromEntries(Object.entries(d.teams).map(([k, v]) => [k, v[0]])), termines: d.finished };
         }
-        return json({ success: true, ...out });
-      }
-      if (path === "/test-sportapi" && q("mode") === "ligues") {
-        const key = env.SPORTAPI_KEY;
-        if (!key) return json({ success: true, cle: "absente" });
-        const r = await fetch("https://sportapi.ai/api/leagues", { headers: { "X-Api-Key": key, Accept: "application/json" } });
-        const d = await r.json().catch(() => null);
-        const groupes = Array.isArray(d) ? d : Object.values(d || {}).find((v) => Array.isArray(v)) || [];
-        return json({ success: true, http: r.status, total: groupes.reduce((n, g) => n + (g.leagues?.length || 0), 0), ligues: groupes.flatMap((g) => (g.leagues || []).map((l) => `${g.country} | ${l.id} | ${l.name} | ${l.format}${l.has_standings ? "" : " | sans classement"}`)) });
-      }
-      if (path === "/test-sportapi") {
-        if (testSportapi && Date.now() - testSportapi.t < 3600000) return json({ success: true, ...testSportapi.out });
-        const key = env.SPORTAPI_KEY;
-        if (!key) return json({ success: true, cle: "absente : le secret SPORTAPI_KEY n'est pas (encore) réglé dans prono-arena-worker" });
-        const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
-        const get = async (chemin) => {
-          try {
-            const r = await fetch("https://sportapi.ai" + chemin, { headers: { "X-Api-Key": key, Accept: "application/json" } });
-            const t = await r.text(); let d; try { d = JSON.parse(t); } catch { d = null; }
-            return { http: r.status, d, brut: d ? null : t.slice(0, 300) };
-          } catch (e) { return { erreur: String(e.message || e) }; }
-        };
-        const premierTableau = (d) => (Array.isArray(d) ? d : d && typeof d === "object" ? Object.values(d).find((v) => Array.isArray(v)) || Object.values(d).map(premierTableau).find((v) => v) : null) || null;
-        const out = {};
-        const L = await get("/api/leagues");
-        out.leagues_http = L.http; out.leagues_erreur = L.erreur || L.brut || (L.d?.success === false ? L.d : undefined);
-        const lignes = premierTableau(L.d) || [];
-        out.leagues_total = lignes.length; out.leagues_champs = lignes[0] ? Object.keys(lignes[0]) : null;
-        const voulus = /turk|türk|süper|super lig|belg|pro league|jupiler|coupe de france|copa de france|segunda|liga portugal|primeira|nations league|champions league|europa|conference|brasil|ligue 2|championship|eredivisie|scottish|premiership|mls|saudi|argentin|mexic|liga mx/i;
-        out.leagues_voulues = lignes.filter((x) => voulus.test(JSON.stringify(x))).slice(0, 60).map((x) => JSON.stringify(x).slice(0, 160));
-        out.leagues_toutes_les_noms = lignes.length <= 160 ? lignes.map((x) => x.name || x.title || x.slug || JSON.stringify(x).slice(0, 40)) : undefined;
-        out.historique = {};
-        let stop = false;
-        for (const date of ["2026-11-08", "2025-11-09", "2024-11-10"]) {
-          await pause(1500);
-          const F = await get(`/api/fixtures/date/${date}`);
-          const m = premierTableau(F.d) || [];
-          out.historique[date] = { http: F.http, erreur: F.erreur || F.brut || (F.d?.success === false ? F.d : undefined), matchs: m.length, champs: m[0] ? Object.keys(m[0]) : null, exemple: m[0] ? JSON.stringify(m[0]).slice(0, 400) : null, competitions: [...new Set(m.map((x) => x.league?.name || x.league_name || x.competition?.name || x.league || null))].slice(0, 40) };
-          if (F.http === 429) { stop = true; break; }
-        }
-        if (!stop && L.http === 200) testSportapi = { t: Date.now(), out };
-        return json({ success: true, ...out });
+        return json(out);
       }
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });

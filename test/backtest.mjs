@@ -41,6 +41,8 @@ for (const lg of Object.keys(NAMES)) {
     const model = buildModel(past);
     // Prévision naïve : fréquences 1/N/2 du championnat sur les matchs passés
     const base = [0, 0, 0]; for (const f of past) base[res(f)]++; const naive = base.map((x) => x / past.length);
+    // Références naïves des marchés de buts : fréquences des matchs PASSÉS seulement (jamais celles des matchs évalués)
+    const nO25 = past.filter((f) => f.hg + f.ag > 2.5).length / past.length, nBTTS = past.filter((f) => f.hg > 0 && f.ag > 0).length / past.length;
     for (const i of idx) {
       const m = L[i];
       const p = calculate_match_prediction({ matchId: i, teamDomId: m.home, teamExtId: m.away, date }, { model, leagueId: lg, season: S }).poisson;
@@ -49,7 +51,7 @@ for (const lg of Object.keys(NAMES)) {
       const bk = o.every((x) => x > 1) ? o.map((x) => 1 / x) : null;
       const pk = PK ? PK.predict(m.home, m.away, m.date) : null;
       const known = (model.ratings[m.home]?.played || 0) >= 4 && (model.ratings[m.away]?.played || 0) >= 4;
-      rows.push({ lg, date, S, k: res(m), goals: m.hg + m.ag, btts: m.hg > 0 && m.ag > 0, dp, o25: p.probaOver25, pbtts: p.probaBTTS, naive,
+      rows.push({ lg, date, S, k: res(m), goals: m.hg + m.ag, btts: m.hg > 0 && m.ag > 0, dp, o25: p.probaOver25, pbtts: p.probaBTTS, nO25, nBTTS, naive,
         bk: bk ? bk.map((x) => x / bk.reduce((a, b) => a + b, 0)) : null, pk: pk ? pk.p : null, known });
     }
   }
@@ -84,8 +86,24 @@ const out = {
   }).filter(Boolean),
   equipesConnues: { duelProno: score(fair.filter((r) => r.known), "dp"), bookmakers: score(fair.filter((r) => r.known), "bk") },
   buts: (() => { const l = rows; const b = (f, y) => r4(l.reduce((s, r) => s + (f(r) - (y(r) ? 1 : 0)) ** 2, 0) / l.length);
-    const fo = l.filter((r) => r.goals > 2.5).length / l.length, fb = l.filter((r) => r.btts).length / l.length;
-    return { n: l.length, plus25: { duelProno: b((r) => r.o25, (r) => r.goals > 2.5), naif: b(() => fo, (r) => r.goals > 2.5) }, deuxMarquent: { duelProno: b((r) => r.pbtts, (r) => r.btts), naif: b(() => fb, (r) => r.btts) } }; })(),
+    // Référence naïve : fréquence observée sur les matchs passés à la date de chaque match (pas sur les matchs évalués)
+    return { n: l.length, plus25: { duelProno: b((r) => r.o25, (r) => r.goals > 2.5), naif: b((r) => r.nO25, (r) => r.goals > 2.5) }, deuxMarquent: { duelProno: b((r) => r.pbtts, (r) => r.btts), naif: b((r) => r.nBTTS, (r) => r.btts) } }; })(),
+  // Calibration séparée par issue (domicile / nul / extérieur) et par période : B = 01/07/2025-28/02/2026, C = depuis le 01/03/2026
+  calibrationParIssue: (() => {
+    const PER = { B: (d) => d >= "2025-07-01" && d < "2026-03-01", C: (d) => d >= "2026-03-01" };
+    const out = {};
+    for (const [pn, inP] of Object.entries(PER)) {
+      out[pn] = {};
+      const sub = fair.filter((r) => inP(r.date));
+      for (const [k, nom] of [[0, "domicile"], [1, "nul"], [2, "exterieur"]]) {
+        const bins = new Map();
+        for (const r of sub) { const b = Math.min(19, Math.floor(r.dp[k] / 0.05)); const x = bins.get(b) || { n: 0, sp: 0, hit: 0 }; x.n++; x.sp += r.dp[k]; if (r.k === k) x.hit++; bins.set(b, x); }
+        out[pn][nom] = { n: sub.length, annonceMoyen: r4(sub.reduce((a, r) => a + r.dp[k], 0) / sub.length), observe: r4(sub.filter((r) => r.k === k).length / sub.length),
+          tranches: [...bins.entries()].sort((a, b) => a[0] - b[0]).map(([b, x]) => ({ tranche: `${5 * b}-${5 * b + 5} %`, n: x.n, annonce: r4(x.sp / x.n), observe: r4(x.hit / x.n), ecart: r4(x.hit / x.n - x.sp / x.n) })) };
+      }
+    }
+    return out;
+  })(),
 };
 fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
 
@@ -99,4 +117,10 @@ console.log("\n  Par championnat (Brier : Duel Prono / PronostiK / bookmakers / 
 for (const c of out.championnats) console.log(`    ${c.nom.padEnd(15)} ${String(c.duelProno.n).padStart(5)} matchs   ${f3(c.duelProno.brier)} / ${f3(c.pronostik.brier)} / ${f3(c.bookmakers.brier)} / ${f3(c.naif.brier)}`);
 console.log("\n  Par saison :"); for (const s of out.saisons) console.log(`    ${s.saison}  ${String(s.duelProno.n).padStart(5)} matchs   ${f3(s.duelProno.brier)} / ${f3(s.pronostik.brier)} / ${f3(s.bookmakers.brier)}`);
 console.log("\n  Calibration (annoncé → observé) :"); for (const c of out.calibration) console.log(`    ${c.tranche.padEnd(10)} ${String(Math.round(100 * c.annonce)).padStart(3)} % → ${String(Math.round(100 * c.observe)).padStart(3)} %   (${c.n})`);
+for (const pn of ["B", "C"]) for (const nom of ["domicile", "nul", "exterieur"]) {
+  const c = out.calibrationParIssue[pn][nom];
+  console.log(`\n  Calibration « ${nom} », période ${pn} (${c.n} matchs ; annoncé moyen ${f3(c.annonceMoyen)} · observé ${f3(c.observe)}) :`);
+  console.log("    tranche      nombre   annoncé   observé   écart");
+  for (const t of c.tranches) console.log(`    ${t.tranche.padEnd(11)} ${String(t.n).padStart(6)}   ${f3(t.annonce)}     ${f3(t.observe)}    ${(t.ecart >= 0 ? "+" : "") + f3(t.ecart)}${t.n < 30 ? "  (peu fiable)" : ""}`);
+}
 console.log(`\n  Buts (Brier, Duel Prono / naïf) : +2,5 ${f3(out.buts.plus25.duelProno)} / ${f3(out.buts.plus25.naif)} · les deux marquent ${f3(out.buts.deuxMarquent.duelProno)} / ${f3(out.buts.deuxMarquent.naif)}`);

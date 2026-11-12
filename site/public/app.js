@@ -934,7 +934,7 @@
       <p>Le site est aussi un jeu gratuit. Tu choisis ton camp avant le coup d'envoi, tu marques des points quand tu as vu juste, et un classement repart de zéro chaque lundi.</p>
       <h2>Comment les probabilités sont calculées</h2>
       <ul>
-        <li>Les 40 derniers matchs de chaque équipe sont pris en compte ; les 5 plus récents comptent double.</li>
+        <li>Tous les matchs de chaque équipe sur les deux dernières saisons sont pris en compte ; les 8 plus récents comptent davantage.</li>
         <li>Le niveau de chaque équipe est suivi d'une saison à l'autre, en attaque comme en défense, à domicile comme à l'extérieur.</li>
         <li>Un modèle statistique en déduit les buts attendus, puis la probabilité de chaque résultat.</li>
       </ul>
@@ -1034,7 +1034,7 @@
       <p>The site is also a free game. You pick your side before kick-off, you score points when you get it right, and a ranking starts again from zero every Monday.</p>
       <h2>How the probabilities are calculated</h2>
       <ul>
-        <li>The last 40 matches of each team are taken into account; the 5 most recent count double.</li>
+        <li>All of each team's matches over the last two seasons are taken into account; the 8 most recent count more.</li>
         <li>Each team's level is tracked from one season to the next, in attack and in defence, at home and away.</li>
         <li>A statistical model works out the expected goals, then the probability of each result.</li>
       </ul>

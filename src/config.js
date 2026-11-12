@@ -5,10 +5,12 @@
 export const VERSION = "v7";
 
 export const MODEL = {
-  windowMatches: 40,     // règle du projet : les 40 derniers matchs de chaque équipe…
-  recentMatches: 5,      // …dont les 5 plus récents…
-  recentWeight: 2,       // …comptent double
-  priorMatches: 3,       // lissage vers la moyenne (évite les extrêmes)
+  // Réglages choisis le 12/11/2026 par test sur matchs réels (test/tune.mjs : réglage sur 2024-25,
+  // vérification sur 2025-26 et après). Avant : 40 matchs, 5 récents ×2, lissage 3.
+  windowMatches: 80,     // tous les matchs des deux dernières saisons (au plus 80 par équipe)…
+  recentMatches: 8,      // …dont les 8 plus récents…
+  recentWeight: 1.5,     // …comptent une fois et demie
+  priorMatches: 6,       // lissage vers la moyenne (évite les extrêmes)
   specificWeight: 0.3,   // part domicile/extérieur spécifique vs global
   defaultAvgHome: 1.45,
   defaultAvgAway: 1.15,

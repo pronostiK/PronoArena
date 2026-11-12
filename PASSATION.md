@@ -34,7 +34,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Le compte Cloudflare héberge aussi PronostiK : quotas partagés.
 
 ## Moteur (V7)
-- 40 derniers matchs par équipe, les 5 plus récents comptent double (règle de l'utilisateur).
+- Clubs : tous les matchs des deux dernières saisons (au plus 80 par équipe), les 8 plus récents comptent ×1,5, lissage 6 (réglages validés par l'utilisateur le 12/11/2026 après test sur matchs réels ; avant : 40 matchs, 5 récents ×2).
 - Forces attaque/défense dom/ext, Elo reporté d'une saison à l'autre, Poisson + Dixon-Coles.
 - Coupes d'Europe renforcées par les championnats nationaux (coefficients de niveau).
 - **Sélections nationales (Ligue des Nations, plus tard Euro et Coupe du monde)** : `src/nations.js`. Classement Elo sur tous les matchs internationaux, méthode et réglages repris de PronostiK (`src/nations-seed.js`, rafraîchi chaque semaine par le robot depuis le dépôt public PronostiK, puis mis à jour avec les matchs joués). Raison : avec 4 matchs par saison, l'ancien calcul donnait des absurdités (Turquie 9 % à domicile contre la Belgique ; maintenant 21 % / 28 % / 51 %). Si le fournisseur écrit un nom de pays inconnu, /status le signale (rubrique `selections`, liste `inconnues`) et ce match retombe sur l'ancien calcul : ajouter alors le nom dans `ALIASES`.
@@ -61,10 +61,10 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 
 ## Test sur les matchs passés (12/11/2026, `test/backtest.mjs`)
 - Données réelles : historique de PronostiK (`data/history.json` du dépôt PronostiK, football-data.co.uk, cotes moyennes des bookmakers). 7 091 matchs, août 2024 → novembre 2026, 9 championnats ; le modèle ne voit que les matchs joués avant chaque match.
-- Erreur de Brier (plus bas = mieux) : Duel Prono 0,602 · PronostiK 0,599 · bookmakers 0,584 · naïf 0,652 (un tiers partout = 0,667). Réussite 51 % / 51 % / 53 % / 43 %. Calibration bonne (annoncé ≈ observé).
+- Erreur de Brier (plus bas = mieux), avec les nouveaux réglages : Duel Prono 0,600 (0,602 avec les anciens) · PronostiK 0,599 · bookmakers 0,584 · naïf 0,652 (un tiers partout = 0,667). Réussite 51 % / 51 % / 53 % / 43 %. Calibration bonne (annoncé ≈ observé).
 - Buts (+2,5) et « les deux marquent » : aucun gain par rapport à une moyenne du championnat. Affiché honnêtement dans le Verdict.
 - Le résultat est publié dans le Verdict (fichier `site/public/backtest.json`, à régénérer : `node test/backtest.mjs <history.json> <model.mjs PronostiK> site/public/backtest.json`).
-- `test/tune.mjs` : réglage sur 2024-25, vérification unique sur 2025-26+. Meilleurs réglages trouvés (fenêtre 80 matchs, 8 récents ×1,5) : 0,6088 → 0,6056 sur les matchs jamais vus. **Non appliqués** : ils changent la règle de l'utilisateur (40 matchs, 5 récents ×2) ; attendre sa décision.
+- `test/tune.mjs` : réglage sur 2024-25, vérification unique sur 2025-26+. Meilleurs réglages trouvés (fenêtre 80 matchs, 8 récents ×1,5) : 0,6088 → 0,6056 sur les matchs jamais vus. **Appliqués le 12/11/2026 avec l'accord de l'utilisateur.**
 - Absents : aucune source vérifiée. Route de diagnostic `/diag/absences?league=eng.1` (ce que contient la fiche ESPN) à faire ouvrir par l'utilisateur.
 
 ## Tests

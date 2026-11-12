@@ -126,6 +126,8 @@ export async function runRobot(env, now = Date.now()) {
   }
 
   // Changement de méthode pour les sélections : leurs pronostics sont recalculés une fois, sans attendre de nouvelles données
+  // Nouveaux réglages du modèle (12/11/2026) : toutes les compétitions sont recalculées une fois
+  if (index._modelRev !== 2) { index._modelRev = 2; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.robot !== false) toRebuild.add(Number(id)); }
   if (index._natRev !== 1) { index._natRev = 1; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.national && lg.robot !== false) toRebuild.add(Number(id)); }
   // Sélections : notes Elo rafraîchies une fois par semaine (tous les matchs internationaux)
   if (now - (index._nationsAt || 0) > 7 * DAY) {

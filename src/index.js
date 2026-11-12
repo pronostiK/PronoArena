@@ -277,6 +277,17 @@ export default {
         return new Response(txt, { headers: { "content-type": "application/json" } });
       }
 
+      // TEMPORAIRE (12/11/2026) : sonde Soccer Data n°4 (blessures, 1 appel). À supprimer ensuite.
+      if (path === "/test-soccerdata4") {
+        const cached = await env.PRONO_CACHE.get("tmp:soccerdata4");
+        if (cached) return new Response(cached, { headers: { "content-type": "application/json" } });
+        if (!env.SOCCERDATA_KEY) return json({ erreur: "SOCCERDATA_KEY absente" });
+        const r = await fetch("https://api.soccer-data.co/v1/teams/team_jyofw6qxhsvi/injuries-suspensions", { headers: { "X-Api-Key": env.SOCCERDATA_KEY } });
+        const txt = JSON.stringify({ status: r.status, corps: (await r.text()).slice(0, 2500) });
+        await env.PRONO_CACHE.put("tmp:soccerdata4", txt, { expirationTtl: 21600 });
+        return new Response(txt, { headers: { "content-type": "application/json" } });
+      }
+
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
 
       // ---------- Arène ----------

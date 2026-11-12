@@ -65,7 +65,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Buts (+2,5) et « les deux marquent » : aucun gain par rapport à une moyenne du championnat. Affiché honnêtement dans le Verdict.
 - Le résultat est publié dans le Verdict (fichier `site/public/backtest.json`, à régénérer : `node test/backtest.mjs <history.json> <model.mjs PronostiK> site/public/backtest.json`).
 - `test/tune.mjs` : réglage sur 2024-25, vérification unique sur 2025-26+. Meilleurs réglages trouvés (fenêtre 80 matchs, 8 récents ×1,5) : 0,6088 → 0,6056 sur les matchs jamais vus. **Appliqués le 12/11/2026 avec l'accord de l'utilisateur.**
-- Absents : aucune source vérifiée. Route de diagnostic `/diag/absences?league=eng.1` (ce que contient la fiche ESPN) à faire ouvrir par l'utilisateur.
+- Absents : **ESPN ne les fournit pas** (vérifié en réel le 12/11/2026 sur Atlético-MG – Mirassol : la fiche ne contient ni blessés ni suspendus, et les compositions n'y apparaissent qu'environ 1 h avant le match). football-data gratuit non plus ; API-Football gratuit n'a pas la saison en cours. Pas d'absents sur le site tant qu'il n'y a pas de source fiable (payante). Rappel : l'étude de PronostiK montre que les absents n'améliorent presque pas les probabilités.
 
 ## Tests
 - `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 117 tests, plus 4 contrôles de traduction (`test/i18n.mjs`).

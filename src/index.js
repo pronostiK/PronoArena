@@ -165,28 +165,6 @@ export default {
         return json({ success: true, competition: lg, resultats: out });
       }
 
-      if (path === "/diag/absences") {
-        // Diagnostic : ce que la fiche de match d'ESPN contient vraiment (compositions, absents) pour un match à venir
-        // Trêve internationale : on essaie plusieurs compétitions jusqu'à trouver un match à venir
-        const out = { essais: [] };
-        for (const lg of q("league") ? [q("league")] : ["bra.1", "uefa.nations", "eng.2", "fra.2", "eng.1", "fra.1"]) {
-        if (out.match) break;
-        out.competition = lg;
-        for (let d = 0; d < 4 && !out.match; d++) {
-          const day = new Date(Date.now() + d * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
-          const sb = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${day}`, { headers: ESPN_HEADERS });
-          out.essais.push(`${lg} ${day} : ${sb.status}`);
-          const ev = sb.ok ? ((await sb.json()).events || [])[0] : null;
-          if (!ev) continue;
-          const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/summary?event=${ev.id}`, { headers: ESPN_HEADERS });
-          const j = r.ok ? await r.json() : {};
-          const find = (o, path = "", acc = []) => { if (acc.length > 15 || !o || typeof o !== "object") return acc; for (const [k, v] of Object.entries(o)) { const p2 = path ? `${path}.${k}` : k; if (/injur|absen|suspen|unavail|status/i.test(k)) acc.push({ chemin: p2, exemple: JSON.stringify(v).slice(0, 300) }); find(v, p2, acc); } return acc; };
-          out.match = { id: ev.id, nom: ev.name, date: ev.date, statutFiche: r.status, clesPrincipales: Object.keys(j), rosters: (j.rosters || []).map((x) => ({ equipe: x.team?.displayName, joueurs: (x.roster || []).length, cles: Object.keys(x) })), pistes: find(j) };
-        }
-        }
-        return json({ success: true, ...out });
-      }
-
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
 
       // ---------- Arène ----------

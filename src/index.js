@@ -29,6 +29,7 @@ const CORS = {
 const PRIVATE = { "Cache-Control": "no-store" };
 // Mémoire partagée entre visiteurs (5 min) pour les calculs lourds : économise le quota de lectures
 const memo = new Map();
+let testSportapi = null; // TEMPORAIRE, voir /test-sportapi
 async function remember(key, ttl, fn) {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.t < ttl) return hit.v;
@@ -164,6 +165,42 @@ export default {
           out[`${k}${lim}`] = r.ok ? `${r.status} · ${((await r.json()).events || []).length} matchs` : `${r.status}`;
         }
         return json({ success: true, competition: lg, resultats: out });
+      }
+
+      // TEMPORAIRE (12/11/2026) : test de SportAPI (championnats voulus, historique), à supprimer dès que le test est lu.
+      // Aucune écriture, clé jamais affichée, un échec n'est pas gardé.
+      if (path === "/test-sportapi") {
+        if (testSportapi && Date.now() - testSportapi.t < 3600000) return json({ success: true, ...testSportapi.out });
+        const key = env.SPORTAPI_KEY;
+        if (!key) return json({ success: true, cle: "absente : le secret SPORTAPI_KEY n'est pas (encore) réglé dans prono-arena-worker" });
+        const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+        const get = async (chemin) => {
+          try {
+            const r = await fetch("https://sportapi.ai" + chemin, { headers: { "X-Api-Key": key, Accept: "application/json" } });
+            const t = await r.text(); let d; try { d = JSON.parse(t); } catch { d = null; }
+            return { http: r.status, d, brut: d ? null : t.slice(0, 300) };
+          } catch (e) { return { erreur: String(e.message || e) }; }
+        };
+        const premierTableau = (d) => (Array.isArray(d) ? d : d && typeof d === "object" ? Object.values(d).find((v) => Array.isArray(v)) || Object.values(d).map(premierTableau).find((v) => v) : null) || null;
+        const out = {};
+        const L = await get("/api/leagues");
+        out.leagues_http = L.http; out.leagues_erreur = L.erreur || L.brut || (L.d?.success === false ? L.d : undefined);
+        const lignes = premierTableau(L.d) || [];
+        out.leagues_total = lignes.length; out.leagues_champs = lignes[0] ? Object.keys(lignes[0]) : null;
+        const voulus = /turk|türk|süper|super lig|belg|pro league|jupiler|coupe de france|copa de france|segunda|liga portugal|primeira|nations league|champions league|europa|conference|brasil|ligue 2|championship|eredivisie|scottish|premiership|mls|saudi|argentin|mexic|liga mx/i;
+        out.leagues_voulues = lignes.filter((x) => voulus.test(JSON.stringify(x))).slice(0, 60).map((x) => JSON.stringify(x).slice(0, 160));
+        out.leagues_toutes_les_noms = lignes.length <= 160 ? lignes.map((x) => x.name || x.title || x.slug || JSON.stringify(x).slice(0, 40)) : undefined;
+        out.historique = {};
+        let stop = false;
+        for (const date of ["2026-11-08", "2025-11-09", "2024-11-10"]) {
+          await pause(1500);
+          const F = await get(`/api/fixtures/date/${date}`);
+          const m = premierTableau(F.d) || [];
+          out.historique[date] = { http: F.http, erreur: F.erreur || F.brut || (F.d?.success === false ? F.d : undefined), matchs: m.length, champs: m[0] ? Object.keys(m[0]) : null, exemple: m[0] ? JSON.stringify(m[0]).slice(0, 400) : null, competitions: [...new Set(m.map((x) => x.league?.name || x.league_name || x.competition?.name || x.league || null))].slice(0, 40) };
+          if (F.http === 429) { stop = true; break; }
+        }
+        if (!stop && L.http === 200) testSportapi = { t: Date.now(), out };
+        return json({ success: true, ...out });
       }
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });

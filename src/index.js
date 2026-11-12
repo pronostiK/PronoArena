@@ -244,6 +244,39 @@ export default {
         return new Response(txt, { headers: { "content-type": "application/json" } });
       }
 
+      // TEMPORAIRE (12/11/2026) : sonde Soccer Data n°3 (Ligue 1 + blessures). À supprimer ensuite.
+      if (path === "/test-soccerdata3") {
+        const cached = await env.PRONO_CACHE.get("tmp:soccerdata3");
+        if (cached) return new Response(cached, { headers: { "content-type": "application/json" } });
+        if (!env.SOCCERDATA_KEY) return json({ erreur: "SOCCERDATA_KEY absente" });
+        const B = "https://api.soccer-data.co/v1";
+        const call = async (p) => { await new Promise(r => setTimeout(r, 12000)); try { const r = await fetch(B + p, { headers: { "X-Api-Key": env.SOCCERDATA_KEY } }); const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = t.slice(0, 200); } return { status: r.status, j }; } catch (e) { return { status: 0, j: String(e) }; } };
+        const out = {};
+        const c = await call(`/competitions?search=Ligue%201&country=France&per_page=4`);
+        out.recherche = c.status === 200 ? (c.j.data || []).map(x => ({ id: x.id, name: x.name })) : c;
+        const comp = c.status === 200 && (c.j.data || [])[0];
+        if (comp) {
+          const d = await call(`/competitions/${comp.id}`);
+          const sid = d.status === 200 && (d.j.data?.[0]?.current_season_id ?? d.j.data?.current_season_id);
+          out.saison = sid;
+          if (sid) {
+            const m = await call(`/matches?competition_id=${comp.id}&season_id=${sid}&status=finished&sort=-utc_date&per_page=1`);
+            const m0 = m.status === 200 ? (m.j.data || [])[0] : null;
+            out.total = m.j?.meta?.total;
+            if (m0) {
+              out.match = m0.home_team?.name + "-" + m0.away_team?.name; out.xg = m0.xg_available + "/" + m0.xg_quality;
+              const st = await call(`/matches/${m0.id}/stats`);
+              out.stats = st.status === 200 ? JSON.stringify(st.j?.data?.overview?.expected_goals?.all) : st;
+              const inj = await call(`/teams/${m0.home_team.id}/injuries`);
+              out.blessures = inj.status === 200 ? JSON.stringify(inj.j).slice(0, 1500) : inj;
+            }
+          }
+        }
+        const txt = JSON.stringify(out);
+        await env.PRONO_CACHE.put("tmp:soccerdata3", txt, { expirationTtl: 21600 });
+        return new Response(txt, { headers: { "content-type": "application/json" } });
+      }
+
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
 
       // ---------- Arène ----------

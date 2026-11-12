@@ -1,6 +1,6 @@
 // Monde simulé : championnats, coupes, deux saisons, fausses API football-data et ESPN, faux cache KV.
 export const NOW = Date.UTC(2026, 10, 10, 17, 0); // 10 nov. 2026
-export const SIM = { now: NOW, fdDown: new Set(), espnBlocked: false };
+export const SIM = { now: NOW, fdDown: new Set(), espnBlocked: false, mails: [], mailDown: false };
 const isDone = (x) => x.ts + 2 * 3600000 < SIM.now;
 const isLive = (x) => x.ts <= SIM.now && !isDone(x);
 const DAY = 86400000;
@@ -72,7 +72,7 @@ export const calls = { fd: 0, espn: 0, h2h: 0 };
 export const NATIONS = ["Spain", "France", "England", "Portugal", "Netherlands", "Belgium", "Italy", "Germany", "Croatia", "Denmark", "Turkey", "Switzerland", "Czechia", "Bosnia-Herzegovina", "Norway", "San Marino"];
 const teamName = (id) => (/^n\d+$/.test(id) ? NATIONS[+id.slice(1)] : `Équipe ${id}`);
 export function installFetch() {
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, opts) => {
     const u = new URL(url);
     let m;
     if ((m = u.pathname.match(/\/v4\/matches\/(.+)\/head2head/))) {
@@ -88,6 +88,7 @@ export function installFetch() {
       if (!list) return { ok: false, status: 404 };
       return { ok: true, json: async () => ({ matches: list.map((x) => ({ id: x.id, utcDate: new Date(x.ts).toISOString(), status: isDone(x) ? "FINISHED" : isLive(x) ? "IN_PLAY" : "TIMED", homeTeam: { id: x.h, name: `Équipe ${x.h}`, crest: `${x.h}.png` }, awayTeam: { id: x.a, name: `Équipe ${x.a}`, crest: `${x.a}.png` }, score: { fullTime: { home: isDone(x) ? x.hg : null, away: isDone(x) ? x.ag : null } } })) }) };
     }
+    if (u.hostname === "api.resend.com") { const b = JSON.parse(opts?.body || "{}"); SIM.mails.push({ ...b, auth: opts?.headers?.Authorization }); return { ok: !SIM.mailDown, status: SIM.mailDown ? 500 : 200, json: async () => ({ id: "m" + SIM.mails.length }) }; }
     if (u.hostname === "raw.githubusercontent.com") { calls.seed = (calls.seed || 0) + 1; return { ok: false, status: 404 }; }
     if (SIM.espnBlocked && u.hostname.includes("espn")) { calls.espnRefus = (calls.espnRefus || 0) + 1; return { ok: false, status: 403 }; }
     if ((m = u.pathname.match(/\/soccer\/([\w.]+)\/summary/))) {

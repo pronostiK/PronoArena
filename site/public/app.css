@@ -566,3 +566,6 @@ a.more { color: var(--orange); }
 .bt-table th:first-child, .bt-table td:first-child { text-align: left; }
 .bt .fold { margin-top: 2px; }
 @media (max-width: 420px) { .bt-tiles { grid-template-columns: 1fr; } .bt-table th:nth-child(2), .bt-table td:nth-child(2) { display: none; } }
+
+/* Mot de passe oublié */
+.link-small { align-self: center; min-height: 40px; display: inline-flex; align-items: center; font-size: 13px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }

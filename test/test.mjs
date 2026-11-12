@@ -334,6 +334,30 @@ console.log("\n— Arène —");
   check("Changer de mot de passe : nouveau accepté, ancien refusé", pw.status === 200 && (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "nouveau-mdp-1" } })).status === 200 && (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "motdepasse1" } })).status === 401);
   check("Changer de mot de passe : les autres appareils sont déconnectés, pas celui-ci", (await call("/me", { token: other.token })).status === 401 && (await call("/me", { token: s1.token })).status === 200);
 
+  // Mot de passe oublié (e-mail envoyé par Resend, simulé)
+  check("Mot de passe oublié : désactivé tant que la clé d'envoi n'est pas réglée", (await call("/leagues")).options.motDePasseOublie === false && (await call("/account/forgot", { body: { email: "z2@exemple.fr" } })).status === 503);
+  A.RESEND_API_KEY = "re_test";
+  check("Mot de passe oublié : proposé une fois la clé réglée", (await call("/leagues")).options.motDePasseOublie === true);
+  SIM.mails.length = 0;
+  const fg = await call("/account/forgot", { body: { email: "Z2@exemple.fr", lang: "en" } }), fgNone = await call("/account/forgot", { body: { email: "personne@exemple.fr" } });
+  const mail = SIM.mails[0], link = /\/#\/nouveau-mot-de-passe\/([a-f0-9]{64})/.exec(mail?.text || "")?.[1];
+  check("Mot de passe oublié : un e-mail avec un lien, en anglais si demandé", fg.status === 200 && SIM.mails.length === 1 && mail.to[0] === "z2@exemple.fr" && mail.from === "Duel Prono <noreply@duelprono.com>" && /new password/.test(mail.subject) && !!link && mail.auth === "Bearer re_test");
+  check("Mot de passe oublié : même réponse pour une adresse inconnue, aucun e-mail", fgNone.status === 200 && JSON.stringify(fgNone) === JSON.stringify(fg) && SIM.mails.length === 1);
+  check("Lien jamais stocké en clair", !d1.raw.prepare("SELECT jeton FROM resets").all().some((x) => x.jeton === link));
+  check("Lien faux ou trop court : refusé", (await call("/account/reset", { body: { jeton: "a".repeat(64), nouveau: "encore-un-mdp" } })).status === 400 && (await call("/account/reset", { body: { jeton: "123", nouveau: "encore-un-mdp" } })).status === 400);
+  const other2 = await call("/account/login", { body: { identifiant: "zizou", motDePasse: "nouveau-mdp-1" } });
+  const rs = await call("/account/reset", { body: { jeton: link, nouveau: "mdp-retrouve-9" } });
+  check("Nouveau mot de passe : connecté aussitôt, ancien mot de passe refusé", rs.status === 200 && rs.pseudo === "Zizou" && (await call("/me", { token: rs.token })).status === 200 && (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "nouveau-mdp-1" } })).status === 401 && (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "mdp-retrouve-9" } })).status === 200);
+  check("Nouveau mot de passe : les anciennes connexions sont fermées", (await call("/me", { token: other2.token })).status === 401 && (await call("/me", { token: s1.token })).status === 401);
+  check("Lien utilisable une seule fois", (await call("/account/reset", { body: { jeton: link, nouveau: "autre-mdp-77" } })).status === 400);
+  SIM.mails.length = 0; await call("/account/forgot", { body: { email: "z2@exemple.fr" } });
+  const link2 = /nouveau-mot-de-passe\/([a-f0-9]{64})/.exec(SIM.mails[0].text)[1];
+  SIM.now += 61 * 60000;
+  check("Lien expiré après 1 heure", (await call("/account/reset", { body: { jeton: link2, nouveau: "autre-mdp-77" } })).status === 400 && /Bonjour Zizou/.test(SIM.mails[0].text));
+  let blockedF = 0; for (let i = 0; i < 4; i++) if ((await call("/account/forgot", { body: { email: "z2@exemple.fr" } })).status === 429) blockedF++;
+  check("Anti-abus : pas plus de 3 e-mails par heure pour une même adresse", blockedF >= 1, `${blockedF} demande(s) bloquée(s)`);
+  s1.token = (await call("/account/login", { body: { identifiant: "zizou", motDePasse: "mdp-retrouve-9" } })).token;
+
   // Quotas et vie du compte
   const perDay = (d1.stats.queries - q0) / ((Date.parse(last.date) + 4 * 3600000 - Date.parse(m0.date)) / 86400000);
   check("Base : le robot reste très en dessous des limites gratuites", perDay < 1000, `≈ ${Math.round(perDay)} appels base/jour pendant une journée de matchs`);

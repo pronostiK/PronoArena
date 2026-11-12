@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS pronos (
 CREATE INDEX IF NOT EXISTS pronos_semaine ON pronos (semaine, joueur_id);
 CREATE INDEX IF NOT EXISTS pronos_attente ON pronos (coup_envoi) WHERE points IS NULL;
 
+-- Mot de passe oublié : lien envoyé par e-mail, valable 1 heure, utilisable une seule fois
+CREATE TABLE IF NOT EXISTS resets (
+  jeton TEXT PRIMARY KEY,       -- empreinte SHA-256 du jeton envoyé par e-mail
+  joueur_id INTEGER NOT NULL,
+  expire_le INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS resets_joueur ON resets (joueur_id);
+
 -- Anti-abus (essais de connexion, inscriptions à la chaîne)
 CREATE TABLE IF NOT EXISTS limites (
   cle TEXT PRIMARY KEY,

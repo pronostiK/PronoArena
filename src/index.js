@@ -10,6 +10,7 @@
 // Arène (bloc 2, base D1) :
 //   POST /account/signup | /account/login | /account/logout | /account/delete
 //   POST /account/profile | /account/email | /account/password   espace personnel
+//   POST /account/forgot | /account/reset                         mot de passe oublié (lien par e-mail)
 //   GET  /me            mon bilan de la semaine + mes pronostics
 //   POST /picks         enregistrer mon pronostic (refusé après le coup d'envoi)
 //   GET  /arena[?semaine=precedente]                classement hebdomadaire
@@ -19,7 +20,7 @@ import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./s
 import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
-import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
+import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
 
 const CORS = {
   "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*",
@@ -148,7 +149,7 @@ export default {
         const season = currentSeason();
         const index = (await kvGet(env, "robot:index")) || {};
         const list = Object.entries(LEAGUES).map(([id, lg]) => ({ id: Number(id), nom: lg.name, logo: lg.logo, pays: lg.country, coupe: !!lg.cup, prochain: index[`next:${id}`] ? new Date(index[`next:${id}`]).toISOString() : null, matchsAVenir: index[`count:${id}`] ?? (lg.robot === false ? 0 : null) }));
-        return json({ success: true, saison: season, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
+        return json({ success: true, saison: season, options: { motDePasseOublie: resetAvailable(env) }, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
       }
 
       if (path === "/diag/espn") {
@@ -173,6 +174,8 @@ export default {
       if (path === "/account/login" && post) return json(await login(env, await readBody(request)), 200, PRIVATE);
       if (path === "/account/logout" && post) return json(await logout(env, await auth(env, request)), 200, PRIVATE);
       if (path === "/account/delete" && post) return json(await deleteAccount(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
+      if (path === "/account/forgot" && post) return json(await forgotPassword(env, await readBody(request), request.headers.get("CF-Connecting-IP")), 200, PRIVATE);
+      if (path === "/account/reset" && post) return json(await resetPassword(env, await readBody(request)), 200, PRIVATE);
       if (path === "/account/profile" && post) return json(await saveProfile(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
       if (path === "/account/email" && post) return json(await changeEmail(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
       if (path === "/account/password" && post) return json(await changePassword(env, await auth(env, request), await readBody(request)), 200, PRIVATE);

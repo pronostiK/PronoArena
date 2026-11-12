@@ -53,7 +53,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Mon espace a deux onglets : « Mon jeu » (`#/compte` : bilan, pronos) et « Paramètres », lui-même en « Général » (`#/compte/general` : prénom, ville, club favori, langue) et « Sécurité » (`#/compte/securite` : e-mail, mot de passe, déconnexion, suppression du compte). D'autres réglages pourront s'y ajouter si l'utilisateur les précise.
 - Espace personnel (écran Compte) : bilan semaine + total, tous ses pronos (à venir / terminés), prénom et ville (privés), club favori (blason affiché au classement), changement d'e-mail et de mot de passe. Routes POST /account/profile, /account/email, /account/password.
 - Anti-abus : 10 essais de connexion par quart d'heure, 5 inscriptions par heure et par adresse.
-- Pas encore fait : « mot de passe oublié » (il faut un service d'envoi d'e-mails).
+- **Mot de passe oublié** (12/11/2026) : lien par e-mail valable 1 h, une seule fois, jeton haché (table `resets`), anti-abus (3 e-mails/h par adresse, 5/h par IP), réponse identique si l'adresse est inconnue, toutes les connexions fermées après changement. Envoi par **Resend** (offre gratuite : 100 e-mails/jour, 3 000/mois ; l'envoi par Cloudflare demande l'offre payante Workers). Expéditeur `noreply@duelprono.com`, réponses vers `contact@duelprono.com`. **Le lien « Mot de passe oublié ? » n'apparaît que si le secret `RESEND_API_KEY` est réglé dans Cloudflare** (worker prono-arena-worker) ; domaine duelprono.com à valider dans Resend (lignes DNS ajoutées chez Cloudflare).
 - Pages d'information (11/11/2026), dans `site/public/app.js` (objet `DOCS`) : À propos, Conditions d'utilisation, Confidentialité, Mentions légales ; liens en bas de chaque page. L'éditeur est un particulier non professionnel qui reste anonyme (LCEN art. 6 III) : **ne jamais écrire son nom dans le site ni dans le dépôt.** Contact : contact@duelprono.com. Site réservé aux 18 ans et plus : case obligatoire à l'inscription, vérifiée aussi par le moteur. Textes non relus par un juriste.
 - 11/11/2026 : l'utilisateur n'ouvre pas de micro-entreprise pour l'instant → le bloc 3 (paiement) attend ; le site reste gratuit et l'éditeur reste anonyme.
 - **À refaire avant le bloc 3 (abonnement payant)** : l'éditeur devient professionnel, donc identité ou société + SIRET dans les mentions légales, conditions de vente, droit de rétractation.
@@ -68,7 +68,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Absents : **ESPN ne les fournit pas** (vérifié en réel le 12/11/2026 sur Atlético-MG – Mirassol : la fiche ne contient ni blessés ni suspendus, et les compositions n'y apparaissent qu'environ 1 h avant le match). football-data gratuit non plus ; API-Football gratuit n'a pas la saison en cours. Pas d'absents sur le site tant qu'il n'y a pas de source fiable (payante). Rappel : l'étude de PronostiK montre que les absents n'améliorent presque pas les probabilités.
 
 ## Tests
-- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 117 tests, plus 4 contrôles de traduction (`test/i18n.mjs`).
+- `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 128 tests, plus 4 contrôles de traduction (`test/i18n.mjs`).
 - `test/preview.mjs <dossier>` : parcours joueur complet dans Chrome (inscription, prono, Arène, déconnexion, suppression) + captures téléphone (PLAYWRIGHT_PATH=/opt/npm-tools/node_modules/playwright).
 
 ## Fait

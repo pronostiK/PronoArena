@@ -126,6 +126,7 @@ export async function deleteAccount(env, user, body) {
   await db.batch([
     db.prepare("DELETE FROM pronos WHERE joueur_id = ?1").bind(user.id),
     db.prepare("DELETE FROM sessions WHERE joueur_id = ?1").bind(user.id),
+    db.prepare("DELETE FROM resets WHERE joueur_id = ?1").bind(user.id),
     db.prepare("DELETE FROM joueurs WHERE id = ?1").bind(user.id),
   ]);
   return { success: true };
@@ -176,6 +177,70 @@ export async function changePassword(env, user, body) {
     db.prepare("DELETE FROM sessions WHERE joueur_id = ?1 AND jeton <> ?2").bind(user.id, user.jeton),
   ]);
   return { success: true };
+}
+
+// ---------- Mot de passe oublié ----------
+// Le lien est envoyé par e-mail (service Resend, clé RESEND_API_KEY rangée dans Cloudflare).
+const RESET_MS = HOUR;
+export const resetAvailable = (env) => !!(env.DB && env.RESEND_API_KEY);
+const SITE = "https://duelprono.com";
+const MAILS = {
+  fr: (pseudo, link) => ({
+    subject: "Duel Prono : nouveau mot de passe",
+    text: `Bonjour ${pseudo},\n\nPour choisir un nouveau mot de passe, ouvre ce lien (valable 1 heure) :\n${link}\n\nSi tu n'as rien demandé, ignore ce message : ton mot de passe ne change pas.\n\nDuel Prono`,
+    html: `<p>Bonjour ${pseudo},</p><p>Pour choisir un nouveau mot de passe, touche ce bouton (lien valable 1 heure) :</p><p><a href="${link}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#FF6B00;color:#121212;font-weight:bold;text-decoration:none">Choisir un nouveau mot de passe</a></p><p style="color:#666;font-size:13px">Si tu n'as rien demandé, ignore ce message : ton mot de passe ne change pas.</p><p>Duel Prono</p>`,
+  }),
+  en: (pseudo, link) => ({
+    subject: "Duel Prono: new password",
+    text: `Hello ${pseudo},\n\nTo choose a new password, open this link (valid for 1 hour):\n${link}\n\nIf you did not ask for this, ignore this message: your password stays the same.\n\nDuel Prono`,
+    html: `<p>Hello ${pseudo},</p><p>To choose a new password, tap this button (link valid for 1 hour):</p><p><a href="${link}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#FF6B00;color:#121212;font-weight:bold;text-decoration:none">Choose a new password</a></p><p style="color:#666;font-size:13px">If you did not ask for this, ignore this message: your password stays the same.</p><p>Duel Prono</p>`,
+  }),
+};
+async function sendMail(env, to, mail) {
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: "Duel Prono <noreply@duelprono.com>", to: [to], reply_to: "contact@duelprono.com", ...mail }),
+  });
+  if (!r.ok) throw new Error(`envoi de l'e-mail [${r.status}]`);
+}
+
+// Réponse identique que le compte existe ou non : on ne révèle pas quelles adresses sont inscrites
+export async function forgotPassword(env, body, ip, now = Date.now()) {
+  const db = need(env);
+  if (!env.RESEND_API_KEY) throw new HttpError(503, "Service momentanément indisponible.");
+  const email = String(body.email || "").trim().toLowerCase();
+  if (email.length > 120 || !EMAIL.test(email)) throw new HttpError(400, "Adresse e-mail invalide.");
+  await throttle(db, `oubli:${(await sha256(ip || "?")).slice(0, 24)}`, 5, HOUR, now);
+  await throttle(db, `oubli-mail:${(await sha256(email)).slice(0, 24)}`, 3, HOUR, now);
+  const row = await db.prepare("SELECT id, pseudo FROM joueurs WHERE email = ?1").bind(email).first();
+  if (row) {
+    const token = randomHex(32);
+    await db.batch([
+      db.prepare("DELETE FROM resets WHERE joueur_id = ?1 OR expire_le < ?2").bind(row.id, now),
+      db.prepare("INSERT INTO resets (jeton, joueur_id, expire_le) VALUES (?1, ?2, ?3)").bind(await sha256(token), row.id, now + RESET_MS),
+    ]);
+    const lang = body.lang === "en" ? "en" : "fr";
+    await sendMail(env, email, MAILS[lang](row.pseudo, `${SITE}/#/nouveau-mot-de-passe/${token}`));
+  }
+  return { success: true };
+}
+
+export async function resetPassword(env, body, now = Date.now()) {
+  const db = need(env);
+  const token = String(body.jeton || ""), neuf = String(body.nouveau || "");
+  if (!/^[a-f0-9]{64}$/.test(token)) throw new HttpError(400, "Lien invalide ou expiré. Demande un nouveau lien.");
+  if (neuf.length < 8 || neuf.length > 72) throw new HttpError(400, "Nouveau mot de passe : 8 caractères minimum.");
+  const h = await sha256(token);
+  const row = await db.prepare("SELECT r.joueur_id AS id, j.pseudo FROM resets r JOIN joueurs j ON j.id = r.joueur_id WHERE r.jeton = ?1 AND r.expire_le > ?2").bind(h, now).first();
+  if (!row) throw new HttpError(400, "Lien invalide ou expiré. Demande un nouveau lien.");
+  // Nouveau mot de passe, toutes les anciennes connexions fermées, lien utilisable une seule fois
+  await db.batch([
+    db.prepare("UPDATE joueurs SET mdp = ?1 WHERE id = ?2").bind(await hashPassword(neuf), row.id),
+    db.prepare("DELETE FROM sessions WHERE joueur_id = ?1").bind(row.id),
+    db.prepare("DELETE FROM resets WHERE joueur_id = ?1").bind(row.id),
+  ]);
+  return { success: true, pseudo: row.pseudo, token: await openSession(db, row.id, now) };
 }
 
 // ---------- Semaine (du lundi au dimanche, heure de Paris) ----------
@@ -305,6 +370,7 @@ export async function cleanArena(env, now = Date.now()) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM sessions WHERE expire_le < ?1").bind(now),
     env.DB.prepare("DELETE FROM limites WHERE debut < ?1").bind(now - DAY),
+    env.DB.prepare("DELETE FROM resets WHERE expire_le < ?1").bind(now),
   ]);
 }
 

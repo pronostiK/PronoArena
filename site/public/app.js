@@ -169,11 +169,12 @@
   }
 
   // ---------- Compétitions ----------
-  let leagues = null;
+  let leagues = null, siteOptions = {};
   async function getLeagues() {
     if (leagues) return leagues;
     try {
       const d = await api("/leagues", 300000);
+      siteOptions = d.options || {};
       leagues = d.competitions.filter((c) => c.matchsAVenir === null || c.matchsAVenir > 0);
     } catch {
       leagues = [{ id: 61, nom: "Ligue 1", pays: "France" }];
@@ -740,6 +741,49 @@
   }
   // sub : "" = mon jeu, "general" ou "securite" = paramètres
   let espaceSub = "";
+  // ---------- Mot de passe oublié ----------
+  async function renderForgot() {
+    setTab("compte"); view.dataset.page = "compte";
+    view.innerHTML = `
+      <div class="back"><a href="#/compte" aria-label="Retour à la connexion"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>Connexion</span></div>
+      <section class="hero"><p class="kicker">Compte</p><h1>Mot de passe oublié</h1><p>Indique l'e-mail de ton compte : tu recevras un lien pour choisir un nouveau mot de passe.</p></section>
+      <form class="panel form" id="f-forgot" novalidate>
+        <label>E-mail<input name="email" type="email" autocomplete="email" inputmode="email" maxlength="120" required></label>
+        <p class="form-err" role="alert" hidden></p>
+        <button type="submit" class="cta">Recevoir le lien</button>
+      </form>`;
+    const f = document.getElementById("f-forgot");
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const err = f.querySelector(".form-err"), btn = f.querySelector("button[type=submit]");
+      err.hidden = true; btn.disabled = true;
+      try {
+        await call("/account/forgot", { email: f.elements.email.value, lang: I18N.lang });
+        f.outerHTML = `<section class="panel cta-panel" id="forgot-sent"><h2>${ico("shield")}E-mail envoyé</h2><p class="note">Si un compte existe avec cette adresse, un lien vient de partir. Il est valable 1 heure. Pense à regarder dans les courriers indésirables.</p><a class="cta" href="#/compte">Retour à la connexion</a></section>`;
+      } catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
+    };
+  }
+  function renderReset(token) {
+    setTab("compte"); view.dataset.page = "compte";
+    view.innerHTML = `
+      <section class="hero"><p class="kicker">Compte</p><h1>Nouveau mot de passe</h1><p>Choisis ton nouveau mot de passe. Tu seras connecté aussitôt.</p></section>
+      <form class="panel form" id="f-reset" novalidate>
+        <label>Nouveau mot de passe<input name="nouveau" type="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>8 caractères minimum.</small></label>
+        <p class="form-err" role="alert" hidden></p>
+        <button type="submit" class="cta">Enregistrer et me connecter</button>
+      </form>`;
+    const f = document.getElementById("f-reset");
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const err = f.querySelector(".form-err"), btn = f.querySelector("button[type=submit]");
+      err.hidden = true; btn.disabled = true;
+      try {
+        const d = await call("/account/reset", { jeton: token, nouveau: f.elements.nouveau.value });
+        setSession(d.token, d.pseudo); toast("Mot de passe modifié."); location.replace("#/compte");
+      } catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
+    };
+  }
+
   async function renderCompte(sub = espaceSub) {
     espaceSub = ["general", "securite"].includes(sub) ? sub : "";
     setTab("compte");
@@ -771,6 +815,7 @@
           <label>Mot de passe<input name="motDePasse" type="password" autocomplete="current-password" maxlength="72" required></label>
           <p class="form-err" role="alert" hidden></p>
           <button type="submit" class="cta">Me connecter</button>
+          ${siteOptions.motDePasseOublie ? `<a class="link-small" href="#/mot-de-passe-oublie">Mot de passe oublié ?</a>` : ""}
         </form>`;
       view.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { store.set("compteMode", b.dataset.mode); renderCompte(); }));
       bindForm("f-signup", "/account/signup", ["pseudo", "email", "motDePasse", "accepte"], afterAuth);
@@ -1148,6 +1193,8 @@
     if (parts[0] === "verdict") return renderVerdict();
     if (parts[0] === "arene") { arenaWeek = "courante"; return renderArena(); }
     if (parts[0] === "compte") return renderCompte(parts[1] || "");
+    if (parts[0] === "mot-de-passe-oublie") return getLeagues().then(renderForgot);
+    if (parts[0] === "nouveau-mot-de-passe" && parts[1]) return renderReset(parts[1]);
     if (DOCS[parts[0]]) return renderDoc(parts[0]);
     if (parts[0] === "ligue" && parts[1]) return renderDuels(parts[1]);
     return renderDuels("all");

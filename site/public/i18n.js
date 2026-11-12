@@ -110,6 +110,14 @@
     "J'ai 18 ans ou plus et j'accepte les": "I am 18 or over and I accept the", "conditions d'utilisation": "terms of use", "et la": "and the", "politique de confidentialité": "privacy policy",
     "Jeu gratuit, sans mise ni gain d'argent. Tes données servent uniquement au jeu et tu peux supprimer ton compte à tout moment.": "A free game, with no stakes and no cash prizes. Your data is used only for the game and you can delete your account at any time.",
     "Pseudo ou e-mail": "Username or email", "Me connecter": "Log in",
+    // Mot de passe oublié
+    "Mot de passe oublié ?": "Forgot your password?", "Mot de passe oublié": "Forgotten password", "Retour à la connexion": "Back to log in",
+    "Indique l'e-mail de ton compte : tu recevras un lien pour choisir un nouveau mot de passe.": "Enter your account email: you will receive a link to choose a new password.",
+    "Recevoir le lien": "Send me the link", "E-mail envoyé": "Email sent",
+    "Si un compte existe avec cette adresse, un lien vient de partir. Il est valable 1 heure. Pense à regarder dans les courriers indésirables.": "If an account exists with this address, a link has just been sent. It is valid for 1 hour. Remember to check your spam folder.",
+    "Nouveau mot de passe": "New password", "Choisis ton nouveau mot de passe. Tu seras connecté aussitôt.": "Choose your new password. You will be logged in straight away.",
+    "Enregistrer et me connecter": "Save and log in", "Lien invalide ou expiré. Demande un nouveau lien.": "Invalid or expired link. Ask for a new one.",
+    "Service momentanément indisponible.": "Service temporarily unavailable.",
     // Mon espace et paramètres
     "Mon espace": "My space", "Paramètres": "Settings", "Mon jeu": "My game", "Général": "General", "Sécurité": "Security", "Langue": "Language",
     "Mon bilan": "My record", "Rang semaine": "Rank this week", "Points semaine": "Points this week", "Points en jeu": "Points at stake", "Réussite": "Success rate",

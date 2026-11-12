@@ -10,7 +10,7 @@ const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_PATH 
 
 installFetch(); Date.now = () => SIM.now;
 const d1 = await makeD1();
-const env = { FOOTBALL_DATA_KEY: "x", ...makeKV(), DB: d1.DB };
+const env = { FOOTBALL_DATA_KEY: "x", RESEND_API_KEY: "re_test", ...makeKV(), DB: d1.DB };
 let T = NOW;
 const robot = async (n) => { for (let i = 0; i < n; i++) { SIM.now = T; await runRobot(env, T); T += 600000; } SIM.now = T; };
 const ask = async (p, { body, token, ip } = {}) => (await worker.fetch(new Request("http://x" + p, { method: body ? "POST" : "GET", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), "CF-Connecting-IP": ip || "9.9.9.9" }, body: body ? JSON.stringify(body) : undefined }), env, { waitUntil() {} })).json();
@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp13">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp13">');
+  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp14">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp14">');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -206,6 +206,19 @@ await page.fill("#f-login [name=identifiant]", "moi2@exemple.fr"); await page.fi
 await page.waitForSelector("#f-login .form-err:not([hidden])"); await shot("9-connexion-erreur", false);
 await page.fill("#f-login [name=motDePasse]", "motdepasse10"); await page.click("#f-login button[type=submit]"); await page.waitForSelector(".mp");
 check("Reconnexion par e-mail : mes pronos sont là", (await page.locator(".mp").count()) === 2);
+// Mot de passe oublié : demande, e-mail, lien, nouveau mot de passe
+{ await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout"); await page.click("#logout"); await page.waitForSelector(".duel");
+  await page.click("#account"); await page.click(".tabs button[data-mode='login']"); await page.waitForSelector("#f-login .link-small");
+  await page.click("#f-login .link-small"); await page.waitForSelector("#f-forgot");
+  SIM.mails.length = 0; await page.fill("#f-forgot [name=email]", "moi2@exemple.fr"); await page.click("#f-forgot button[type=submit]"); await page.waitForSelector("#forgot-sent");
+  await shot("14-oubli-envoye", false);
+  const lk = /(#\/nouveau-mot-de-passe\/[a-f0-9]{64})/.exec(SIM.mails[0]?.text || "")?.[1];
+  check("Mot de passe oublié : lien reçu par e-mail", !!lk && SIM.mails[0].to[0] === "moi2@exemple.fr");
+  await page.goto("http://localhost:8787/" + lk); await page.waitForSelector("#f-reset"); await shot("15-nouveau-mdp", false);
+  await page.fill("#f-reset [name=nouveau]", "motdepasse11"); await page.click("#f-reset button[type=submit]"); await page.waitForSelector(".me-hero");
+  check("Nouveau mot de passe enregistré, connecté aussitôt", (await page.textContent("#account")).includes("Hitch") && (await page.evaluate(() => location.hash)) === "#/compte");
+  await page.goto("http://localhost:8787/" + lk); await page.waitForSelector("#f-reset"); await page.fill("#f-reset [name=nouveau]", "motdepasse12"); await page.click("#f-reset button[type=submit]"); await page.waitForSelector("#f-reset .form-err:not([hidden])");
+  check("Le même lien ne marche pas deux fois", /expiré/.test(await page.textContent("#f-reset .form-err"))); }
 // Verdict inchangé
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await shot("10-verdict", false);
 check("Verdict : même colonne, avec « Tout »", (await page.locator(".rail .chip-all").count()) === 1);
@@ -213,7 +226,7 @@ await page.waitForSelector(".bt");
 check("Verdict : test sur les matchs passés, comparé aux bookmakers et au hasard", /Testé sur 7\s?091 matchs passés/.test(await page.textContent(".bt h2")) && (await page.locator(".bt-tiles .cell").count()) === 3 && (await page.locator(".cal").count()) >= 8 && /Brier/.test(await page.textContent("#verdict")));
 await page.locator(".bt").scrollIntoViewIfNeeded(); await page.screenshot({ path: `${OUT}/13-verdict-test.png`, fullPage: true });
 // Suppression du compte
-await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse10"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
+await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse11"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
 check("Suppression du compte : plus rien en base", d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Hitch'").get().n === 0);
 // Débordement horizontal (téléphone étroit)
 await page.setViewportSize({ width: 320, height: 640 });

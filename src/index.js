@@ -166,6 +166,36 @@ export default {
         return json({ success: true, competition: lg, resultats: out });
       }
 
+      // TEMPORAIRE (12/11/2026) : test des absents chez API-Football, à supprimer dès que le test est lu.
+      // Résultat gardé 1 h en mémoire (4 appels par heure au plus), la clé n'est jamais affichée.
+      if (path === "/test-absents") {
+        const out = await remember("test-absents", 3600000, async () => {
+          const key = env.API_FOOTBALL_KEY;
+          if (!key) return { cle: "absente" };
+          const get = async (chemin) => {
+            try {
+              const r = await fetch("https://v3.football.api-sports.io" + chemin, { headers: { "x-apisports-key": key } });
+              const d = await r.json();
+              const lignes = Array.isArray(d.response) ? d.response : [];
+              return {
+                appel: chemin, http: r.status, erreurs: d.errors, resultats: d.results ?? lignes.length,
+                exemples: lignes.slice(0, 6).map((x) => ({ joueur: x.player?.name, equipe: x.team?.name, type: x.player?.type, raison: x.player?.reason, match: x.fixture?.id, date: x.fixture?.date?.slice(0, 10), ligue: x.league?.name })),
+                equipesTouchees: [...new Set(lignes.map((x) => x.team?.name))].length,
+                matchsTouches: [...new Set(lignes.map((x) => x.fixture?.id))].length,
+                compte: d.response && !Array.isArray(d.response) ? d.response : undefined,
+              };
+            } catch (e) { return { appel: chemin, erreur: String(e.message || e) }; }
+          };
+          return {
+            compte: await get("/status"),
+            ligue_des_nations: await get("/injuries?league=5&season=2026&date=2026-11-12"),
+            premier_league: await get("/injuries?league=39&season=2026"),
+            ligue_1: await get("/injuries?league=61&season=2026"),
+          };
+        });
+        return json({ success: true, ...out });
+      }
+
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
 
       // ---------- Arène ----------

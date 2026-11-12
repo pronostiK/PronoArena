@@ -169,6 +169,26 @@ export default {
 
       // TEMPORAIRE (12/11/2026) : test de SportAPI (championnats voulus, historique), à supprimer dès que le test est lu.
       // Aucune écriture, clé jamais affichée, un échec n'est pas gardé.
+      if (path === "/test-sportapi" && q("mode") === "verif") {
+        const key = env.SPORTAPI_KEY;
+        if (!key) return json({ success: true, cle: "absente" });
+        const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+        const VOULUES = { 16: "Turquie", 5: "Belgique", 88: "Écosse Premiership", 28: "Coupe de France", 35: "Ligue des Nations", 123: "CAN", 72: "CAN qualifs" };
+        const out = {};
+        for (const date of ["2026-11-13", "2026-11-12", "2025-12-06", "2026-03-15"]) {
+          const r = await fetch(`https://sportapi.ai/api/fixtures/date/${date}`, { headers: { "X-Api-Key": key, Accept: "application/json" } });
+          const d = await r.json().catch(() => null);
+          const m = Array.isArray(d?.data) ? d.data : [];
+          const statuts = {}; for (const x of m) statuts[x.status] = (statuts[x.status] || 0) + 1;
+          out[date] = {
+            http: r.status, cles: d ? Object.keys(d) : null, total: m.length, statuts,
+            ligues_presentes: [...new Set(m.map((x) => x.league_id))].length,
+            voulues: m.filter((x) => VOULUES[x.league_id]).map((x) => `${VOULUES[x.league_id]} | ${x.id} | ${x.status} | ${x.kickoff_utc} | ${x.home_id} ${x.home_team} ${x.home_score ?? "-"}-${x.away_score ?? "-"} ${x.away_team} ${x.away_id} | stage=${x.stage || ""} | logos=${x.home_logo ? "oui" : "non"}/${x.away_logo ? "oui" : "non"}`),
+          };
+          await pause(1200);
+        }
+        return json({ success: true, ...out });
+      }
       if (path === "/test-sportapi" && q("mode") === "ligues") {
         const key = env.SPORTAPI_KEY;
         if (!key) return json({ success: true, cle: "absente" });

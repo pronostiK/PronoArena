@@ -69,7 +69,7 @@ export const LEAGUES = {
   144: { name: "Pro League", logo: logo(6), country: "Belgique", src: "sp:5" },
   179: { name: "Scottish Premiership", logo: logo(45), country: "Écosse", src: "sp:88" },
   // CAN : qualifications (72) et phase finale (123) réunies ; sélections notées par l'Elo des sélections
-  6: { name: "CAN", logo: logo(76), country: "Afrique", src: "sp:72+123", cup: true, national: true },
+  6: { name: "Qualifications CAN", logo: logo(76), country: "Afrique", src: "sp:72+123", cup: true, national: true },
   4: { name: "Euro", logo: logo(74), country: "Europe", src: "fd:EC", cup: true, national: true, robot: false },
 };
 

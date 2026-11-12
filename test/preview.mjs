@@ -43,7 +43,7 @@ const server = http.createServer(async (req, res) => {
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
   if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp13">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp13">');
-  res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2" }[path.extname(f)] || "text/plain" });
+  res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
 
@@ -209,6 +209,9 @@ check("Reconnexion par e-mail : mes pronos sont là", (await page.locator(".mp")
 // Verdict inchangé
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await shot("10-verdict", false);
 check("Verdict : même colonne, avec « Tout »", (await page.locator(".rail .chip-all").count()) === 1);
+await page.waitForSelector(".bt");
+check("Verdict : test sur les matchs passés, comparé aux bookmakers et au hasard", /Testé sur 7\s?091 matchs passés/.test(await page.textContent(".bt h2")) && (await page.locator(".bt-tiles .cell").count()) === 3 && (await page.locator(".cal").count()) >= 8 && /Brier/.test(await page.textContent("#verdict")));
+await page.locator(".bt").scrollIntoViewIfNeeded(); await page.screenshot({ path: `${OUT}/13-verdict-test.png`, fullPage: true });
 // Suppression du compte
 await page.goto("http://localhost:8787/#/compte/securite"); await page.waitForSelector("#logout"); await page.click(".danger summary"); await page.fill("#f-delete [name=motDePasse]", "motdepasse10"); await page.click("#f-delete button[type=submit]"); await page.waitForSelector(".duel");
 check("Suppression du compte : plus rien en base", d1.raw.prepare("SELECT COUNT(*) n FROM joueurs WHERE pseudo = 'Hitch'").get().n === 0);

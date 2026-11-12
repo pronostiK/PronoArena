@@ -59,6 +59,14 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - **À refaire avant le bloc 3 (abonnement payant)** : l'éditeur devient professionnel, donc identité ou société + SIRET dans les mentions légales, conditions de vente, droit de rétractation.
 - Polices Archivo et Space Grotesk hébergées dans `site/public/fonts/` (plus aucun appel à Google).
 
+## Test sur les matchs passés (12/11/2026, `test/backtest.mjs`)
+- Données réelles : historique de PronostiK (`data/history.json` du dépôt PronostiK, football-data.co.uk, cotes moyennes des bookmakers). 7 091 matchs, août 2024 → novembre 2026, 9 championnats ; le modèle ne voit que les matchs joués avant chaque match.
+- Erreur de Brier (plus bas = mieux) : Duel Prono 0,602 · PronostiK 0,599 · bookmakers 0,584 · naïf 0,652 (un tiers partout = 0,667). Réussite 51 % / 51 % / 53 % / 43 %. Calibration bonne (annoncé ≈ observé).
+- Buts (+2,5) et « les deux marquent » : aucun gain par rapport à une moyenne du championnat. Affiché honnêtement dans le Verdict.
+- Le résultat est publié dans le Verdict (fichier `site/public/backtest.json`, à régénérer : `node test/backtest.mjs <history.json> <model.mjs PronostiK> site/public/backtest.json`).
+- `test/tune.mjs` : réglage sur 2024-25, vérification unique sur 2025-26+. Meilleurs réglages trouvés (fenêtre 80 matchs, 8 récents ×1,5) : 0,6088 → 0,6056 sur les matchs jamais vus. **Non appliqués** : ils changent la règle de l'utilisateur (40 matchs, 5 récents ×2) ; attendre sa décision.
+- Absents : aucune source vérifiée. Route de diagnostic `/diag/absences?league=eng.1` (ce que contient la fiche ESPN) à faire ouvrir par l'utilisateur.
+
 ## Tests
 - `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 117 tests, plus 4 contrôles de traduction (`test/i18n.mjs`).
 - `test/preview.mjs <dossier>` : parcours joueur complet dans Chrome (inscription, prono, Arène, déconnexion, suppression) + captures téléphone (PLAYWRIGHT_PATH=/opt/npm-tools/node_modules/playwright).

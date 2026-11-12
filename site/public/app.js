@@ -533,6 +533,35 @@
     }
   }
 
+  // ---------- Test du modèle sur les matchs passés (fichier backtest.json, produit par test/backtest.mjs) ----------
+  const dec3 = (x) => (x == null ? "—" : Number(x).toFixed(3).replace(".", I18N.lang === "en" ? "." : ","));
+  let backtest = null;
+  async function backtestPanel() {
+    try { backtest = backtest || (await (await fetch("backtest.json?v=" + (window.DP_BT || "1"))).json()); } catch { return ""; }
+    const B = backtest, T = B.total, dp = T.duelProno, bk = T.bookmakers, nv = T.naif;
+    const fmt = (d) => new Date(d + "T12:00:00").toLocaleDateString(I18N.locale, { month: "long", year: "numeric" });
+    const bar = (x, max = 0.7) => `<span class="bt-bar"><span style="width:${Math.round((100 * x) / max)}%"></span></span>`;
+    const rows = B.championnats.map((c) => `<tr><td>${esc(I18N.t(c.nom))}</td><td>${c.duelProno.n}</td><td>${dec3(c.duelProno.brier)}</td><td>${dec3(c.bookmakers.brier)}</td><td>${Math.round(100 * c.duelProno.reussite)} %</td></tr>`).join("");
+    const cal = B.calibration.filter((c) => c.n >= 100).map((c) => `<div class="cal"><span>${Math.round(100 * c.annonce)} %</span>${bar(c.annonce, 1)}${bar(c.observe, 1)}<b>${Math.round(100 * c.observe)} %</b></div>`).join("");
+    return `<section class="panel bt">
+        <h2>${ico("target")}Testé sur ${B.matchs.toLocaleString(I18N.locale)} matchs passés</h2>
+        <p class="note">De ${esc(fmt(B.periode.du))} à ${esc(fmt(B.periode.au))}, 9 championnats. Pour chaque match, le modèle ne connaissait que les matchs joués avant lui, exactement comme en vrai.</p>
+        <div class="bt-tiles">
+          <div class="cell"><small>Duel Prono</small><b>${dec3(dp.brier)}</b><span class="note">${Math.round(100 * dp.reussite)} % de résultats trouvés</span></div>
+          <div class="cell"><small>Cotes des bookmakers</small><b>${dec3(bk.brier)}</b><span class="note">${Math.round(100 * bk.reussite)} % de résultats trouvés</span></div>
+          <div class="cell"><small>Au hasard (un tiers partout)</small><b>0,667</b><span class="note">33 % de résultats trouvés</span></div>
+        </div>
+        <p class="bt-say">Le modèle fait nettement mieux que le hasard, mais les bookmakers restent plus précis : ils connaissent les blessures et les compositions. Duel Prono sert à comprendre un match, pas à battre les bookmakers.</p>
+        <h3>Quand le modèle annonce… l'issue arrive</h3>
+        <div class="cals">${cal}</div>
+        <p class="note">Barre orange : probabilité annoncée. Barre bleue : fréquence réelle. Plus elles se ressemblent, plus les pourcentages sont fiables.</p>
+        <details class="fold"><summary><span>Détail par championnat</span><b>Erreur (Brier)</b></summary>
+          <table class="bt-table"><thead><tr><th>Championnat</th><th>Matchs</th><th>Duel Prono</th><th>Bookmakers</th><th>Réussite</th></tr></thead><tbody>${rows}</tbody></table>
+        </details>
+        <p class="note">Nombre de buts et « les deux équipes marquent » : sur ces marchés, le modèle ne fait pas mieux qu'une moyenne du championnat. Ces pourcentages sont donnés à titre indicatif.</p>
+      </section>`;
+  }
+
   // ---------- Écran Verdict ----------
   async function renderVerdict() {
     setTab("verdict");
@@ -558,11 +587,12 @@
             <div><b class="c1">${B["1N2"]}%</b><small>1N2 justes</small></div>
             <div><b>${B.doubleChance}%</b><small>doubles chances</small></div>
             <div><b>${B.plusMoins25}%</b><small>+/- 2,5 buts</small></div>
-          </div>` : ""}
+          </div>
+          ${B.brier != null ? `<p class="brier-line"><b>${dec3(B.brier)}</b> <span>Erreur du modèle (Brier)</span> <small>0 = parfait · 0,667 = prévoir un tiers partout</small></p>` : ""}` : ""}
           <p class="note">${B.matchs ? `Calculé sur ${B.matchs} match${B.matchs > 1 ? "s" : ""}.` : "Pas encore de match terminé sur la période."} Chaque pronostic est figé avant le coup d'envoi : rien n'est modifié après coup.</p>
         </section>`;
       if (!v.matchs.length) {
-        box.innerHTML = bilan + `<div class="empty">Le Verdict se remplit au fil des matchs : chaque pronostic est enregistré avant le coup d'envoi, puis comparé au score final.</div>`;
+        box.innerHTML = bilan + `<div class="empty">Le Verdict se remplit au fil des matchs : chaque pronostic est enregistré avant le coup d'envoi, puis comparé au score final.</div>` + (await backtestPanel());
         return;
       }
       let lastDay = "";
@@ -585,6 +615,7 @@
         </article>`;
       }).join("");
       box.innerHTML = bilan + `<div class="list">${items}</div>`;
+      box.insertAdjacentHTML("beforeend", await backtestPanel());
     } catch (e) {
       box.innerHTML = `<div class="error" role="alert">Verdict indisponible pour le moment.<br><small>${esc(e.message)}</small></div>`;
     }

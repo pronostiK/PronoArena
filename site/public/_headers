@@ -17,3 +17,5 @@
   Cache-Control: no-cache
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+/backtest.json
+  Cache-Control: public, max-age=3600

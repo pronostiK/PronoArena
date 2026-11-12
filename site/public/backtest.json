@@ -1,0 +1,450 @@
+{
+ "genere": "2026-11-12",
+ "periode": {
+  "du": "2024-08-09",
+  "au": "2026-11-07"
+ },
+ "matchs": 7091,
+ "total": {
+  "duelProno": {
+   "n": 7091,
+   "brier": 0.6019,
+   "logloss": 1.006,
+   "reussite": 0.5057
+  },
+  "bookmakers": {
+   "n": 7091,
+   "brier": 0.5836,
+   "logloss": 0.9791,
+   "reussite": 0.5274
+  },
+  "pronostik": {
+   "n": 7091,
+   "brier": 0.5993,
+   "logloss": 1.0029,
+   "reussite": 0.5087
+  },
+  "naif": {
+   "n": 7091,
+   "brier": 0.6518,
+   "logloss": 1.0769,
+   "reussite": 0.4322
+  },
+  "ecartBookmakers": {
+   "ecart": 0.0184,
+   "bas": 0.0152,
+   "haut": 0.0216
+  },
+  "ecartPronostik": {
+   "ecart": 0.0026,
+   "bas": 0.0006,
+   "haut": 0.0045
+  }
+ },
+ "championnats": [
+  {
+   "code": "FL1",
+   "nom": "Ligue 1",
+   "duelProno": {
+    "n": 669,
+    "brier": 0.5921,
+    "logloss": 0.9918,
+    "reussite": 0.5381
+   },
+   "bookmakers": {
+    "n": 669,
+    "brier": 0.5728,
+    "logloss": 0.9648,
+    "reussite": 0.5471
+   },
+   "pronostik": {
+    "n": 669,
+    "brier": 0.5892,
+    "logloss": 0.988,
+    "reussite": 0.5306
+   },
+   "naif": {
+    "n": 669,
+    "brier": 0.6405,
+    "logloss": 1.0604,
+    "reussite": 0.4649
+   }
+  },
+  {
+   "code": "PL",
+   "nom": "Premier League",
+   "duelProno": {
+    "n": 823,
+    "brier": 0.6076,
+    "logloss": 1.0137,
+    "reussite": 0.4872
+   },
+   "bookmakers": {
+    "n": 823,
+    "brier": 0.5935,
+    "logloss": 0.9926,
+    "reussite": 0.52
+   },
+   "pronostik": {
+    "n": 823,
+    "brier": 0.607,
+    "logloss": 1.0135,
+    "reussite": 0.4872
+   },
+   "naif": {
+    "n": 823,
+    "brier": 0.6569,
+    "logloss": 1.0838,
+    "reussite": 0.4131
+   }
+  },
+  {
+   "code": "PD",
+   "nom": "LaLiga",
+   "duelProno": {
+    "n": 837,
+    "brier": 0.5829,
+    "logloss": 0.9807,
+    "reussite": 0.5137
+   },
+   "bookmakers": {
+    "n": 837,
+    "brier": 0.5611,
+    "logloss": 0.9494,
+    "reussite": 0.5532
+   },
+   "pronostik": {
+    "n": 837,
+    "brier": 0.5804,
+    "logloss": 0.9778,
+    "reussite": 0.5329
+   },
+   "naif": {
+    "n": 837,
+    "brier": 0.6416,
+    "logloss": 1.0627,
+    "reussite": 0.4648
+   }
+  },
+  {
+   "code": "SA",
+   "nom": "Serie A",
+   "duelProno": {
+    "n": 836,
+    "brier": 0.586,
+    "logloss": 0.9835,
+    "reussite": 0.5395
+   },
+   "bookmakers": {
+    "n": 836,
+    "brier": 0.5677,
+    "logloss": 0.9559,
+    "reussite": 0.555
+   },
+   "pronostik": {
+    "n": 836,
+    "brier": 0.5838,
+    "logloss": 0.9805,
+    "reussite": 0.5407
+   },
+   "naif": {
+    "n": 836,
+    "brier": 0.6575,
+    "logloss": 1.0845,
+    "reussite": 0.4031
+   }
+  },
+  {
+   "code": "BL1",
+   "nom": "Bundesliga",
+   "duelProno": {
+    "n": 661,
+    "brier": 0.6018,
+    "logloss": 1.007,
+    "reussite": 0.5098
+   },
+   "bookmakers": {
+    "n": 661,
+    "brier": 0.578,
+    "logloss": 0.9724,
+    "reussite": 0.5477
+   },
+   "pronostik": {
+    "n": 661,
+    "brier": 0.5993,
+    "logloss": 1.0048,
+    "reussite": 0.5204
+   },
+   "naif": {
+    "n": 661,
+    "brier": 0.6537,
+    "logloss": 1.0788,
+    "reussite": 0.4206
+   }
+  },
+  {
+   "code": "PPL",
+   "nom": "Liga Portugal",
+   "duelProno": {
+    "n": 677,
+    "brier": 0.5546,
+    "logloss": 0.9374,
+    "reussite": 0.5583
+   },
+   "bookmakers": {
+    "n": 677,
+    "brier": 0.5435,
+    "logloss": 0.9184,
+    "reussite": 0.5598
+   },
+   "pronostik": {
+    "n": 677,
+    "brier": 0.5561,
+    "logloss": 0.9404,
+    "reussite": 0.5524
+   },
+   "naif": {
+    "n": 677,
+    "brier": 0.6554,
+    "logloss": 1.082,
+    "reussite": 0.4195
+   }
+  },
+  {
+   "code": "DED",
+   "nom": "Eredivisie",
+   "duelProno": {
+    "n": 688,
+    "brier": 0.5878,
+    "logloss": 0.9867,
+    "reussite": 0.5233
+   },
+   "bookmakers": {
+    "n": 688,
+    "brier": 0.5723,
+    "logloss": 0.9618,
+    "reussite": 0.5392
+   },
+   "pronostik": {
+    "n": 688,
+    "brier": 0.5883,
+    "logloss": 0.9876,
+    "reussite": 0.5291
+   },
+   "naif": {
+    "n": 688,
+    "brier": 0.6505,
+    "logloss": 1.0753,
+    "reussite": 0.4375
+   }
+  },
+  {
+   "code": "ELC",
+   "nom": "Championship",
+   "duelProno": {
+    "n": 1228,
+    "brier": 0.6378,
+    "logloss": 1.0545,
+    "reussite": 0.4593
+   },
+   "bookmakers": {
+    "n": 1228,
+    "brier": 0.6214,
+    "logloss": 1.0325,
+    "reussite": 0.4788
+   },
+   "pronostik": {
+    "n": 1228,
+    "brier": 0.6324,
+    "logloss": 1.0483,
+    "reussite": 0.4528
+   },
+   "naif": {
+    "n": 1228,
+    "brier": 0.6531,
+    "logloss": 1.0795,
+    "reussite": 0.434
+   }
+  },
+  {
+   "code": "FL2",
+   "nom": "Ligue 2",
+   "duelProno": {
+    "n": 672,
+    "brier": 0.6451,
+    "logloss": 1.0699,
+    "reussite": 0.4539
+   },
+   "bookmakers": {
+    "n": 672,
+    "brier": 0.6181,
+    "logloss": 1.0302,
+    "reussite": 0.4747
+   },
+   "pronostik": {
+    "n": 672,
+    "brier": 0.6375,
+    "logloss": 1.0579,
+    "reussite": 0.4688
+   },
+   "naif": {
+    "n": 672,
+    "brier": 0.6556,
+    "logloss": 1.0826,
+    "reussite": 0.4345
+   }
+  }
+ ],
+ "saisons": [
+  {
+   "saison": "2024-25",
+   "duelProno": {
+    "n": 3107,
+    "brier": 0.5951,
+    "logloss": 0.9954,
+    "reussite": 0.5098
+   },
+   "bookmakers": {
+    "n": 3107,
+    "brier": 0.5783,
+    "logloss": 0.9716,
+    "reussite": 0.5343
+   },
+   "pronostik": {
+    "n": 3107,
+    "brier": 0.5938,
+    "logloss": 0.9946,
+    "reussite": 0.5134
+   }
+  },
+  {
+   "saison": "2025-26",
+   "duelProno": {
+    "n": 3149,
+    "brier": 0.6096,
+    "logloss": 1.0173,
+    "reussite": 0.4979
+   },
+   "bookmakers": {
+    "n": 3149,
+    "brier": 0.5904,
+    "logloss": 0.9886,
+    "reussite": 0.5167
+   },
+   "pronostik": {
+    "n": 3149,
+    "brier": 0.6055,
+    "logloss": 1.012,
+    "reussite": 0.4995
+   }
+  },
+  {
+   "saison": "2026-27",
+   "duelProno": {
+    "n": 835,
+    "brier": 0.5984,
+    "logloss": 1.0029,
+    "reussite": 0.5198
+   },
+   "bookmakers": {
+    "n": 835,
+    "brier": 0.5775,
+    "logloss": 0.9709,
+    "reussite": 0.5425
+   },
+   "pronostik": {
+    "n": 835,
+    "brier": 0.5967,
+    "logloss": 0.9995,
+    "reussite": 0.5257
+   }
+  }
+ ],
+ "calibration": [
+  {
+   "tranche": "0-10 %",
+   "annonce": 0.0688,
+   "observe": 0.0738,
+   "n": 623
+  },
+  {
+   "tranche": "10-20 %",
+   "annonce": 0.1575,
+   "observe": 0.1727,
+   "n": 2693
+  },
+  {
+   "tranche": "20-30 %",
+   "annonce": 0.2548,
+   "observe": 0.2638,
+   "n": 7839
+  },
+  {
+   "tranche": "30-40 %",
+   "annonce": 0.3406,
+   "observe": 0.3318,
+   "n": 4352
+  },
+  {
+   "tranche": "40-50 %",
+   "annonce": 0.4468,
+   "observe": 0.4386,
+   "n": 2490
+  },
+  {
+   "tranche": "50-60 %",
+   "annonce": 0.5454,
+   "observe": 0.5181,
+   "n": 1654
+  },
+  {
+   "tranche": "60-70 %",
+   "annonce": 0.6445,
+   "observe": 0.6347,
+   "n": 980
+  },
+  {
+   "tranche": "70-80 %",
+   "annonce": 0.7426,
+   "observe": 0.7477,
+   "n": 428
+  },
+  {
+   "tranche": "80-90 %",
+   "annonce": 0.8386,
+   "observe": 0.8265,
+   "n": 196
+  },
+  {
+   "tranche": "90-100 %",
+   "annonce": 0.9166,
+   "observe": 0.8333,
+   "n": 18
+  }
+ ],
+ "equipesConnues": {
+  "duelProno": {
+   "n": 7027,
+   "brier": 0.6019,
+   "logloss": 1.006,
+   "reussite": 0.5058
+  },
+  "bookmakers": {
+   "n": 7027,
+   "brier": 0.5836,
+   "logloss": 0.9792,
+   "reussite": 0.5275
+  }
+ },
+ "buts": {
+  "n": 7438,
+  "plus25": {
+   "duelProno": 0.2488,
+   "naif": 0.2491
+  },
+  "deuxMarquent": {
+   "duelProno": 0.2502,
+   "naif": 0.2481
+  }
+ }
+}

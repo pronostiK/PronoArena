@@ -543,3 +543,26 @@ a.more { color: var(--orange); }
 .lang-switch button[aria-pressed="true"] { border-color: var(--orange); color: var(--orange-txt); }
 .lang-choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .lang-choice .btn[aria-pressed="true"] { border-color: var(--orange); background: #3a2312; }
+
+/* Verdict : erreur de Brier et test sur les matchs passés */
+.brier-line { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; color: var(--text-2); }
+.brier-line b { font-family: var(--display); font-size: 22px; color: var(--gold); }
+.brier-line small { width: 100%; color: var(--muted); font-size: 11px; }
+.bt-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bt-tiles .cell { display: flex; flex-direction: column; gap: 4px; }
+.bt-tiles .cell b { font-family: var(--display); font-size: 22px; }
+.bt-tiles .cell:first-child b { color: var(--orange-txt); }
+.bt-tiles .note { font-size: 11px; }
+.bt-bar { display: block; height: 6px; border-radius: 3px; background: #2e2a26; overflow: hidden; }
+.bt-bar > span { display: block; height: 100%; background: var(--orange); border-radius: 3px; }
+.bt-say { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-size: 14px; line-height: 1.5; color: var(--text); }
+.cals { display: flex; flex-direction: column; gap: 6px; }
+.cal { display: grid; grid-template-columns: 3em 1fr 1fr 3em; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.cal b { text-align: right; color: var(--blue-txt); }
+.cal .bt-bar:last-of-type > span { background: var(--blue); }
+.bt-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0 8px; }
+.bt-table th, .bt-table td { padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--line-soft); }
+.bt-table th { color: var(--muted); font-weight: 700; font-size: 12px; }
+.bt-table th:first-child, .bt-table td:first-child { text-align: left; }
+.bt .fold { margin-top: 2px; }
+@media (max-width: 420px) { .bt-tiles { grid-template-columns: 1fr; } .bt-table th:nth-child(2), .bt-table td:nth-child(2) { display: none; } }

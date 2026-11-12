@@ -203,12 +203,16 @@ export async function buildVerdict(env, leagueIds, season, now = Date.now(), day
         score: { dom: hg, ext: ag },
         moteur: { prono, proba: e.p[prono === "1" ? 0 : prono === "N" ? 1 : 2], doubleChance: dc, plus25: e.o25 },
         juste: { "1N2": prono === res, doubleChance: dc.includes(res), plusMoins25: (e.o25 >= 0.5) === (hg + ag > 2.5) },
+        brier: ["1", "N", "2"].reduce((s, k, i) => s + (e.p[i] - (k === res ? 1 : 0)) ** 2, 0),
       });
     }
   }
   out.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
   const n = out.length, pct = (k) => (n ? Math.round((100 * out.filter((x) => x.juste[k]).length) / n) : null);
-  return { success: true, periodeJours: days, bilan: { matchs: n, "1N2": pct("1N2"), doubleChance: pct("doubleChance"), plusMoins25: pct("plusMoins25") }, matchs: out.slice(0, 60) };
+  // Erreur de Brier : 0 = parfait, 0,667 = « un tiers partout ». Plus c'est bas, mieux c'est.
+  const brier = n ? Math.round((1000 * out.reduce((s, x) => s + x.brier, 0)) / n) / 1000 : null;
+  for (const x of out) delete x.brier;
+  return { success: true, periodeJours: days, bilan: { matchs: n, "1N2": pct("1N2"), doubleChance: pct("doubleChance"), plusMoins25: pct("plusMoins25"), brier }, matchs: out.slice(0, 60) };
 }
 
 // ---------- Face-à-face (depuis les données stockées, aucun appel API) ----------

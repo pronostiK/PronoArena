@@ -196,13 +196,18 @@ const MAILS = {
     html: `<p>Hello ${pseudo},</p><p>To choose a new password, tap this button (link valid for 1 hour):</p><p><a href="${link}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#FF6B00;color:#121212;font-weight:bold;text-decoration:none">Choose a new password</a></p><p style="color:#666;font-size:13px">If you did not ask for this, ignore this message: your password stays the same.</p><p>Duel Prono</p>`,
   }),
 };
-async function sendMail(env, to, mail) {
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "Duel Prono <noreply@duelprono.com>", to: [to], reply_to: "contact@duelprono.com", ...mail }),
-  });
-  if (!r.ok) throw new Error(`envoi de l'e-mail [${r.status}]`);
+async function sendMail(env, to, mail, key) {
+  // Une nouvelle tentative si le service est surchargé ; la clé d'idempotence évite d'envoyer deux fois le même e-mail
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": key },
+      body: JSON.stringify({ from: "Duel Prono <noreply@duelprono.com>", to: [to], reply_to: "contact@duelprono.com", ...mail }),
+    });
+    if (r.ok) return;
+    if (attempt === 0 && (r.status === 429 || r.status >= 500)) { await new Promise((ok) => setTimeout(ok, 800)); continue; }
+    throw new Error(`envoi de l'e-mail [${r.status}]`);
+  }
 }
 
 // Réponse identique que le compte existe ou non : on ne révèle pas quelles adresses sont inscrites
@@ -221,7 +226,7 @@ export async function forgotPassword(env, body, ip, now = Date.now()) {
       db.prepare("INSERT INTO resets (jeton, joueur_id, expire_le) VALUES (?1, ?2, ?3)").bind(await sha256(token), row.id, now + RESET_MS),
     ]);
     const lang = body.lang === "en" ? "en" : "fr";
-    await sendMail(env, email, MAILS[lang](row.pseudo, `${SITE}/#/nouveau-mot-de-passe/${token}`));
+    await sendMail(env, email, MAILS[lang](row.pseudo, `${SITE}/#/nouveau-mot-de-passe/${token}`), `reset-${(await sha256(token)).slice(0, 32)}`);
   }
   return { success: true };
 }

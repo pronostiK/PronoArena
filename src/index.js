@@ -212,6 +212,38 @@ export default {
         return new Response(txt, { headers: { "content-type": "application/json" } });
       }
 
+      // TEMPORAIRE (12/11/2026) : sonde Soccer Data n°2 (lente, 10 appels/min). À supprimer ensuite.
+      if (path === "/test-soccerdata2") {
+        const cached = await env.PRONO_CACHE.get("tmp:soccerdata2");
+        if (cached) return new Response(cached, { headers: { "content-type": "application/json" } });
+        if (!env.SOCCERDATA_KEY) return json({ erreur: "SOCCERDATA_KEY absente" });
+        const B = "https://api.soccer-data.co/v1";
+        const call = async (p) => { await new Promise(r => setTimeout(r, 6500)); try { const r = await fetch(B + p, { headers: { "X-Api-Key": env.SOCCERDATA_KEY } }); const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = t.slice(0, 200); } return { status: r.status, j }; } catch (e) { return { status: 0, j: String(e) }; } };
+        const out = {};
+        for (const [nom, q] of [["Liga", "LaLiga"], ["Bundes", "Bundesliga"], ["L1", "Ligue 1"]]) {
+          const o = out[nom] = {};
+          const c = await call(`/competitions?search=${encodeURIComponent(q)}&country=${nom === "Liga" ? "Spain" : nom === "Bundes" ? "Germany" : "France"}&per_page=4`);
+          o.recherche = c.status === 200 ? (c.j.data || []).map(x => ({ id: x.id, name: x.name, country: x.country })) : c;
+          const comp = c.status === 200 && (c.j.data || [])[0];
+          if (!comp) continue;
+          const d = await call(`/competitions/${comp.id}`);
+          const sid = d.status === 200 && (d.j.data?.[0]?.current_season_id ?? d.j.data?.current_season_id);
+          o.saison = sid;
+          if (!sid) { o.detail = d; continue; }
+          const m = await call(`/matches?competition_id=${comp.id}&season_id=${sid}&status=finished&sort=-utc_date&per_page=2`);
+          const ms = m.status === 200 ? (m.j.data || []) : [];
+          o.total = m.j?.meta?.total; o.xg = ms[0] && { xg_available: ms[0].xg_available, q: ms[0].xg_quality, match: ms[0].home_team?.name + "-" + ms[0].away_team?.name };
+          if (ms[0]) { const st = await call(`/matches/${ms[0].id}/stats`); o.stats = st.status === 200 ? JSON.stringify(st.j?.data?.overview?.expected_goals?.all) : st; }
+          if (nom === "Bundes" && ms[0]) {
+            const inj = await call(`/teams/${ms[0].home_team.id}/injuries`);
+            o.blessures = inj.status === 200 ? JSON.stringify(inj.j).slice(0, 1200) : inj;
+          }
+        }
+        const txt = JSON.stringify(out);
+        await env.PRONO_CACHE.put("tmp:soccerdata2", txt, { expirationTtl: 21600 });
+        return new Response(txt, { headers: { "content-type": "application/json" } });
+      }
+
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
 
       // ---------- Arène ----------

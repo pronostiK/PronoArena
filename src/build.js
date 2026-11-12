@@ -4,7 +4,7 @@
 // ============================================================
 import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
-import { buildModel, computeTeamRatings, teamStats, leagueTable, calculate_match_prediction } from "./model.js";
+import { buildModel, computeTeamRatings, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -117,7 +117,8 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   }
 
   const table = leagueTable(finishedCur);
-  const rank = new Map(table.map((r) => [r.id, r]));
+  // Sélections : rang dans le groupe (ou rien si les groupes ne se lisent pas) ; ailleurs : rang au classement général
+  const rank = lg.national ? groupTables(finishedCur, (cur.upcoming || []).map((u) => [u[1], u[2]])) || new Map() : new Map(table.map((r) => [r.id, r]));
   const names = { ...extraNames, ...(prev?.teams || {}), ...cur.teams };
 
   const national = lg.national ? await nationalContext(env, finishedCur, cur.teams) : null;
@@ -130,7 +131,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       if (st) for (const f of st.formeDetail) { f.logo = names[f.adversaire]?.[1] || null; f.adversaire = names[f.adversaire]?.[0] || f.adversaire; }
       const row = rank.get(team.id);
       team.stats = st;
-      team.classement = row ? { rang: row.rang, points: row.pts, joues: row.j, diff: row.diff } : null;
+      team.classement = row ? { rang: row.rang, points: row.pts, joues: row.j, diff: row.diff, ...(row.groupe ? { groupe: true } : {}) } : null;
     }
     return p;
   });

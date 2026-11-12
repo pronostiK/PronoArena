@@ -378,6 +378,8 @@
     return `<div class="pitch"><div class="pt-box t"></div><div class="pt-box b"></div><div class="pt-mid"></div><div class="pt-circle"></div>${half(cD, true, "home")}${half(cE, false, "away")}</div>`;
   }
 
+  // Sous le nom de l'équipe : sa place au classement (dans son groupe pour les sélections)
+  const rankLabel = (t) => (t.classement ? `${t.classement.rang}${t.classement.rang === 1 ? "er" : "e"} ${t.classement.groupe ? "du groupe" : "au classement"}` : "");
   async function renderDuel(leagueId, matchId) {
     setTab("duels");
     view.innerHTML = `<div class="list"><div class="skel"></div><div class="skel"></div></div>`;
@@ -475,7 +477,6 @@
         <h2>${ico("target")}Face à face des stats</h2>
         <div class="cmp-teams">${mini(D)}<span>Saison</span>${mini(E)}</div>
         ${D.classement && E.classement ? cmp("Classement", D.classement.rang, E.classement.rang, (x) => x + (x === 1 ? "er" : "e"), true) : ""}
-        ${cmp("Elo", D.elo, E.elo)}
         ${cmp("Buts marqués / match", SD.butsMarquesParMatch, SE.butsMarquesParMatch, dec)}
         ${cmp("Buts encaissés / match", SD.butsEncaissesParMatch, SE.butsEncaissesParMatch, dec, true)}
         ${cmp("Plus de 2,5 buts", SD.pctOver25, SE.pctOver25, (x) => x + "%")}
@@ -488,9 +489,9 @@
     view.innerHTML = `
       <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels de ${esc(lg?.nom || "la compétition")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
       <section class="match-hero">
-        <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b><small>${D.classement ? `${D.classement.rang}${D.classement.rang === 1 ? "er" : "e"} · ` : ""}Elo ${esc(D.elo)}</small></div>
+        <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b><small>${rankLabel(D)}</small></div>
         <div class="kickoff">${isLive(p.status) ? `<span class="live">En direct</span>` : `<strong>${esc(fmtTime(p.date))}</strong>`}<span>${esc(fmtDay(p.date))}</span></div>
-        <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b><small>${E.classement ? `${E.classement.rang}${E.classement.rang === 1 ? "er" : "e"} · ` : ""}Elo ${esc(E.elo)}</small></div>
+        <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b><small>${rankLabel(E)}</small></div>
       </section>
       <section class="panel">
         <h2>${ico("target")}Ton prono</h2>

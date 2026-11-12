@@ -91,6 +91,18 @@ for (const [id, nom] of [[2, "Ligue des champions"], [3, "Europa League"], [848,
 const NL = await get("/league-predictions?leagueId=5");
 check("Ligue des Nations : pronostics présents", NL.count > 0);
 
+// ---- Classement par groupe (sélections) ----
+{
+  const { groupTables } = await import("../src/model.js");
+  const F = (homeId, awayId, hg, ag) => ({ homeId, awayId, hg, ag });
+  // Deux groupes de 4 ; groupe 1 : Chypre 2e, Arménie 3e (comme en vrai le 12/11/2026)
+  const fin = [F("MNE", "ARM", 3, 2), F("CYP", "LVA", 2, 1), F("ARM", "LVA", 2, 0), F("MNE", "CYP", 1, 1), F("CYP", "ARM", 2, 0), F("MNE", "LVA", 2, 0), F("MNE", "ARM", 0, 0), F("LVA", "CYP", 1, 0),
+    F("A", "B", 1, 0), F("C", "D", 0, 0), F("A", "C", 2, 0)];
+  const g = groupTables(fin, [["ARM", "CYP"], ["B", "D"]]);
+  check("Sélections : rang dans le groupe, pas au classement général", g.get("CYP").rang === 2 && g.get("ARM").rang === 3 && g.get("MNE").rang === 1 && g.get("A").rang === 1 && g.get("ARM").groupe === true && g.get("ARM").pts === 4);
+  check("Sélections : aucun rang si les groupes ne se lisent pas (phase finale, données partielles)", groupTables([...fin, F("MNE", "A", 1, 0)], []) === null && groupTables([F("X", "Y", 1, 0)], []) === null);
+}
+
 // ---- 3 bis. Sélections nationales : classement Elo sur tous les matchs internationaux ----
 console.log("\n— Sélections —");
 {

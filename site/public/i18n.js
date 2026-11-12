@@ -100,7 +100,7 @@
     "Aucun pronostic la semaine dernière.": "No picks last week.", "Mes pronos": "My picks", "En attente": "Pending",
     "Comment ça marche": "How it works", "1 · Choisis": "1 · Pick", "Victoire, nul ou victoire": "Win, draw or win", "2 · Avant le match": "2 · Before the match",
     "Bloqué au coup d'envoi": "Locked at kick-off", "3 · Le risque paie": "3 · Risk pays", "Favori 10 pts, surprise jusqu'à 100": "Favourite 10 pts, upset up to 100",
-    "4 · Chaque lundi": "4 · Every Monday", "Nouveau classement": "New ranking", "L'Arène est indisponible pour le moment.": "The Arena is unavailable right now.",
+    "du groupe": "in the group", "au classement": "in the table", "4 · Chaque lundi": "4 · Every Monday", "Nouveau classement": "New ranking", "L'Arène est indisponible pour le moment.": "The Arena is unavailable right now.",
     // Compte
     "Gratuit · pour le fun": "Free · just for fun", "Entre dans l'arène.": "Enter the arena.",
     "Ton prono sera enregistré dès que tu es connecté.": "Your pick will be saved as soon as you are logged in.",
@@ -173,7 +173,8 @@
     [/^0,(\d+)$/, (m) => `0.${m[1]}`],
     [/^Oui (\d+)%$/, (m) => `Yes ${m[1]}%`],
     [/^Non (\d+)%$/, (m) => `No ${m[1]}%`],
-    [/^(\d+)(?:er|e) · Elo (\d+)$/, (m) => `${ord(m[1])} · Elo ${m[2]}`],
+    [/^(\d+)(?:er|e) du groupe$/, (m) => `${ord(m[1])} in the group`],
+    [/^(\d+)(?:er|e) au classement$/, (m) => `${ord(m[1])} in the table`],
     [/^(\d+)(?:er|e) ·$/, (m) => `${ord(m[1])} ·`],
     [/^Bilan du moteur · (\d+) derniers jours$/, (m) => `Engine record · last ${m[1]} days`],
     [/^Calculé sur (\d+) matchs?\. Chaque pronostic est figé avant le coup d'envoi : rien n'est modifié après coup\.$/, (m) => `Based on ${pl(m[1], "match", "matches")}. ${AFTER}`],

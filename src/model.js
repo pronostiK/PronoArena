@@ -181,6 +181,22 @@ export function leagueTable(finished) {
   return rows;
 }
 
+// Compétitions à groupes (Ligue des Nations, Euro, Coupe du monde) : un classement général n'a pas de sens,
+// on classe chaque équipe dans son groupe. Les groupes se déduisent du calendrier : les équipes qui se rencontrent.
+// Renvoie Map(id → ligne du classement de son groupe), ou null si le calendrier ne dessine pas des groupes de 3 à 6
+// équipes (phase finale, barrages, données incomplètes) : mieux vaut ne rien afficher qu'un rang faux.
+export function groupTables(finished, pairs) {
+  const parent = new Map();
+  const find = (x) => { if (!parent.has(x)) parent.set(x, x); let r = x; while (parent.get(r) !== r) r = parent.get(r); parent.set(x, r); return r; };
+  for (const [h, a] of [...finished.map((f) => [f.homeId, f.awayId]), ...pairs]) parent.set(find(h), find(a));
+  const groups = new Map();
+  for (const id of parent.keys()) { const g = find(id); if (!groups.has(g)) groups.set(g, new Set()); groups.get(g).add(id); }
+  if (!groups.size || [...groups.values()].some((g) => g.size < 3 || g.size > 6)) return null;
+  const out = new Map();
+  for (const g of groups.values()) for (const row of leagueTable(finished.filter((f) => g.has(f.homeId)))) out.set(row.id, { ...row, groupe: true });
+  return out;
+}
+
 export function fiabilite(minPlayed) {
   if (minPlayed >= 8) return "élevée";
   if (minPlayed >= 4) return "moyenne";

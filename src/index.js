@@ -29,7 +29,6 @@ const CORS = {
 const PRIVATE = { "Cache-Control": "no-store" };
 // Mémoire partagée entre visiteurs (5 min) pour les calculs lourds : économise le quota de lectures
 const memo = new Map();
-let testAbsents = null; // TEMPORAIRE, voir /test-absents
 async function remember(key, ttl, fn) {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.t < ttl) return hit.v;
@@ -165,35 +164,6 @@ export default {
           out[`${k}${lim}`] = r.ok ? `${r.status} · ${((await r.json()).events || []).length} matchs` : `${r.status}`;
         }
         return json({ success: true, competition: lg, resultats: out });
-      }
-
-      // TEMPORAIRE (12/11/2026) : test des absents chez API-Football, à supprimer dès que le test est lu.
-      // Regarde d'abord le compte ; s'il est refusé on s'arrête aussitôt (aucune attente). Clé jamais affichée.
-      if (path === "/test-absents") {
-        if (testAbsents && Date.now() - testAbsents.t < 3600000) return json({ success: true, ...testAbsents.out });
-        const key = env.API_FOOTBALL_KEY;
-        if (!key) return json({ success: true, cle: "absente" });
-        const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
-        const get = async (chemin) => {
-          try {
-            const r = await fetch("https://v3.football.api-sports.io" + chemin, { headers: { "x-apisports-key": key } });
-            const d = await r.json();
-            const lignes = Array.isArray(d.response) ? d.response : [];
-            return {
-              appel: chemin, http: r.status, erreurs: d.errors, resultats: d.results ?? lignes.length,
-              exemples: lignes.slice(0, 6).map((x) => ({ joueur: x.player?.name, equipe: x.team?.name, type: x.player?.type, raison: x.player?.reason, match: x.fixture?.id, date: x.fixture?.date?.slice(0, 10), ligue: x.league?.name })),
-              equipesTouchees: [...new Set(lignes.map((x) => x.team?.name))].length,
-              matchsTouches: [...new Set(lignes.map((x) => x.fixture?.id))].length,
-              compte: d.response && !Array.isArray(d.response) ? { offre: d.response.subscription, requetes: d.response.requests } : undefined,
-            };
-          } catch (e) { return { appel: chemin, erreur: String(e.message || e) }; }
-        };
-        const refus = (r) => r.erreurs && (Array.isArray(r.erreurs) ? r.erreurs.length : Object.keys(r.erreurs).length);
-        const out = { compte: await get("/status") };
-        if (refus(out.compte)) return json({ success: true, arret: "Le compte est refusé par API-Football : voir l'erreur. Rien d'autre n'a été demandé.", ...out });
-        for (const [nom, chemin] of [["ligue_des_nations", "/injuries?league=5&season=2026&date=2026-11-12"], ["premier_league", "/injuries?league=39&season=2026"], ["ligue_1", "/injuries?league=61&season=2026"]]) { await pause(1500); out[nom] = await get(chemin); }
-        if (![out.ligue_des_nations, out.premier_league, out.ligue_1].some(refus)) testAbsents = { t: Date.now(), out };
-        return json({ success: true, ...out });
       }
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });

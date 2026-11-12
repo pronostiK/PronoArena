@@ -789,6 +789,7 @@
     setTab("compte");
     view.dataset.page = session.token ? "espace" : "compte";
     if (!session.token) {
+      await getLeagues(); // le lien « Mot de passe oublié ? » dépend d'une option envoyée par le moteur
       const mode = store.get("compteMode") === "login" ? "login" : "signup";
       view.innerHTML = `
         <img class="big-logo" src="duelprono-logo.webp" alt="Duel Prono" width="200" height="200">

@@ -104,7 +104,7 @@ export function installFetch() {
       for (const [k, list] of Object.entries(DB)) {
         if (!k.startsWith("sp:")) continue;
         const lid = Number(k.slice(3).split("@")[0]);
-        for (const x of list) if (new Date(x.ts).toISOString().slice(0, 10) === m[1]) rows.push({ id: x.id, league_id: lid, status: isDone(x) ? "FT" : isLive(x) ? "LIVE" : "Scheduled", kickoff_utc: new Date(x.ts).toISOString(), home_id: x.h, away_id: x.a, home_team: teamName(x.h), away_team: teamName(x.a), home_logo: `${x.h}.png`, away_logo: `${x.a}.png`, home_score: isDone(x) ? x.hg : isLive(x) ? x.lh ?? 0 : null, away_score: isDone(x) ? x.ag : isLive(x) ? x.la ?? 0 : null, minute: isLive(x) ? (x.ht ? "HT" : 30) : null });
+        for (const x of list) if (new Date(x.ts).toISOString().slice(0, 10) === m[1]) rows.push({ id: x.id, league_id: lid, status: isDone(x) ? "FT" : isLive(x) && !(x.lateUntil && SIM.now < x.lateUntil) ? "LIVE" : "Scheduled", kickoff_utc: new Date(x.ts).toISOString(), home_id: x.h, away_id: x.a, home_team: teamName(x.h), away_team: teamName(x.a), home_logo: `${x.h}.png`, away_logo: `${x.a}.png`, home_score: isDone(x) ? x.hg : isLive(x) && !(x.lateUntil && SIM.now < x.lateUntil) ? x.lh ?? 0 : null, away_score: isDone(x) ? x.ag : isLive(x) && !(x.lateUntil && SIM.now < x.lateUntil) ? x.la ?? 0 : null, minute: isLive(x) ? (x.ht ? "HT" : 30) : null });
       }
       rows.push({ id: "z" + m[1], league_id: 999, status: "FT", kickoff_utc: m[1] + "T12:00:00Z", home_id: "q1", away_id: "q2", home_team: "Autre A", away_team: "Autre B", home_score: 1, away_score: 0 });
       return { ok: true, json: async () => ({ success: true, date: m[1], data: rows }) };

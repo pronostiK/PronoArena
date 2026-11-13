@@ -350,6 +350,18 @@ console.log("\n— Scores en direct —");
   check("Direct : score final « terminé » dès le coup de sifflet", fin[`61:${l1.id}`]?.etat === "fin" && fin[`61:${l1.id}`].d === l1e.hg && fin[`144:${be.id}`]?.etat === "fin" && fin[`144:${be.id}`].d === be.hg, JSON.stringify([fin[`61:${l1.id}`], fin[`144:${be.id}`]]));
   check("Direct : la clé SportAPI n'apparaît jamais dans la réponse", !JSON.stringify(fin).includes("sp_test") && env.store.has(LIVE_SP_KEY));
   await tick(env, SIM.now); await tick(env, SIM.now + 600000);
+
+  // Coup d'envoi retardé (fréquent en CAN) : au relevé, SportAPI ne le donne pas encore « en direct » → nouvel essai après 5 min, pas 15
+  const S = SIM.now, be2 = WORLD["sp:5@2026"].filter((m) => m !== be && m.ts > S + 3 * 3600000).sort((a, b) => a.ts - b.ts)[0];
+  Object.assign(be2, { ts: S + 20 * 60000, lateUntil: S + 24 * 60000, lh: 0, la: 1 });
+  for (const dt of [0, 10, 20]) await tick(env, S + dt * 60000);
+  resetLive(); SIM.now = S + 21 * 60000;
+  const r0 = (await get("/live")).matchs, sp0 = calls.sp;
+  let seen2 = null;
+  for (let i = 22; i <= 40; i++) { SIM.now = S + i * 60000; const r = await get("/live"); if (!seen2 && r.matchs[`144:${be2.id}`]) seen2 = i - 21; }
+  check("Direct : coup d'envoi retardé = pas de score inventé au premier relevé", !r0[`144:${be2.id}`], JSON.stringify(r0[`144:${be2.id}`]));
+  check("Direct : coup d'envoi retardé = le score apparaît 5 à 6 minutes plus tard (pas 15)", seen2 && seen2 >= 5 && seen2 <= 6 && (await get("/live")).matchs[`144:${be2.id}`]?.e === 1, `vu après ${seen2} min`);
+  check("Direct : coup d'envoi retardé = peu d'appels SportAPI en plus", calls.sp - sp0 <= 2, `${calls.sp - sp0} appels en 19 min`);
 }
 
 console.log("\n— Arène —");

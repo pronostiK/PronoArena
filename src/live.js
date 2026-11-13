@@ -3,7 +3,8 @@
 // Appelé par le site toutes les 60 secondes, seulement quand un match affiché est en cours.
 //   - ESPN (gratuit, sans clé) : score et minute, rafraîchis toutes les 60 secondes.
 //   - SportAPI (Belgique, Écosse, CAN, et secours de la Turquie) : ESPN ne suit pas ces matchs.
-//     Le quota gratuit est limité : un seul appel toutes les 15 minutes, partagé par tous les visiteurs.
+//     Le quota gratuit est limité : un seul appel toutes les 15 minutes, partagé par tous les visiteurs
+//     (toutes les 5 minutes pendant les 45 premières minutes d'un match qui manque encore au relevé : coup d'envoi retardé).
 // Aucune écriture dans le cache pour ESPN (mémoire seulement) ; 4 écritures par heure au plus pour SportAPI.
 // ============================================================
 import { LEAGUES, currentSeason } from "./config.js";
@@ -14,6 +15,8 @@ const MIN = 60000;
 export const LIVE_WINDOW_MS = 210 * MIN;   // un match est suivi jusqu'à 3 h 30 après son coup d'envoi
 export const LIVE_ESPN_MS = 55000;         // ESPN : au plus un appel par compétition toutes les ~60 s
 export const LIVE_SP_MS = 15 * MIN;        // SportAPI : au plus un appel toutes les 15 minutes
+export const LIVE_SP_FAST_MS = 5 * MIN;    // match commencé mais pas encore dans le dernier relevé (coup d'envoi retardé) : nouvel essai après 5 min…
+export const LIVE_SP_FAST_WINDOW = 45 * MIN; // …seulement pendant les 45 premières minutes du match (au plus 9 appels de plus par match)
 export const LIVE_SP_KEY = "live:sp";
 const ymd = (ts) => new Date(ts).toISOString().slice(0, 10).replace(/-/g, "");
 const isoDay = (ts) => new Date(ts).toISOString().slice(0, 10);
@@ -109,12 +112,15 @@ export function spRows(rows, leagueIds) {
   }
   return out;
 }
-let spLast = 0; // garde-fou en mémoire : même si le cache refuse l'écriture, jamais plus d'un appel par quart d'heure
-async function spLive(env, days, leagueIds, now) {
+let spLast = 0; // garde-fou en mémoire : même si le cache refuse l'écriture, jamais plus d'un appel par quart d'heure (5 min si un match qui vient de commencer manque)
+// matches : [{ id, ts }] suivis chez SportAPI. Relevé toutes les 15 min ; toutes les 5 min tant qu'un match qui vient de commencer manque encore.
+async function spLive(env, days, leagueIds, now, matches = []) {
   let cached = null;
   try { const raw = await env.PRONO_CACHE.get(LIVE_SP_KEY); cached = raw ? JSON.parse(raw) : null; } catch { /* cache illisible */ }
-  if (cached && now - cached.at < LIVE_SP_MS && days.every((d) => cached.days?.includes(d))) return cached;
-  if (!env.SPORTAPI_KEY || now - spLast < LIVE_SP_MS) return cached;
+  const waiting = !!cached && matches.some((m) => now - m.ts < LIVE_SP_FAST_WINDOW && !(m.id in (cached.rows || {})));
+  const every = waiting ? LIVE_SP_FAST_MS : LIVE_SP_MS;
+  if (cached && now - cached.at < every && days.every((d) => cached.days?.includes(d))) return cached;
+  if (!env.SPORTAPI_KEY || now - spLast < every) return cached;
   spLast = now;
   const fresh = { at: now, days, rows: {} };
   try {
@@ -165,7 +171,7 @@ export async function buildLive(env, now = Date.now()) {
   if (spTodo.length) {
     const ids = new Set(Object.values(LEAGUES).filter((lg) => lg.src.startsWith("sp:")).flatMap((lg) => lg.src.slice(3).split("+").map(Number)));
     const days = [...new Set(spTodo.map((m) => isoDay(Date.parse(m.date))))].sort();
-    const sp = await spLive(env, days, ids, now);
+    const sp = await spLive(env, days, ids, now, spTodo.map((m) => ({ id: String(m.matchId), ts: Date.parse(m.date) })));
     const at = sp ? sp.dataAt ?? sp.at : 0;
     if (sp && at) for (const m of spTodo) {
       const r = sp.rows?.[String(m.matchId)];

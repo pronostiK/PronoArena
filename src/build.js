@@ -6,7 +6,7 @@ import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
 import { buildModel, computeTeamRatings, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
-import { flagTeams } from "./flags.js";
+import { flagTeams, flagUrl } from "./flags.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 export const predsKey = (leagueId, season) => `preds:${leagueId}@${season}`;
@@ -202,7 +202,7 @@ export async function buildVerdict(env, leagueIds, season, now = Date.now(), day
       const prono = pick1N2(e.p), dc = dcOf(e.p);
       out.push({
         matchId: e.id, leagueId: id, competition: lg.name, date: new Date(e.ts).toISOString(),
-        domicile: { nom: e.h[0], logo: e.h[1] }, exterieur: { nom: e.a[0], logo: e.a[1] },
+        domicile: { nom: e.h[0], logo: (lg.national && flagUrl(e.h[0])) || e.h[1] }, exterieur: { nom: e.a[0], logo: (lg.national && flagUrl(e.a[0])) || e.a[1] }, // pronostics figés avant les drapeaux : on les remet
         score: { dom: hg, ext: ag },
         moteur: { prono, proba: e.p[prono === "1" ? 0 : prono === "N" ? 1 : 2], doubleChance: dc, plus25: e.o25 },
         juste: { "1N2": prono === res, doubleChance: dc.includes(res), plusMoins25: (e.o25 >= 0.5) === (hg + ag > 2.5) },

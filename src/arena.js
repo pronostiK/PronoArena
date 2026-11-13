@@ -3,6 +3,7 @@
 // Comptes joueurs, pronostics des joueurs bloqués au coup d'envoi,
 // notation par le robot, classement hebdomadaire. Base D1 (binding DB).
 // ============================================================
+import { flagUrl } from "./flags.js";
 import { LEAGUES, currentSeason } from "./config.js";
 import { kvGet, srcKey } from "./sources.js";
 import { predsKey } from "./build.js";
@@ -307,7 +308,7 @@ export async function savePick(env, user, body, now = Date.now()) {
 
 const pickRow = (r) => ({
   leagueId: r.ligue_id, matchId: r.match_id, competition: LEAGUES[r.ligue_id]?.name || "", choix: r.choix, mise: r.mise_pts, coupEnvoi: r.coup_envoi, semaine: r.semaine,
-  domicile: { nom: r.dom, logo: r.dom_logo }, exterieur: { nom: r.ext, logo: r.ext_logo },
+  domicile: { nom: r.dom, logo: r.dom_logo || flagUrl(r.dom) }, exterieur: { nom: r.ext, logo: r.ext_logo || flagUrl(r.ext) },
   resultat: r.resultat, score: r.score, points: r.points,
 });
 

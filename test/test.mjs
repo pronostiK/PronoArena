@@ -207,6 +207,17 @@ check("Verdict : taux de réussite calculés", [V.bilan["1N2"], V.bilan.doubleCh
 const okRes = V.matchs.every((m) => { const r = m.score.dom > m.score.ext ? "1" : m.score.dom < m.score.ext ? "2" : "N"; return m.juste["1N2"] === (m.moteur.prono === r); });
 check("Verdict : « vu juste / raté » exact", okRes);
 check("Verdict par compétition", (await get("/verdict?leagueId=61")).matchs.every((m) => m.leagueId === 61));
+{ // Verdict : pronostics figés avant les drapeaux (logo vide) → le drapeau est remis à la lecture
+  const { buildVerdict, archiveKey } = await import("../src/build.js");
+  const { srcKey } = await import("../src/sources.js");
+  const { LEAGUES } = await import("../src/config.js");
+  const lg = LEAGUES[6], season = 2026, store = new Map(), t0 = Date.now() - 3600000;
+  store.set(archiveKey(6, season), JSON.stringify({ 1: { id: 1, ts: t0, h: ["Guinea", null], a: ["Eritrea", null], p: [0.78, 0.14, 0.08], o25: 0.5, btts: 0.5, l: [2, 0.6], src: "sp" } }));
+  store.set(srcKey(lg.src, season), JSON.stringify({ finished: [[1, 0, 0, 2, 1]] }));
+  const env = { PRONO_CACHE: { get: async (k, t) => (store.has(k) ? (t === "json" ? JSON.parse(store.get(k)) : store.get(k)) : null), put: async () => {} } };
+  const v = await buildVerdict(env, [6], season, Date.now(), 30);
+  check("Verdict : drapeaux remis sur les sélections africaines", v.matchs.length === 1 && /flagcdn\.com\/w160\/gn\.png/.test(v.matchs[0].domicile.logo) && /flagcdn\.com\/w160\/er\.png/.test(v.matchs[0].exterieur.logo), JSON.stringify(v.matchs[0]?.domicile));
+}
 const LG = await get("/leagues");
 const UP = await get("/upcoming");
 check("Accueil : tous les matchs des 7 prochains jours, de plusieurs compétitions, triés par date", UP.success && UP.matchs.length >= 20 && new Set(UP.matchs.map((m) => m.leagueId)).size >= 6 && UP.matchs.every((m, i) => (i === 0 || Date.parse(m.date) >= Date.parse(UP.matchs[i - 1].date)) && Date.parse(m.date) < SIM.now + 7 * 86400000 && Math.abs(m.poisson.proba1 + m.poisson.probaN + m.poisson.proba2 - 1) < 0.01 && m.teams.domicile.name), `${UP.matchs.length} matchs, ${new Set(UP.matchs.map((m) => m.leagueId)).size} compétitions`);

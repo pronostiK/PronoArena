@@ -18,6 +18,7 @@
 
   // ---------- Outils ----------
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const frNames = (d) => (I18N.names ? I18N.names(d) : d);
   const pct = (x) => Math.round((x || 0) * 100);
   const dec = (x) => (x == null ? "—" : Number(x).toFixed(1).replace(".", I18N.lang === "en" ? "." : ","));
   const store = {
@@ -32,7 +33,7 @@
     if (hit && Date.now() - hit.t < ttl) return hit.data;
     // Connecté : le moteur renvoie toutes les probabilités ; sinon, seulement les 2 matchs offerts du jour
     const res = await fetch(API + path, session.token ? { headers: { Authorization: "Bearer " + session.token } } : undefined);
-    const data = await res.json();
+    const data = frNames(await res.json()); // sélections nationales : noms en français
     if (!res.ok || data.success === false) throw new Error(data.error || `Erreur ${res.status}`);
     cache.set(path, { t: Date.now(), data });
     return data;
@@ -46,7 +47,7 @@
     if (session.token) headers.Authorization = "Bearer " + session.token;
     const res = await fetch(API + path, { method: body ? "POST" : "GET", headers, body: body ? JSON.stringify(body) : undefined });
     let data = {};
-    try { data = await res.json(); } catch { /* réponse vide */ }
+    try { data = frNames(await res.json()); } catch { /* réponse vide */ }
     if (!res.ok || data.success === false) { const e = new Error(data.error || `Erreur ${res.status}`); e.status = res.status; throw e; }
     return data;
   }

@@ -122,3 +122,8 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Soccer Data (secret SOCCERDATA_KEY déjà ajouté par l'utilisateur, plan gratuit 50 appels/j, 10/min, saison en cours seule) : xG réels confirmés sur PL, Liga, Serie A, Bundesliga, Ligue 1 (`/matches/{id}/stats` → overview.expected_goals.all) ; blessures : `GET /teams/{id}/injuries-suspensions` (confirmé, ids joueurs sans noms). Pas d'abonnement avant preuve d'un gain sur le modèle.
 - Sondes TEMPORAIRES à supprimer de src/index.js : /test-soccerdata, /test-soccerdata2, /test-soccerdata3, /test-soccerdata4, /test-sp-dump (après le backtest Turquie/Belgique/Écosse).
 - Attente : réponses des auditeurs (Perplexity / ChatGPT) ; recalibration éventuelle des gros favoris seulement avec l'accord de l'utilisateur. API-Football : retiré du projet, ne plus le proposer.
+
+## 13/11/2026 (suite, matin)
+- Vérifié via api.duelprono.com : /status v7, 44 sources à jour, sp:16/5/88@2025 « à jour » ; « Qualifications CAN » et drapeaux OK (confirmé aussi par l'utilisateur sur son téléphone).
+- Poussé : noms des sélections en français (dictionnaire NATIONS dans site/public/i18n.js, appliqué à la réception des données dans api()/call() de app.js sur les champs nom/name/adversaire/opp ; l'anglais reste inchangé). Cache dp20. Test ajouté dans test/i18n.mjs. Nouveau nom SportAPI/football-data non reconnu = l'ajouter dans NATIONS (et dans flags.js pour l'Afrique).
+- Demande de l'utilisateur : scores en direct pendant les matchs (aujourd'hui seul le badge « En direct » existe). Pas commencé : proposition faite, en attente de son accord.

@@ -28,6 +28,59 @@
   I.mark = mark;
   // Ce fichier est chargé dans l'en-tête, avant l'affichage de la page : les boutons sont marqués dès qu'ils existent
   if (doc && doc.addEventListener) doc.addEventListener("DOMContentLoaded", mark);
+  // ---------- Sélections nationales : noms en français ----------
+  // Les fournisseurs de données donnent les sélections en anglais. En français, le site traduit le nom
+  // dès la réception des données (champs nom / name / adversaire / opp). Les clubs ne sont pas touchés.
+  const NATIONS = {
+    // Afrique
+    "algeria": "Algérie", "angola": "Angola", "benin": "Bénin", "botswana": "Botswana", "burkina faso": "Burkina Faso", "burundi": "Burundi", "cameroon": "Cameroun",
+    "cape verde": "Cap-Vert", "cabo verde": "Cap-Vert", "cape verde islands": "Cap-Vert", "central african republic": "Centrafrique", "chad": "Tchad", "comoros": "Comores",
+    "congo": "Congo", "congo republic": "Congo", "republic of the congo": "Congo", "congo dr": "RD Congo", "dr congo": "RD Congo", "democratic republic of the congo": "RD Congo",
+    "djibouti": "Djibouti", "egypt": "Égypte", "equatorial guinea": "Guinée équatoriale", "eritrea": "Érythrée", "eswatini": "Eswatini", "swaziland": "Eswatini",
+    "ethiopia": "Éthiopie", "gabon": "Gabon", "gambia": "Gambie", "the gambia": "Gambie", "ghana": "Ghana", "guinea": "Guinée", "guinea-bissau": "Guinée-Bissau",
+    "guinea bissau": "Guinée-Bissau", "ivory coast": "Côte d'Ivoire", "cote d'ivoire": "Côte d'Ivoire", "cote divoire": "Côte d'Ivoire", "kenya": "Kenya", "lesotho": "Lesotho",
+    "liberia": "Liberia", "libya": "Libye", "madagascar": "Madagascar", "malawi": "Malawi", "mali": "Mali", "mauritania": "Mauritanie", "mauritius": "Maurice",
+    "morocco": "Maroc", "mozambique": "Mozambique", "namibia": "Namibie", "niger": "Niger", "nigeria": "Nigeria", "rwanda": "Rwanda",
+    "sao tome and principe": "Sao Tomé-et-Principe", "sao tome e principe": "Sao Tomé-et-Principe", "senegal": "Sénégal", "seychelles": "Seychelles",
+    "sierra leone": "Sierra Leone", "somalia": "Somalie", "south africa": "Afrique du Sud", "south sudan": "Soudan du Sud", "sudan": "Soudan", "tanzania": "Tanzanie",
+    "togo": "Togo", "tunisia": "Tunisie", "uganda": "Ouganda", "zambia": "Zambie", "zimbabwe": "Zimbabwe",
+    // Europe
+    "albania": "Albanie", "andorra": "Andorre", "armenia": "Arménie", "austria": "Autriche", "azerbaijan": "Azerbaïdjan", "belarus": "Biélorussie", "belgium": "Belgique",
+    "bosnia and herzegovina": "Bosnie-Herzégovine", "bosnia-herzegovina": "Bosnie-Herzégovine", "bulgaria": "Bulgarie", "croatia": "Croatie", "cyprus": "Chypre",
+    "czech republic": "Tchéquie", "czechia": "Tchéquie", "denmark": "Danemark", "england": "Angleterre", "estonia": "Estonie", "faroe islands": "Îles Féroé",
+    "finland": "Finlande", "france": "France", "georgia": "Géorgie", "germany": "Allemagne", "gibraltar": "Gibraltar", "greece": "Grèce", "hungary": "Hongrie",
+    "iceland": "Islande", "ireland": "Irlande", "republic of ireland": "Irlande", "israel": "Israël", "italy": "Italie", "kazakhstan": "Kazakhstan", "kosovo": "Kosovo",
+    "latvia": "Lettonie", "liechtenstein": "Liechtenstein", "lithuania": "Lituanie", "luxembourg": "Luxembourg", "malta": "Malte", "moldova": "Moldavie", "monaco": "Monaco",
+    "montenegro": "Monténégro", "netherlands": "Pays-Bas", "north macedonia": "Macédoine du Nord", "fyr macedonia": "Macédoine du Nord", "macedonia": "Macédoine du Nord",
+    "northern ireland": "Irlande du Nord", "norway": "Norvège", "poland": "Pologne", "portugal": "Portugal", "romania": "Roumanie", "russia": "Russie",
+    "san marino": "Saint-Marin", "scotland": "Écosse", "serbia": "Serbie", "slovakia": "Slovaquie", "slovenia": "Slovénie", "spain": "Espagne", "sweden": "Suède",
+    "switzerland": "Suisse", "turkey": "Turquie", "turkiye": "Turquie", "ukraine": "Ukraine", "wales": "Pays de Galles",
+    // Amériques
+    "argentina": "Argentine", "bolivia": "Bolivie", "brazil": "Brésil", "canada": "Canada", "chile": "Chili", "colombia": "Colombie", "costa rica": "Costa Rica",
+    "cuba": "Cuba", "curacao": "Curaçao", "dominican republic": "République dominicaine", "ecuador": "Équateur", "el salvador": "Salvador", "guatemala": "Guatemala",
+    "haiti": "Haïti", "honduras": "Honduras", "jamaica": "Jamaïque", "mexico": "Mexique", "nicaragua": "Nicaragua", "panama": "Panama", "paraguay": "Paraguay",
+    "peru": "Pérou", "suriname": "Suriname", "trinidad and tobago": "Trinité-et-Tobago", "united states": "États-Unis", "usa": "États-Unis", "uruguay": "Uruguay",
+    "venezuela": "Venezuela",
+    // Asie et Océanie
+    "australia": "Australie", "bahrain": "Bahreïn", "china": "Chine", "china pr": "Chine", "india": "Inde", "indonesia": "Indonésie", "iran": "Iran", "ir iran": "Iran",
+    "iraq": "Irak", "japan": "Japon", "jordan": "Jordanie", "kuwait": "Koweït", "kyrgyzstan": "Kirghizistan", "lebanon": "Liban", "new zealand": "Nouvelle-Zélande",
+    "north korea": "Corée du Nord", "korea dpr": "Corée du Nord", "oman": "Oman", "palestine": "Palestine", "qatar": "Qatar", "saudi arabia": "Arabie saoudite",
+    "south korea": "Corée du Sud", "korea republic": "Corée du Sud", "syria": "Syrie", "tajikistan": "Tadjikistan", "thailand": "Thaïlande",
+    "united arab emirates": "Émirats arabes unis", "uzbekistan": "Ouzbékistan", "vietnam": "Viêt Nam",
+  };
+  const natKey = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i").toLowerCase().replace(/\s*&\s*/g, " and ").replace(/\./g, "").replace(/\s+/g, " ").trim();
+  I.team = (s) => (lang === "fr" && typeof s === "string" && NATIONS[natKey(s)]) || s;
+  const NAME_KEYS = new Set(["nom", "name", "adversaire", "opp"]);
+  // Parcourt une réponse du moteur et met en français les noms de sélections qu'elle contient
+  I.names = (data) => {
+    if (lang !== "fr" || !data || typeof data !== "object") return data;
+    for (const k of Object.keys(data)) {
+      const v = data[k];
+      if (typeof v === "string") { if (NAME_KEYS.has(k)) data[k] = I.team(v); }
+      else if (v && typeof v === "object") I.names(v);
+    }
+    return data;
+  };
   if (lang !== "en") return;
 
   // ---------- Textes fixes ----------

@@ -39,3 +39,16 @@ Nuls annoncés 25,7 % / 26,1 % (A / B) contre 25,5 % / 25,8 % observés : pas de
 4. Comparaison aux bookmakers sur cotes moyennes (probablement de clôture) : légèrement favorable à eux.
 5. Plusieurs dizaines de variantes testées : un petit gain isolé serait à interpréter avec prudence (comparaisons multiples).
 6. Non testé : Poisson bivarié / binomiale négative (nuls bien calibrés), xG, absences, cotes.
+
+## Piste 4 — recalibration des gros favoris (13/11/2026)
+Script : `recalibration-favoris.py <baseline.json>` (baseline produit par `dump-baseline.mjs`). 7 408 matchs avec cotes (7 360 dans le fichier précédent : 48 matchs ajoutés ; sur les 7 360 communs, probabilités du moteur identiques).
+- Protocole : réglage sur A seul, jugement sur B, C exploratoire (déjà consultée en piste 3). Intervalles à 95 % par rééchantillonnage regroupé par date (3 000 tirages).
+- Essais réellement faits : 26 pentes globales (0,80 → 1,30) et 85 couples seuil/décalage pour les favoris (seuil 0,50 → 0,70 × décalage −0,08 → +0,08).
+- Optimum sur A : pente 1,00 (= moteur actuel, les infimes écarts viennent de la renormalisation des probabilités arrondies) ; favoris : seuil 0,50, décalage +0,01.
+- Écart de Brier : favoris B −0,0000 [−0,0004 ; +0,0003], C −0,0001 [−0,0005 ; +0,0003].
+- Diagnostic favoris ≥ 60 % : A 69,3 % annoncé / 68,8 % observé (714) ; B 69,0 / 72,7 (384) ; C 69,0 / 72,9 (317). Bookmakers ≈ 69 %. Signal à surveiller, pas une preuve. Attention : diagnostic à 60 %, correction appliquée dès 50 %.
+- Brier C avec 7 408 matchs : moteur 0,6046 (0,6061 avec 7 360), bookmakers 0,5904 (0,5929).
+- **Conclusion (confirmée par l'audit Perplexity) : aucune recalibration, production inchangée.**
+
+## Prochaine étape — test xG (non lancé)
+Une seule variante fixée à l'avance : 50 % buts / 50 % xG (buts marqués et encaissés dans les forces, moyennes de championnat recalculées avec le même mélange), autres réglages inchangés, mêmes matchs, uniquement des xG de matchs antérieurs. Poids = choix de test, pas un optimum. C reste exploratoire : une nouvelle période intacte devra confirmer. Bloquant : fichier xG historique des 5 grands championnats (Understat à vérifier : accès, couverture, conditions d'utilisation).

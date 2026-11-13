@@ -281,6 +281,26 @@ export default {
 
       // TEMPORAIRE (13/11/2026) : sonde SportScore (sportscore.com, API publique gratuite sans clé, ~10 000 requêtes/jour/IP) :
       // couvre-t-elle Belgique, Écosse, Turquie et CAN en direct ? 2 appels, résultat gardé 2 min. À supprimer ensuite.
+      if (path === "/test-sportscore" && q("cover")) {
+        // Couverture : recherche des compétitions + matchs du 21 et 22 nov. (reprise des championnats après la trêve)
+        const cachedC = await env.PRONO_CACHE.get("tmp:sportscore-cover");
+        if (cachedC) return new Response(cachedC, { headers: { "content-type": "application/json" } });
+        const get1 = async (p) => { try { const r = await fetch("https://sportscore.com" + p, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)" } }); return { status: r.status, j: await r.json().catch(() => null) }; } catch (e) { return { erreur: String(e).slice(0, 120) }; } };
+        const list = (r) => { const j = r?.j; if (Array.isArray(j)) return j; for (const k of Object.keys(j || {})) if (Array.isArray(j[k])) return j[k]; return []; };
+        const RX2 = /belgian|belgium.*(pro|jupiler)|jupiler|scottish premiership|scotland.*premiership|s[uü]per ?lig|turkish super|turkey.*super/i;
+        const out = { recherches: {}, matchs: {} };
+        await Promise.all([["Jupiler"], ["Scottish Premiership"], ["Super Lig"], ["Pro League"], ["Africa Cup of Nations"]].map(async ([qq]) => {
+          const r = await get1(`/api/v1/search/?q=${encodeURIComponent(qq)}&sport=football&limit=20`);
+          out.recherches[qq] = { status: r.status, brut: JSON.stringify(r.j).slice(0, 900) };
+        }));
+        await Promise.all(["2026-11-21", "2026-11-22", "2026-11-28"].map(async (d) => {
+          const r = await get1(`/api/v1/fixtures/?sport=football&date=${d}&limit=200`), l = list(r);
+          out.matchs[d] = { status: r.status, total: l.length, trouves: l.filter((m) => RX2.test(JSON.stringify(m))).slice(0, 25).map((m) => JSON.stringify(m).slice(0, 380)) };
+        }));
+        const t = JSON.stringify(out);
+        await env.PRONO_CACHE.put("tmp:sportscore-cover", t, { expirationTtl: 120 });
+        return new Response(t, { headers: { "content-type": "application/json" } });
+      }
       if (path === "/test-sportscore") {
         const cached = await env.PRONO_CACHE.get("tmp:sportscore");
         if (cached) return new Response(cached, { headers: { "content-type": "application/json" } });

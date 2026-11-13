@@ -120,7 +120,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Poussé : priorité de remplissage de l'historique sp (Turquie/Belgique/Écosse paraissent quand sp:16/5/88@2025 sont « à jour » dans /status) ; drapeaux CAN (src/flags.js, flagcdn) ; compétition 6 renommée « Qualifications CAN » (à renommer « CAN » à l'approche de la phase finale) ; `_natRev` = 2 (reconstruction des sélections). Tests : 163 réussis.
 - À vérifier avec l'utilisateur : nom + drapeaux visibles sur le site (sinon vider le cache / noms SportAPI non reconnus à ajouter dans flags.js) ; /status après remplissage ; Arménie–Chypre « 3e/2e du groupe ».
 - Soccer Data (secret SOCCERDATA_KEY déjà ajouté par l'utilisateur, plan gratuit 50 appels/j, 10/min, saison en cours seule) : xG réels confirmés sur PL, Liga, Serie A, Bundesliga, Ligue 1 (`/matches/{id}/stats` → overview.expected_goals.all) ; blessures : `GET /teams/{id}/injuries-suspensions` (confirmé, ids joueurs sans noms). Pas d'abonnement avant preuve d'un gain sur le modèle.
-- Sondes TEMPORAIRES à supprimer de src/index.js : /test-soccerdata, /test-soccerdata2, /test-soccerdata3, /test-soccerdata4, /test-sp-dump (après le backtest Turquie/Belgique/Écosse).
+- Sondes TEMPORAIRES à supprimer de src/index.js : /test-soccerdata, /test-soccerdata2, /test-soccerdata3, /test-soccerdata4, /test-sp-dump, /test-sportscore (ajoutée le 13/11 pour tester SportScore : à supprimer après le test) (après le backtest Turquie/Belgique/Écosse).
 - Attente : réponses des auditeurs (Perplexity / ChatGPT) ; recalibration éventuelle des gros favoris seulement avec l'accord de l'utilisateur. API-Football : retiré du projet, ne plus le proposer.
 
 ## 13/11/2026 (suite, matin)

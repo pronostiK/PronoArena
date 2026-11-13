@@ -97,7 +97,7 @@
     "Inscris-toi gratuitement": "Sign up for free", "pour voir toutes les probabilités.": "to see all the probabilities.",
     "Tout": "All", "À venir": "Upcoming", "matchs": "matches", "Auj.": "Today",
     "Offerts aujourd'hui": "Free today", "Offert aujourd'hui": "Free today", "Offert": "Free", "🔒 Inscrits": "🔒 Members",
-    "En direct": "Live", "Terminé": "Full time", "Victoire": "Win", "Nul": "Draw", "✓ Mon prono": "✓ My pick", "🔒 Mon prono": "🔒 My pick",
+    "En direct": "Live", "Terminé": "Full time", "1re mi-temps": "1st half", "2e mi-temps": "2nd half", "Prolongation": "Extra time", "Scores en direct :": "Live scores:", "Victoire": "Win", "Nul": "Draw", "✓ Mon prono": "✓ My pick", "🔒 Mon prono": "🔒 My pick",
     "Voir l'analyse complète": "See the full analysis",
     "Probabilités réservées aux inscrits": "Probabilities for members only", "Inscription gratuite, en 30 secondes": "Free sign-up, takes 30 seconds",
     "⚖ Duel équilibré": "⚖ Even duel", "⚖ Duel serré": "⚖ Close duel", "Grand favori": "Strong favourite", "Favori": "Favourite",

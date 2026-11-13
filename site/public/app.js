@@ -137,14 +137,14 @@
   const liveAttr = (lid, p) => `data-lk="${esc(lid)}:${esc(p.matchId)}" data-ko="${Date.parse(p.date) || 0}"`;
   function liveBadge(x) {
     // x.at : score relevé à cette heure-là (compétitions suivies toutes les 15 minutes)
-    const txt = x.etat === "fin" ? "Terminé" : x.at ? `Score à ${fmtTime(x.at)}` : x.etat === "mt" ? "Mi-temps" : x.min || "En direct";
+    const txt = x.etat === "fin" ? "Terminé" : x.at ? `Score à ${fmtTime(x.at)}` : x.etat === "mt" ? "Mi-temps" : x.min || (x.per === 1 ? "1re mi-temps" : x.per === 2 ? "2e mi-temps" : x.per === "p" ? "Prolongation" : "En direct");
     return `<span class="${x.etat === "fin" ? "tag" : "live"}">${esc(txt)}</span>`;
   }
   function paintLive() {
     document.querySelectorAll("[data-lk]").forEach((el) => {
       const x = liveData[el.dataset.lk];
       if (!x) return;
-      const score = `${x.d} – ${x.e}`, sig = `${score}|${x.etat}|${x.min || ""}|${x.at || ""}`;
+      const score = `${x.d} – ${x.e}`, sig = `${score}|${x.etat}|${x.min || ""}|${x.at || ""}|${x.per || ""}`;
       if (el.dataset.lv === sig) return;
       el.dataset.lv = sig;
       const vs = el.querySelector(".vs"), st = el.querySelector(".st"), ko = el.querySelector(".kickoff");

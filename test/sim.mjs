@@ -1,6 +1,6 @@
 // Monde simulé : championnats, coupes, deux saisons, fausses API football-data et ESPN, faux cache KV.
 export const NOW = Date.UTC(2026, 10, 10, 17, 0); // 10 nov. 2026
-export const SIM = { spDown: false, spAuth: null, now: NOW, fdDown: new Set(), espnBlocked: false, mails: [], mailDown: false };
+export const SIM = { spDown: false, scDown: false, spAuth: null, now: NOW, fdDown: new Set(), espnBlocked: false, mails: [], mailDown: false };
 const isDone = (x) => x.ts + 2 * 3600000 < SIM.now;
 const isLive = (x) => x.ts <= SIM.now && !isDone(x);
 const DAY = 86400000;
@@ -108,6 +108,18 @@ export function installFetch() {
       }
       rows.push({ id: "z" + m[1], league_id: 999, status: "FT", kickoff_utc: m[1] + "T12:00:00Z", home_id: "q1", away_id: "q2", home_team: "Autre A", away_team: "Autre B", home_score: 1, away_score: 0 });
       return { ok: true, json: async () => ({ success: true, date: m[1], data: rows }) };
+    }
+    if (u.hostname === "sportscore.com" && (m = u.pathname.match(/^\/api\/v1\/fixtures\/$/))) {
+      // SportScore : une compétition et un jour par appel ; noms d'équipes écrits autrement que chez SportAPI (suffixe « KV »)
+      calls.sc = (calls.sc || 0) + 1; SIM.scAuth = opts?.headers?.["X-Api-Key"] ?? null;
+      if (SIM.scDown) return { ok: false, status: 503 };
+      const lid = { "belgian-pro-league": 5, "scottish-premiership": 88, "caf-africa-cup-of-nations": 72 }[u.searchParams.get("competition")], day = u.searchParams.get("date");
+      const rows = (DB[`sp:${lid}@2026`] || []).filter((x) => new Date(x.ts).toISOString().slice(0, 10) === day).map((x) => {
+        const late = x.lateUntil && SIM.now < x.lateUntil, live = isLive(x) && !late;
+        return { home: teamName(x.h) + (lid === 5 ? " KV" : ""), away: teamName(x.a) + (lid === 5 ? " KV" : ""), home_score: isDone(x) ? String(x.hg) : live ? String(x.lh ?? 0) : null, away_score: isDone(x) ? String(x.ag) : live ? String(x.la ?? 0) : null,
+          status: isDone(x) ? "finished" : live ? "live" : "upcoming", status_text: isDone(x) ? "Ended" : live ? (x.ht ? "Half time" : x.second ? "2nd half" : "1st half") : "Not started", time: new Date(x.ts).toISOString().replace("Z", "+00:00"), competition: "x" };
+      });
+      return { ok: true, json: async () => ({ sport: "football", date: day, count: rows.length, matches: rows }) };
     }
     if (u.hostname === "api.resend.com") { const b = JSON.parse(opts?.body || "{}"); SIM.mails.push({ ...b, auth: opts?.headers?.Authorization }); return { ok: !SIM.mailDown, status: SIM.mailDown ? 500 : 200, json: async () => ({ id: "m" + SIM.mails.length }) }; }
     if (u.hostname === "raw.githubusercontent.com") { calls.seed = (calls.seed || 0) + 1; return { ok: false, status: 404 }; }

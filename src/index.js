@@ -279,53 +279,6 @@ export default {
         return new Response(txt, { headers: { "content-type": "application/json" } });
       }
 
-      // TEMPORAIRE (13/11/2026) : sonde SportScore (sportscore.com, API publique gratuite sans clé, ~10 000 requêtes/jour/IP) :
-      // couvre-t-elle Belgique, Écosse, Turquie et CAN en direct ? 2 appels, résultat gardé 2 min. À supprimer ensuite.
-      if (path === "/test-sportscore" && q("cover")) {
-        // Couverture : recherche des compétitions + matchs du 21 et 22 nov. (reprise des championnats après la trêve)
-        const cachedC = await env.PRONO_CACHE.get("tmp:sportscore-cover");
-        if (cachedC) return new Response(cachedC, { headers: { "content-type": "application/json" } });
-        const get1 = async (p) => { try { const r = await fetch("https://sportscore.com" + p, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)" } }); return { status: r.status, j: await r.json().catch(() => null) }; } catch (e) { return { erreur: String(e).slice(0, 120) }; } };
-        const list = (r) => { const j = r?.j; if (Array.isArray(j)) return j; for (const k of Object.keys(j || {})) if (Array.isArray(j[k])) return j[k]; return []; };
-        const RX2 = /belgian|belgium.*(pro|jupiler)|jupiler|scottish premiership|scotland.*premiership|s[uü]per ?lig|turkish super|turkey.*super/i;
-        const out = { recherches: {}, matchs: {} };
-        await Promise.all([["Jupiler"], ["Scottish Premiership"], ["Super Lig"], ["Pro League"], ["Africa Cup of Nations"]].map(async ([qq]) => {
-          const r = await get1(`/api/v1/search/?q=${encodeURIComponent(qq)}&sport=football&limit=20`);
-          out.recherches[qq] = { status: r.status, brut: JSON.stringify(r.j).slice(0, 900) };
-        }));
-        await Promise.all(["2026-11-21", "2026-11-22", "2026-11-28"].map(async (d) => {
-          const r = await get1(`/api/v1/fixtures/?sport=football&date=${d}&limit=200`), l = list(r);
-          out.matchs[d] = { status: r.status, total: l.length, trouves: l.filter((m) => RX2.test(JSON.stringify(m))).slice(0, 25).map((m) => JSON.stringify(m).slice(0, 380)) };
-        }));
-        const t = JSON.stringify(out);
-        await env.PRONO_CACHE.put("tmp:sportscore-cover", t, { expirationTtl: 120 });
-        return new Response(t, { headers: { "content-type": "application/json" } });
-      }
-      if (path === "/test-sportscore") {
-        const cached = await env.PRONO_CACHE.get("tmp:sportscore");
-        if (cached) return new Response(cached, { headers: { "content-type": "application/json" } });
-        const day = new Date().toISOString().slice(0, 10);
-        const call = async (p) => {
-          const t0 = Date.now();
-          try {
-            const r = await fetch("https://sportscore.com" + p, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)" } });
-            const txt = await r.text();
-            let j = null; try { j = JSON.parse(txt); } catch { /* pas du JSON */ }
-            return { status: r.status, ms: Date.now() - t0, j, debut: j ? null : txt.slice(0, 200), entetes: [...r.headers].filter(([k]) => /rate|limit|remaining|retry|cache|age/i.test(k)) };
-          } catch (e) { return { erreur: String(e).slice(0, 200) }; }
-        };
-        const [live, jour] = await Promise.all([call("/api/v1/fixtures/?sport=football&status=live&limit=200"), call(`/api/v1/fixtures/?sport=football&date=${day}&limit=200`)]);
-        const items = (r) => { const j = r?.j; if (Array.isArray(j)) return j; for (const k of Object.keys(j || {})) if (Array.isArray(j[k])) return j[k]; return []; };
-        const RX = /belgi|jupiler|scotland|scottish|premiership|s[uü]per ?lig|turk|t[uü]rkiye|afric|afcon|caf\b/i;
-        const resume = (r) => {
-          const l = items(r), keep = l.filter((m) => RX.test(JSON.stringify(m)));
-          return { status: r.status, ms: r.ms, erreur: r.erreur, debut: r.debut, entetes: r.entetes, cles: r.j && !Array.isArray(r.j) ? Object.keys(r.j) : null, total: l.length, exemple: l[0] ? JSON.stringify(l[0]).slice(0, 700) : null, concernes: keep.length, matchs: keep.slice(0, 40).map((m) => JSON.stringify(m).slice(0, 420)) };
-        };
-        const txt = JSON.stringify({ jour: day, maintenantUTC: new Date().toISOString(), direct: resume(live), duJour: resume(jour) });
-        await env.PRONO_CACHE.put("tmp:sportscore", txt, { expirationTtl: 120 });
-        return new Response(txt, { headers: { "content-type": "application/json" } });
-      }
-
       // TEMPORAIRE (12/11/2026) : sonde Soccer Data n°4 (blessures, 1 appel). À supprimer ensuite.
       if (path === "/test-soccerdata4") {
         const cached = await env.PRONO_CACHE.get("tmp:soccerdata4");

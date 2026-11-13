@@ -575,3 +575,6 @@ a.more { color: var(--orange); }
 
 /* Mot de passe oublié */
 .link-small { align-self: center; min-height: 40px; display: inline-flex; align-items: center; font-size: 13px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+/* Mention obligatoire de la source des scores en direct (SportScore) */
+.legal .credit { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.legal .credit a { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }

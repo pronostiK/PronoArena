@@ -2,7 +2,8 @@
 // DUEL PRONO — Scores en direct (/live)
 // Appelé par le site toutes les 60 secondes, seulement quand un match affiché est en cours.
 //   - ESPN (gratuit, sans clé) : score et minute, rafraîchis toutes les 60 secondes.
-//   - SportAPI (Belgique, Écosse, CAN, et secours de la Turquie) : ESPN ne suit pas ces matchs.
+//   - SportScore (Belgique, Écosse, CAN : ESPN ne les suit pas) : score et mi-temps chaque minute (pas de minute de jeu).
+//   - SportAPI : secours si SportScore est indisponible ou ne donne pas le match.
 //     Le quota gratuit est limité : un seul appel toutes les 15 minutes, partagé par tous les visiteurs
 //     (toutes les 5 minutes pendant les 45 premières minutes d'un match qui manque encore au relevé : coup d'envoi retardé).
 // Aucune écriture dans le cache pour ESPN (mémoire seulement) ; 4 écritures par heure au plus pour SportAPI.
@@ -136,7 +137,45 @@ async function spLive(env, days, leagueIds, now, matches = []) {
   try { await env.PRONO_CACHE.put(LIVE_SP_KEY, JSON.stringify(fresh), { expirationTtl: 6 * 3600 }); } catch { /* limite d'écritures : le garde-fou en mémoire prend le relais */ }
   return fresh;
 }
-export const resetLive = () => { espnMemo.clear(); spLast = 0; liveMemo = null; };
+export const resetLive = () => { espnMemo.clear(); scMemo.clear(); spLast = 0; liveMemo = null; };
+
+// ---------- SportScore (sportscore.com : API publique gratuite, sans clé obligatoire) ----------
+// Source principale du direct pour les compétitions SportAPI (Belgique, Écosse, CAN) : un appel par compétition et par minute.
+// Conditions du niveau gratuit : lien visible « Powered by SportScore » dans le pied de page du site (index.html).
+// Une clé gratuite optionnelle (secret SPORTSCORE_KEY, en-tête X-Api-Key) relève la limite de débit (~10 000 requêtes/jour/IP sans clé).
+export const LIVE_SC_MS = 55000;
+export function scEvents(data) {
+  const out = [];
+  for (const m of data?.matches || []) {
+    const ts = Date.parse(m.time);
+    if (!Number.isFinite(ts)) continue;
+    const st = String(m.status || "").toLowerCase(), txt = String(m.status_text || "").toLowerCase();
+    const d = parseInt(m.home_score, 10), e = parseInt(m.away_score, 10);
+    let etat = null, per = null;
+    if (Number.isFinite(d) && Number.isFinite(e)) {
+      if (st === "finished") etat = "fin";
+      else if (st === "live") {
+        etat = /half ?time|^ht$|break/.test(txt) ? "mt" : "live";
+        per = /1st/.test(txt) ? 1 : /2nd/.test(txt) ? 2 : /extra|overtime|penalt|shootout/.test(txt) ? "p" : null;
+      }
+    }
+    out.push({ ts, home: String(m.home || ""), away: String(m.away || ""), d, e, etat, per }); // etat null : pas commencé, reporté…
+  }
+  return out;
+}
+const scMemo = new Map(); // "slug@jour" -> { t, events }
+async function scLive(env, slug, day, now) {
+  const k = `${slug}@${day}`, hit = scMemo.get(k);
+  if (hit && now - hit.t < LIVE_SC_MS) return hit.events;
+  let events = null; // null = SportScore indisponible : le moteur se rabat sur SportAPI
+  try {
+    const res = await fetch(`https://sportscore.com/api/v1/fixtures/?sport=football&competition=${slug}&date=${day}&limit=100`, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)", ...(env.SPORTSCORE_KEY ? { "X-Api-Key": env.SPORTSCORE_KEY } : {}) } });
+    if (res.ok) { const j = await res.json(); if (Array.isArray(j?.matches)) events = scEvents(j); }
+  } catch { /* SportScore injoignable */ }
+  scMemo.set(k, { t: now, events });
+  if (scMemo.size > 40) scMemo.delete(scMemo.keys().next().value);
+  return events;
+}
 
 // ---------- Réponse de /live ----------
 let liveMemo = null;
@@ -163,6 +202,21 @@ export async function buildLive(env, now = Date.now()) {
       if (others.length) {
         const pairs = pairMatches(others.map((m) => ({ key: String(m.matchId), ts: Date.parse(m.date), dom: m.teams.domicile.name, ext: m.teams.exterieur.name })), events);
         for (const m of others) { const ev = pairs.get(String(m.matchId)); if (ev) put(m, ev); }
+      }
+    }
+    // SportScore d'abord (chaque minute, avec la mi-temps) ; SportAPI seulement pour les matchs que SportScore ne donne pas
+    if (lg?.sc && lg.src.startsWith("sp:")) {
+      const days = [...new Set(list.map((m) => isoDay(Date.parse(m.date))))];
+      const lists = await Promise.all(days.map((d) => scLive(env, lg.sc, d, now)));
+      if (lists.every(Boolean)) {
+        const events = lists.flat();
+        const pairs = pairMatches(list.map((m) => ({ key: String(m.matchId), ts: Date.parse(m.date), dom: m.teams.domicile.name, ext: m.teams.exterieur.name })), events);
+        for (const m of list) {
+          const ev = pairs.get(String(m.matchId));
+          if (!ev) continue;
+          if (ev.etat) { matchs[liveKey(leagueId, m.matchId)] = { d: ev.d, e: ev.e, etat: ev.etat, ...(ev.per ? { per: ev.per } : {}) }; left.delete(String(m.matchId)); }
+          else if (now - Date.parse(m.date) < 30 * MIN) left.delete(String(m.matchId)); // pas encore commencé chez SportScore (coup d'envoi retardé) : rien à afficher, pas de score inventé
+        }
       }
     }
     if (lg?.src.startsWith("sp:")) for (const m of list) if (left.has(String(m.matchId)) && m.source === "sportapi") spTodo.push(m);

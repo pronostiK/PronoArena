@@ -17,7 +17,7 @@ const KO = T + 245 * 60000;
 const next = (k) => WORLD[k].filter((m) => m.ts > KO + 3600000).sort((a, b) => a.ts - b.ts)[0];
 const l1 = next("fd:FL1@2026"), l1e = WORLD["espn:fra.1@2026"].find((m) => m.id === "E" + l1.id), l2 = next("espn:fra.2@2026"), be = next("sp:5@2026"), can = next("sp:72@2026");
 Object.assign(l1, { ts: KO }); Object.assign(l1e, { ts: KO, lh: 2, la: 1, clock: "67'" });
-Object.assign(l2, { ts: KO, lh: 0, la: 0, ht: true }); Object.assign(be, { ts: KO, lh: 1, la: 1 }); Object.assign(can, { ts: KO, lh: 1, la: 0 });
+Object.assign(l2, { ts: KO, lh: 0, la: 0, ht: true }); Object.assign(be, { ts: KO, lh: 1, la: 1, second: true }); Object.assign(can, { ts: KO, lh: 1, la: 0 });
 await robot(31);
 
 const PUB = new URL("../site/public/", import.meta.url).pathname;
@@ -47,6 +47,7 @@ for (const [lang, w, h] of [["fr", 390, 844], ["en", 390, 844], ["fr", 1280, 800
   await page.goto("http://localhost:8788/#/"); await page.waitForSelector(".duel"); await page.waitForTimeout(600);
   const texts = await page.$$eval("[data-lv]", (els) => els.map((el) => [el.querySelector(".vs")?.textContent, el.querySelector(".st")?.textContent]));
   console.log(tag, "accueil :", JSON.stringify(texts));
+  console.log(tag, "pied de page :", JSON.stringify(await page.$eval(".credit", (el) => [el.innerText, el.querySelector("a").href, el.querySelector("a").rel])));
   const cards = page.locator("article[data-lv]");
   for (let i = 0; i < Math.min(2, await cards.count()); i++) await cards.nth(i === 0 ? 1 : 0).screenshot({ path: `${OUT}/live-${tag}-carte${i}.png` });
   for (const [lid, m, nom] of [[61, l1, "l1"], [144, be, "be"], [6, can, "can"]]) {

@@ -283,7 +283,8 @@ check("Probabilités 1N2 = 100 %", Math.abs(s.proba1 + s.probaN + s.proba2 - 1) 
 // ---- 8. Arène : comptes, pronostics des joueurs, notation, classement ----
 console.log("\n— Scores en direct —");
 {
-  const { resetLive, pairMatches, nameSim, espnEvents, LIVE_SP_KEY } = await import("../src/live.js");
+  const { resetLive, pairMatches, nameSim, espnEvents, scEvents, LIVE_SP_KEY } = await import("../src/live.js");
+  SIM.scDown = true; // les tests ci-dessous vérifient d'abord le secours SportAPI ; SportScore est testé à la fin de cette section
   // Rapprochement des matchs entre football-data / SportAPI et ESPN (noms différents d'un fournisseur à l'autre)
   const K = Date.UTC(2026, 10, 14, 20, 0);
   const ours = [
@@ -362,6 +363,38 @@ console.log("\n— Scores en direct —");
   check("Direct : coup d'envoi retardé = pas de score inventé au premier relevé", !r0[`144:${be2.id}`], JSON.stringify(r0[`144:${be2.id}`]));
   check("Direct : coup d'envoi retardé = le score apparaît 5 à 6 minutes plus tard (pas 15)", seen2 && seen2 >= 5 && seen2 <= 6 && (await get("/live")).matchs[`144:${be2.id}`]?.e === 1, `vu après ${seen2} min`);
   check("Direct : coup d'envoi retardé = peu d'appels SportAPI en plus", calls.sp - sp0 <= 2, `${calls.sp - sp0} appels en 19 min`);
+
+  // ---- SportScore : source principale du direct pour la Belgique, l'Écosse et la CAN ----
+  check("SportScore : lecture des statuts (en direct, mi-temps, terminé, pas commencé, scores absents)", (() => { const e = scEvents({ matches: [
+    { home: "A", away: "B", home_score: "1", away_score: "0", status: "live", status_text: "2nd half", time: "2026-11-13T13:00:00+00:00" },
+    { home: "C", away: "D", home_score: "0", away_score: "0", status: "live", status_text: "Half time", time: "2026-11-13T13:00:00+00:00" },
+    { home: "E", away: "F", home_score: "2", away_score: "2", status: "finished", status_text: "Ended", time: "2026-11-13T13:00:00+00:00" },
+    { home: "G", away: "H", home_score: null, away_score: null, status: "upcoming", status_text: "Not started", time: "2026-11-13T13:00:00+00:00" },
+    { home: "I", away: "J", home_score: null, away_score: null, status: "live", status_text: "1st half", time: "2026-11-13T13:00:00+00:00" }] }); return e[0].etat === "live" && e[0].per === 2 && e[1].etat === "mt" && e[2].etat === "fin" && e[3].etat === null && e[4].etat === null; })());
+  SIM.scDown = false; resetLive();
+  const S3 = SIM.now, be3 = WORLD["sp:5@2026"].filter((m) => m !== be && m !== be2 && m.ts > S3 + 3 * 3600000).sort((a, b) => a.ts - b.ts)[0], can2 = WORLD["sp:72@2026"].filter((m) => m.ts > S3 + 3 * 3600000).sort((a, b) => a.ts - b.ts)[0];
+  Object.assign(be3, { ts: S3 + 20 * 60000, lateUntil: S3 + 23 * 60000, lh: 1, la: 0 }); Object.assign(can2, { ts: S3 + 20 * 60000, lh: 0, la: 0, ht: true });
+  for (const dt of [0, 10, 20]) await tick(env, S3 + dt * 60000);
+  resetLive(); SIM.now = S3 + 21 * 60000;
+  const sp1 = calls.sp, sc1 = calls.sc || 0, r1 = (await get("/live")).matchs;
+  check("SportScore : coup d'envoi retardé (« pas commencé ») = aucun score inventé, SportAPI pas appelé", !r1[`144:${be3.id}`] && calls.sp === sp1 && (calls.sc || 0) > sc1);
+  check("SportScore : mi-temps de la CAN signalée dès le premier relevé", r1[`6:${can2.id}`]?.etat === "mt" && r1[`6:${can2.id}`].d === 0 && !r1[`6:${can2.id}`].at, JSON.stringify(r1[`6:${can2.id}`]));
+  SIM.now = S3 + 25 * 60000; can2.ht = false;
+  const r2 = (await get("/live")).matchs, b3 = r2[`144:${be3.id}`];
+  check("SportScore : score et période de la Belgique (noms écrits autrement), sans heure de relevé", b3?.d === 1 && b3.e === 0 && b3.etat === "live" && b3.per === 1 && !b3.at, JSON.stringify(b3));
+  check("SportScore : plus aucun appel SportAPI pour ces compétitions", calls.sp === sp1, `${calls.sp - sp1} appels`);
+  const sc2 = calls.sc;
+  for (let i = 26; i <= 35; i++) { SIM.now = S3 + i * 60000; await get("/live"); }
+  check("SportScore : un appel par minute et par compétition au plus (10 min, 3 compétitions)", calls.sc - sc2 <= 10 * 3, `${calls.sc - sc2} appels`);
+  check("SportScore : aucune clé envoyée tant qu'il n'y en a pas, aucune écriture cache en plus", SIM.scAuth === null);
+  env.SPORTSCORE_KEY = "sc_test"; resetLive(); SIM.now = S3 + 40 * 60000; await get("/live");
+  check("SportScore : la clé gratuite est envoyée dans l'en-tête X-Api-Key quand elle existe", SIM.scAuth === "sc_test"); delete env.SPORTSCORE_KEY;
+  SIM.scDown = true; resetLive(); SIM.now = S3 + 45 * 60000;
+  const r3 = (await get("/live")).matchs;
+  check("SportScore en panne : retour automatique à SportAPI (avec l'heure du relevé)", r3[`144:${be3.id}`]?.d === 1 && r3[`144:${be3.id}`].at === SIM.now && calls.sp > sp1, JSON.stringify(r3[`144:${be3.id}`]));
+  SIM.scDown = false; resetLive(); SIM.now = be3.ts + 135 * 60000;
+  const r4 = (await get("/live")).matchs;
+  check("SportScore : score final « terminé » avec le résultat exact", r4[`144:${be3.id}`]?.etat === "fin" && r4[`144:${be3.id}`].d === be3.hg && r4[`144:${be3.id}`].e === be3.ag && !r4[`144:${be3.id}`].per, JSON.stringify(r4[`144:${be3.id}`]));
 }
 
 console.log("\n— Arène —");

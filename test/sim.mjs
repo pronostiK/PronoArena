@@ -77,7 +77,8 @@ export const calls = { fd: 0, espn: 0, h2h: 0, sp: 0 };
 // Ligue des Nations simulée : de vraies sélections (les notes Elo se retrouvent par le nom)
 export const NATIONS = ["Spain", "France", "England", "Portugal", "Netherlands", "Belgium", "Italy", "Germany", "Croatia", "Denmark", "Turkey", "Switzerland", "Czechia", "Bosnia-Herzegovina", "Norway", "San Marino"];
 const AFRICA_NAMES = AFRICA;
-const teamName = (id) => (/^n\d+$/.test(id) ? NATIONS[+id.slice(1)] : /^c\d+$/.test(id) ? AFRICA_NAMES[+id.slice(1)] : `Équipe ${id}`);
+// Sources de secours ESPN (ids « e… ») : même club que chez football-data, écrit autrement (comme en vrai : « Équipe 12 » / « Equipe 12 FC »)
+const teamName = (id) => (/^n\d+$/.test(id) ? NATIONS[+id.slice(1)] : /^c\d+$/.test(id) ? AFRICA_NAMES[+id.slice(1)] : /^e\d+$/.test(id) ? `Equipe ${id.slice(1)} FC` : `Équipe ${id}`);
 export function installFetch() {
   globalThis.fetch = async (url, opts) => {
     const u = new URL(url);
@@ -103,7 +104,7 @@ export function installFetch() {
       for (const [k, list] of Object.entries(DB)) {
         if (!k.startsWith("sp:")) continue;
         const lid = Number(k.slice(3).split("@")[0]);
-        for (const x of list) if (new Date(x.ts).toISOString().slice(0, 10) === m[1]) rows.push({ id: x.id, league_id: lid, status: isDone(x) ? "FT" : isLive(x) ? "LIVE" : "Scheduled", kickoff_utc: new Date(x.ts).toISOString(), home_id: x.h, away_id: x.a, home_team: teamName(x.h), away_team: teamName(x.a), home_logo: `${x.h}.png`, away_logo: `${x.a}.png`, home_score: isDone(x) ? x.hg : null, away_score: isDone(x) ? x.ag : null });
+        for (const x of list) if (new Date(x.ts).toISOString().slice(0, 10) === m[1]) rows.push({ id: x.id, league_id: lid, status: isDone(x) ? "FT" : isLive(x) ? "LIVE" : "Scheduled", kickoff_utc: new Date(x.ts).toISOString(), home_id: x.h, away_id: x.a, home_team: teamName(x.h), away_team: teamName(x.a), home_logo: `${x.h}.png`, away_logo: `${x.a}.png`, home_score: isDone(x) ? x.hg : isLive(x) ? x.lh ?? 0 : null, away_score: isDone(x) ? x.ag : isLive(x) ? x.la ?? 0 : null, minute: isLive(x) ? (x.ht ? "HT" : 30) : null });
       }
       rows.push({ id: "z" + m[1], league_id: 999, status: "FT", kickoff_utc: m[1] + "T12:00:00Z", home_id: "q1", away_id: "q2", home_team: "Autre A", away_team: "Autre B", home_score: 1, away_score: 0 });
       return { ok: true, json: async () => ({ success: true, date: m[1], data: rows }) };
@@ -125,7 +126,7 @@ export function installFetch() {
       const [f, t] = [parts[0], parts[1] ?? parts[0]];
       if (parts.length > 1) return { ok: false, status: 400 }; // comme le vrai ESPN : un seul jour par appel
       const list = [...(DB[`espn:${m[1]}@2025`] || []), ...(DB[`espn:${m[1]}@2026`] || [])].filter((x) => x.ts >= f && x.ts < t + DAY);
-      return { ok: true, json: async () => ({ events: list.map((x) => ({ id: x.id, date: new Date(x.ts).toISOString(), status: { type: { name: isDone(x) ? "STATUS_FULL_TIME" : isLive(x) ? "STATUS_IN_PROGRESS" : "STATUS_SCHEDULED", completed: isDone(x) } }, competitions: [{ competitors: [{ id: x.h, homeAway: "home", score: isDone(x) ? String(x.hg) : "0", team: { displayName: teamName(x.h), logo: `${x.h}.png` } }, { id: x.a, homeAway: "away", score: isDone(x) ? String(x.ag) : "0", team: { displayName: teamName(x.a), logo: `${x.a}.png` } }] }] })) }) };
+      return { ok: true, json: async () => ({ events: list.map((x) => ({ id: x.id, date: new Date(x.ts).toISOString(), status: { displayClock: isLive(x) ? x.clock || "30'" : "0'", type: { name: isDone(x) ? "STATUS_FULL_TIME" : isLive(x) ? (x.ht ? "STATUS_HALFTIME" : "STATUS_IN_PROGRESS") : "STATUS_SCHEDULED", state: isDone(x) ? "post" : isLive(x) ? "in" : "pre", completed: isDone(x) } }, competitions: [{ competitors: [{ id: x.h, homeAway: "home", score: isDone(x) ? String(x.hg) : String((isLive(x) && x.lh) || 0), team: { displayName: x.hn || teamName(x.h), logo: `${x.h}.png` } }, { id: x.a, homeAway: "away", score: isDone(x) ? String(x.ag) : String((isLive(x) && x.la) || 0), team: { displayName: x.an || teamName(x.a), logo: `${x.a}.png` } }] }] })) }) };
     }
     throw new Error("URL inattendue " + url);
   };

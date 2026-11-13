@@ -7,6 +7,7 @@
 //   /upcoming                                       tous les matchs des 7 prochains jours (page d'accueil)
 // Accès : un visiteur non inscrit ne reçoit les probabilités que des 2 matchs offerts du jour ; un inscrit reçoit tout.
 //   /status                                         état du robot (transparence)
+//   /live                                           scores des matchs en cours (ESPN chaque minute ; SportAPI tous les quarts d'heure)
 // Arène (bloc 2, base D1) :
 //   POST /account/signup | /account/login | /account/logout | /account/delete
 //   POST /account/profile | /account/email | /account/password   espace personnel
@@ -20,6 +21,7 @@ import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./s
 import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
+import { buildLive } from "./live.js";
 import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
 
 const CORS = {
@@ -287,6 +289,9 @@ export default {
         await env.PRONO_CACHE.put("tmp:soccerdata4", txt, { expirationTtl: 21600 });
         return new Response(txt, { headers: { "content-type": "application/json" } });
       }
+
+      // Scores en direct : appelé par le site une fois par minute pendant les matchs (voir src/live.js)
+      if (path === "/live") return json(await buildLive(env), 200, { "Cache-Control": "public, max-age=30" });
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
 

@@ -281,6 +281,77 @@ check("Probabilités 1N2 = 100 %", Math.abs(s.proba1 + s.probaN + s.proba2 - 1) 
 
 
 // ---- 8. Arène : comptes, pronostics des joueurs, notation, classement ----
+console.log("\n— Scores en direct —");
+{
+  const { resetLive, pairMatches, nameSim, espnEvents, LIVE_SP_KEY } = await import("../src/live.js");
+  // Rapprochement des matchs entre football-data / SportAPI et ESPN (noms différents d'un fournisseur à l'autre)
+  const K = Date.UTC(2026, 10, 14, 20, 0);
+  const ours = [
+    { key: "a", ts: K, dom: "Paris Saint-Germain FC", ext: "Olympique de Marseille" }, { key: "b", ts: K, dom: "Stade Rennais FC 1901", ext: "AS Monaco FC" },
+    { key: "c", ts: K, dom: "Manchester City FC", ext: "Borussia Dortmund" }, { key: "d", ts: K, dom: "1. FC Köln", ext: "FC Bayern München" },
+    { key: "e", ts: K + 2 * 3600000, dom: "Galatasaray SK", ext: "İstanbul Başakşehir FK" }, { key: "f", ts: K, dom: "Racing Club de Lens", ext: "LOSC Lille" },
+  ];
+  const evs = [
+    { id: 1, ts: K, home: "Manchester United", away: "Borussia Monchengladbach" }, { id: 2, ts: K, home: "Rennes", away: "Monaco" }, { id: 3, ts: K, home: "Paris Saint-Germain", away: "Marseille" },
+    { id: 4, ts: K, home: "Manchester City", away: "Borussia Dortmund" }, { id: 5, ts: K + 300000, home: "FC Cologne", away: "Bayern Munich" }, { id: 6, ts: K + 2 * 3600000, home: "Galatasaray", away: "Istanbul Basaksehir" },
+  ];
+  const pm = pairMatches(ours, evs);
+  check("Direct : chaque match retrouve le bon match ESPN malgré les noms différents (PSG, Rennes, Köln, Başakşehir…)", pm.get("a")?.id === 3 && pm.get("b")?.id === 2 && pm.get("c")?.id === 4 && pm.get("d")?.id === 5 && pm.get("e")?.id === 6, [...pm].map(([k, v]) => k + "→" + v.id).join(" "));
+  check("Direct : un match absent d'ESPN ne prend pas le score d'un autre", !pm.has("f") && nameSim("Manchester City FC", "Manchester United") < 1);
+  check("Direct : ESPN « pas commencé » ou reporté = aucun score affiché", espnEvents({ events: [{ id: 1, date: "2026-11-01T12:30Z", status: { type: { name: "STATUS_SCHEDULED", state: "pre" } }, competitions: [{ competitors: [{ homeAway: "home", score: "0", team: {} }, { homeAway: "away", score: "0", team: {} }] }] }, { id: 2, date: "2026-11-01T12:30Z", status: { type: { name: "STATUS_POSTPONED", state: "post" } }, competitions: [{ competitors: [{ homeAway: "home", score: "0", team: {} }, { homeAway: "away", score: "0", team: {} }] }] }] }).length === 0);
+
+  // Quatre matchs en cours : Ligue 1 (football-data → ESPN), Ligue 2 (ESPN), Belgique (SportAPI), Turquie (SportAPI → ESPN)
+  const L = SIM.now, KO = L + 245 * 60000;
+  const next = (k) => WORLD[k].filter((m) => m.ts > KO + 3600000).sort((a, b) => a.ts - b.ts)[0];
+  const l1 = next("fd:FL1@2026"), l1e = WORLD["espn:fra.1@2026"].find((m) => m.id === "E" + l1.id), l2 = next("espn:fra.2@2026"), be = next("sp:5@2026"), tr = next("sp:16@2026");
+  Object.assign(l1, { ts: KO }); Object.assign(l1e, { ts: KO, lh: 2, la: 1, clock: "55'" });
+  Object.assign(l2, { ts: KO, lh: 0, la: 1, clock: "55'" }); Object.assign(be, { ts: KO, lh: 1, la: 1 }); Object.assign(tr, { ts: KO, lh: 0, la: 0 });
+  const trE = { id: "Etr", h: "xtur1_0", a: "xtur1_1", ts: KO, hg: 3, ag: 0, lh: 3, la: 0, clock: "55'", hn: `Equipe ${tr.h} SK`, an: `Équipe ${tr.a}` };
+  WORLD["espn:tur.1@2026"] = WORLD["espn:tur.1@2026"].filter((m) => Math.abs(m.ts - KO) > 3 * 3600000).concat([trE]);
+  resetLive();
+  const empty = { ...makeKV() }, c0 = calls.espn + calls.sp;
+  const none = await (await worker.fetch(new Request("https://w/live"), empty, {})).json(), noCalls = calls.espn + calls.sp === c0;
+  resetLive();
+  for (let i = 0; i <= 30; i++) await tick(env, L + i * 600000); // le robot apprend les nouveaux horaires ; les matchs sont à la 55e minute
+  const up = (await get("/upcoming")).matchs;
+  const has = (lid, m) => up.some((x) => x.leagueId === lid && String(x.matchId) === String(m.id) && Date.parse(x.date) === KO);
+  check("Direct : les 4 matchs en cours sont dans la liste du site", has(61, l1) && has(62, l2) && has(144, be) && has(203, tr), [has(61, l1), has(62, l2), has(144, be), has(203, tr)].join() + " " + JSON.stringify(up.filter((x) => [l1.id, l2.id, be.id, tr.id].includes(x.matchId)).map((x) => [x.leagueId, x.date, x.status])) + new Date(KO).toISOString());
+  resetLive();
+  const e0 = calls.espn, s0 = calls.sp, w0 = env.stats.writes;
+  const live = await get("/live"), M = live.matchs;
+  check("Direct : aucun match en cours = aucun score, aucun appel", none.success && Object.keys(none.matchs).length === 0 && noCalls);
+  check("Direct Ligue 1 (football-data) : score et minute lus chez ESPN", M[`61:${l1.id}`]?.d === 2 && M[`61:${l1.id}`].e === 1 && M[`61:${l1.id}`].min === "55'" && M[`61:${l1.id}`].etat === "live", JSON.stringify(M[`61:${l1.id}`]));
+  check("Direct Ligue 2 (ESPN) : score et minute", M[`62:${l2.id}`]?.d === 0 && M[`62:${l2.id}`].e === 1 && M[`62:${l2.id}`].min === "55'");
+  check("Direct Belgique (SportAPI) : score avec l'heure du relevé, sans minute", M[`144:${be.id}`]?.d === 1 && M[`144:${be.id}`].e === 1 && M[`144:${be.id}`].at === SIM.now && !M[`144:${be.id}`].min, JSON.stringify(M[`144:${be.id}`]));
+  check("Direct Turquie : score et minute lus chez ESPN (pas d'attente de 15 min)", M[`203:${tr.id}`]?.d === 3 && M[`203:${tr.id}`].min === "55'" && !M[`203:${tr.id}`].at, JSON.stringify(M[`203:${tr.id}`]));
+  // 30 minutes de visiteurs qui interrogent le site chaque minute
+  const t0 = SIM.now;
+  be.lh = 2;
+  let seen = null;
+  for (let i = 1; i <= 30; i++) { SIM.now = t0 + i * 60000; const r = await get("/live"); if (!seen && r.matchs[`144:${be.id}`]?.d === 2) seen = i; }
+  check("Direct : SportAPI appelé une fois tous les quarts d'heure au plus (quota gratuit)", calls.sp - s0 <= 3, `${calls.sp - s0} appels en 30 min`);
+  check("Direct : but en Belgique visible au relevé suivant (15 min au plus)", seen && seen <= 15, `vu après ${seen} min`);
+  check("Direct : ESPN appelé une fois par minute et par compétition au plus", calls.espn - e0 <= 31 * new Set(up.filter((x) => Date.parse(x.date) <= t0 + 30 * 60000).map((x) => x.leagueId)).size, `${calls.espn - e0} appels en 30 min`);
+  check("Direct : presque aucune écriture dans le cache (limite gratuite 1000/jour)", env.stats.writes - w0 <= 3, `${env.stats.writes - w0} écritures en 30 min`);
+  // SportAPI en panne ou quota atteint : le dernier score reste, avec son heure, et on n'insiste pas
+  SIM.spDown = true; const s1 = calls.sp, before = (await get("/live")).matchs[`144:${be.id}`];
+  for (let i = 31; i <= 60; i++) { SIM.now = t0 + i * 60000; l1e.ht = i < 40; await get("/live"); }
+  const down = (await get("/live")).matchs;
+  check("Direct : SportAPI en panne = dernier score connu avec son heure, 2 essais par demi-heure au plus", down[`144:${be.id}`]?.d === 2 && down[`144:${be.id}`].at === before.at && calls.sp - s1 <= 3, `${calls.sp - s1} essais`);
+  SIM.spDown = false;
+  l1e.ht = true; resetLive(); SIM.now = t0 + 61 * 60000;
+  const ht = (await get("/live")).matchs[`61:${l1.id}`];
+  check("Direct : mi-temps signalée, sans minute", ht?.etat === "mt" && !ht.min);
+  l1e.ht = false; SIM.espnBlocked = true; resetLive();
+  const blk = await get("/live");
+  check("Direct : ESPN bloqué = pas de score inventé, le reste répond", blk.success && !blk.matchs[`61:${l1.id}`] && blk.matchs[`144:${be.id}`]?.d === 2);
+  SIM.espnBlocked = false; resetLive(); SIM.now = KO + 140 * 60000;
+  const fin = (await get("/live")).matchs;
+  check("Direct : score final « terminé » dès le coup de sifflet", fin[`61:${l1.id}`]?.etat === "fin" && fin[`61:${l1.id}`].d === l1e.hg && fin[`144:${be.id}`]?.etat === "fin" && fin[`144:${be.id}`].d === be.hg, JSON.stringify([fin[`61:${l1.id}`], fin[`144:${be.id}`]]));
+  check("Direct : la clé SportAPI n'apparaît jamais dans la réponse", !JSON.stringify(fin).includes("sp_test") && env.store.has(LIVE_SP_KEY));
+  await tick(env, SIM.now); await tick(env, SIM.now + 600000);
+}
+
 console.log("\n— Arène —");
 {
   const d1 = await makeD1();

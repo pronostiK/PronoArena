@@ -129,6 +129,53 @@
   const fmtShort = (d) => new Date(d).toLocaleDateString(I18N.locale, { month: "short", year: "numeric" });
   const isLive = (s) => /IN_PLAY|PAUSED|LIVE|IN_PROGRESS|HALFTIME|FIRST_HALF|SECOND_HALF/.test(s || "");
 
+  // ---------- Scores en direct ----------
+  // Le site interroge le moteur (/live) une fois par minute, seulement si un match affiché est en cours
+  // et que la page est visible. Le score remplace « VS », la minute remplace l'étiquette du match.
+  const LIVE_MS = 60000, LIVE_WINDOW = 210 * 60000;
+  let liveData = {}, liveAt = 0, liveBusy = false, liveTimer = 0;
+  const liveAttr = (lid, p) => `data-lk="${esc(lid)}:${esc(p.matchId)}" data-ko="${Date.parse(p.date) || 0}"`;
+  function liveBadge(x) {
+    // x.at : score relevé à cette heure-là (compétitions suivies toutes les 15 minutes)
+    const txt = x.etat === "fin" ? "Terminé" : x.at ? `Score à ${fmtTime(x.at)}` : x.etat === "mt" ? "Mi-temps" : x.min || "En direct";
+    return `<span class="${x.etat === "fin" ? "tag" : "live"}">${esc(txt)}</span>`;
+  }
+  function paintLive() {
+    document.querySelectorAll("[data-lk]").forEach((el) => {
+      const x = liveData[el.dataset.lk];
+      if (!x) return;
+      const score = `${x.d} – ${x.e}`, sig = `${score}|${x.etat}|${x.min || ""}|${x.at || ""}`;
+      if (el.dataset.lv === sig) return;
+      el.dataset.lv = sig;
+      const vs = el.querySelector(".vs"), st = el.querySelector(".st"), ko = el.querySelector(".kickoff");
+      if (vs) { vs.textContent = score; vs.classList.add("is-score"); }
+      if (st) st.innerHTML = liveBadge(x);
+      if (ko) ko.innerHTML = `<strong class="is-score">${esc(score)}</strong>${liveBadge(x)}`;
+    });
+  }
+  async function liveTick() {
+    paintLive();
+    if (liveBusy || document.hidden) return;
+    const now = Date.now();
+    const due = [...document.querySelectorAll("[data-lk]")].some((el) => { const ko = +el.dataset.ko; return ko && ko <= now + 30000 && ko > now - LIVE_WINDOW; });
+    if (!due || now - liveAt < LIVE_MS - 2000) return;
+    liveBusy = true; liveAt = now;
+    try {
+      const r = await fetch(API + "/live"), d = await r.json();
+      if (r.ok && d.success) {
+        // Un match terminé garde son score final à l'écran même quand le moteur ne le suit plus
+        const next = d.matchs || {};
+        for (const [k, v] of Object.entries(liveData)) if (!next[k] && v.etat === "fin") next[k] = v;
+        liveData = next; paintLive();
+      }
+    } catch { /* prochain essai dans une minute */ }
+    liveBusy = false;
+  }
+  setInterval(liveTick, 20000); // contrôle léger ; l'appel au moteur n'a lieu qu'une fois par minute
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) liveTick(); });
+  // À chaque nouvel affichage (liste des duels, analyse) : on remet les scores connus et on vérifie s'il faut interroger le moteur
+  new MutationObserver(() => { clearTimeout(liveTimer); liveTimer = setTimeout(liveTick, 80); }).observe(view, { childList: true, subtree: true });
+
   function initials(name) {
     const words = String(name || "?").replace(/\b(FC|AC|SC|AS|CF|OGC|RC|SCO|AFC|CD|SL|SV|VfB|VfL|1\.)\b/g, "").trim().split(/\s+/).filter(Boolean);
     return (words.length > 1 ? words[0][0] + words[1][0] : (words[0] || "?").slice(0, 3)).toUpperCase();
@@ -274,7 +321,7 @@
         const comp = isAll && lg ? `<span class="lg-tag">${lg.logo ? `<img src="${esc(lg.logo)}" alt="" width="18" height="18" data-fallback="">` : ""}${esc(lg.nom)}</span>` : "";
         const duelHref = `#/duel/${lid}/${encodeURIComponent(p.matchId)}`;
         const status = isLive(p.status) ? `<span class="live">En direct</span>` : locked ? `<span class="tag">🔒 Inscrits</span>` : visitor && p.gratuit ? `<span class="tag tag-free">Offert</span>` : `<span class="tag">Fiabilité ${esc(p.donnees?.fiabilite || "—")}</span>`;
-        const top = `<div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${comp}${status}</div>
+        const top = `<div class="duel-top"><span class="time">${esc(fmtTime(p.date))}</span>${comp}<span class="st">${status}</span></div>
               <div class="teams">
                 <div class="team">${crest(D)}<b>${esc(D.name)}</b></div>
                 <span class="vs">VS</span>
@@ -282,13 +329,13 @@
               </div>`;
         // Match réservé aux inscrits : l'affiche seulement, et une invitation à s'inscrire
         if (locked) return `${head}
-          <article class="duel is-locked">
+          <article class="duel is-locked" ${liveAttr(lid, p)}>
             <a class="duel-link" href="#/compte" data-after="${esc(duelHref)}" aria-label="${esc(D.name)} contre ${esc(E.name)}, probabilités réservées aux inscrits">${top}</a>
             <a class="lock-cta" href="#/compte" data-after="${esc(duelHref)}"><span class="lock-ico" aria-hidden="true">🔒</span><span><b>Probabilités réservées aux inscrits</b><small>Inscription gratuite, en 30 secondes</small></span></a>
           </article>`;
         const P = p.poisson, href = duelHref;
         return `${head}
-          <article class="duel">
+          <article class="duel" ${liveAttr(lid, p)}>
             <a class="duel-link" href="${href}" aria-label="${esc(D.name)} contre ${esc(E.name)}, voir l'analyse">
               ${top}
             </a>
@@ -397,7 +444,7 @@
       const D = p.teams.domicile, E = p.teams.exterieur, here = `#/duel/${leagueId}/${encodeURIComponent(matchId)}`;
       view.innerHTML = `
         <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
-        <section class="match-hero">
+        <section class="match-hero" ${liveAttr(leagueId, p)}>
           <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b></div>
           <div class="kickoff">${isLive(p.status) ? `<span class="live">En direct</span>` : `<strong>${esc(fmtTime(p.date))}</strong>`}<span>${esc(fmtDay(p.date))}</span></div>
           <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b></div>
@@ -489,7 +536,7 @@
     const tabsDef = [["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
     view.innerHTML = `
       <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels de ${esc(lg?.nom || "la compétition")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
-      <section class="match-hero">
+      <section class="match-hero" ${liveAttr(leagueId, p)}>
         <div class="team">${crest(D, "crest crest-lg")}<b>${esc(D.name)}</b><small>${rankLabel(D)}</small></div>
         <div class="kickoff">${isLive(p.status) ? `<span class="live">En direct</span>` : `<strong>${esc(fmtTime(p.date))}</strong>`}<span>${esc(fmtDay(p.date))}</span></div>
         <div class="team">${crest(E, "crest crest-lg")}<b>${esc(E.name)}</b><small>${rankLabel(E)}</small></div>

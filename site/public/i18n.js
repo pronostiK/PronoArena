@@ -97,7 +97,7 @@
     "Inscris-toi gratuitement": "Sign up for free", "pour voir toutes les probabilités.": "to see all the probabilities.",
     "Tout": "All", "À venir": "Upcoming", "matchs": "matches", "Auj.": "Today",
     "Offerts aujourd'hui": "Free today", "Offert aujourd'hui": "Free today", "Offert": "Free", "🔒 Inscrits": "🔒 Members",
-    "En direct": "Live", "Victoire": "Win", "Nul": "Draw", "✓ Mon prono": "✓ My pick", "🔒 Mon prono": "🔒 My pick",
+    "En direct": "Live", "Terminé": "Full time", "Victoire": "Win", "Nul": "Draw", "✓ Mon prono": "✓ My pick", "🔒 Mon prono": "🔒 My pick",
     "Voir l'analyse complète": "See the full analysis",
     "Probabilités réservées aux inscrits": "Probabilities for members only", "Inscription gratuite, en 30 secondes": "Free sign-up, takes 30 seconds",
     "⚖ Duel équilibré": "⚖ Even duel", "⚖ Duel serré": "⚖ Close duel", "Grand favori": "Strong favourite", "Favori": "Favourite",
@@ -211,6 +211,7 @@
   const REL = { "élevée": "High", "moyenne": "Medium", "faible": "Low", "—": "—" };
   const AFTER = "Every forecast is frozen before kick-off: nothing is changed afterwards.";
   const R = [
+    [/^Score à (\d{1,2}:\d{2})$/, (m) => `Score at ${m[1]}`],
     [/^(\d+) matchs?$/, (m) => pl(m[1], "match", "matches")],
     [/^(\d+) matchs offerts chaque jour\.$/, (m) => `${m[1]} free matches every day.`],
     [/^Fiabilité (élevée|moyenne|faible|—)$/, (m) => (m[1] === "—" ? "Reliability —" : `${REL[m[1]]} reliability`)],

@@ -65,7 +65,8 @@ export const LEAGUES = {
   5: { name: "Ligue des Nations", logo: logo(2395), country: "Europe", src: "espn:uefa.nations", cup: true, national: true },
   15: { name: "Coupe du monde", logo: logo(4), country: "Monde", src: "fd:WC", cup: true, national: true, robot: false },
   // SportAPI (sportapi.ai) : la clé « sp:<id> » est l'identifiant de la compétition chez SportAPI
-  203: { name: "Süper Lig", logo: logo(18), country: "Turquie", src: "sp:16" },
+  // live : compétition ESPN qui donne le score en direct (ESPN suit la Turquie, pas la Belgique, l'Écosse ni la CAN → SportAPI)
+  203: { name: "Süper Lig", logo: logo(18), country: "Turquie", src: "sp:16", live: "espn:tur.1" },
   144: { name: "Pro League", logo: logo(6), country: "Belgique", src: "sp:5" },
   179: { name: "Scottish Premiership", logo: logo(45), country: "Écosse", src: "sp:88" },
   // CAN : qualifications (72) et phase finale (123) réunies ; sélections notées par l'Elo des sélections

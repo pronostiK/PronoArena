@@ -498,6 +498,12 @@ a.more { color: var(--orange); }
 .lg-tag { display: inline-flex; align-items: center; gap: 6px; margin: 0 auto 0 10px; min-width: 0; font-size: 12px; font-weight: 700; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lg-tag img { flex: none; width: 18px; height: 18px; padding: 2px; border-radius: 5px; background: #f4f1ec; object-fit: contain; }
 .duel-top .tag, .duel-top .live { flex: none; }
+/* Scores en direct : le score remplace « VS » (carte) ou l'heure (analyse) */
+.duel-top .st { flex: none; display: inline-flex; margin-left: 8px; }
+.vs.is-score { font-size: 22px; color: var(--text); white-space: nowrap; }
+.kickoff .is-score { white-space: nowrap; }
+.kickoff .live, .kickoff .tag { margin-top: 4px; font-size: 12px; }
+.kickoff .live { color: #ff9a8f; }
 .rail .chip-all[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--bg); }
 
 /* Mon espace : onglets Mon jeu / Paramètres (Général, Sécurité) */

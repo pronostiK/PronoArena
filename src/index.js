@@ -291,6 +291,27 @@ export default {
       }
 
       // Scores en direct : appelé par le site une fois par minute pendant les matchs (voir src/live.js)
+      // TEMPORAIRE (13/11/2026) : sonde Understat (xG historiques pour le test du modèle). Résultat gardé 6 h dans KV. À supprimer ensuite.
+      if (path === "/test-understat") {
+        const lg = url.searchParams.get("lg") || "robots", se = url.searchParams.get("s") || "2025";
+        const key = `tmp:us:${lg}:${se}`;
+        const cached = await env.PRONO_CACHE.get(key);
+        if (cached) return new Response(cached, { headers: { "content-type": "application/json" } });
+        const H = { "User-Agent": "DuelProno-research/1.0 (+https://duelprono.com)", "X-Requested-With": "XMLHttpRequest", Accept: "application/json" };
+        let out;
+        try {
+          if (lg === "robots") { const r = await fetch("https://understat.com/robots.txt", { headers: H }); out = { status: r.status, texte: (await r.text()).slice(0, 1500) }; }
+          else {
+            const r = await fetch(`https://understat.com/getLeagueData/${lg}/${se}`, { headers: H });
+            const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {}
+            out = j && j.dates ? { status: r.status, n: j.dates.length, rows: j.dates.filter((m) => m.isResult).map((m) => [m.datetime.slice(0, 10), m.h.title, m.a.title, +m.goals.h, +m.goals.a, +m.xG.h, +m.xG.a]) } : { status: r.status, debut: t.slice(0, 200) };
+          }
+        } catch (e) { out = { erreur: String(e) }; }
+        const body = JSON.stringify(out);
+        if (out.status === 200) await env.PRONO_CACHE.put(key, body, { expirationTtl: 21600 });
+        return new Response(body, { headers: { "content-type": "application/json" } });
+      }
+
       if (path === "/live") return json(await buildLive(env), 200, { "Cache-Control": "public, max-age=30" });
 
       if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });

@@ -181,7 +181,8 @@ export default {
       // TEMPORAIRE (14/11/2026) : sonde Soccer Data à un appel (lecture des formes de réponse pour l'affichage xG). À supprimer ensuite.
       if (path === "/test-sd") {
         if (!env.SOCCERDATA_KEY) return json({ erreur: "SOCCERDATA_KEY absente" });
-        const p = q("p") || "/competitions?search=Premier%20League&per_page=3";
+        const extra = [...url.searchParams].filter(([k]) => !["p", "n", "k"].includes(k)).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
+        const p = (q("p") || "/competitions") + (extra ? (String(q("p")).includes("?") ? "&" : "?") + extra : "");
         if (!p.startsWith("/")) return json({ erreur: "chemin invalide" });
         const r = await fetch("https://api.soccer-data.co/v1" + p, { headers: { "X-Api-Key": env.SOCCERDATA_KEY } });
         const t = await r.text();

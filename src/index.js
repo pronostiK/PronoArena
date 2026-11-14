@@ -178,6 +178,16 @@ export default {
         return json(out);
       }
 
+      // TEMPORAIRE (14/11/2026) : sonde Soccer Data à un appel (lecture des formes de réponse pour l'affichage xG). À supprimer ensuite.
+      if (path === "/test-sd") {
+        if (!env.SOCCERDATA_KEY) return json({ erreur: "SOCCERDATA_KEY absente" });
+        const p = q("p") || "/competitions?search=Premier%20League&per_page=3";
+        if (!p.startsWith("/")) return json({ erreur: "chemin invalide" });
+        const r = await fetch("https://api.soccer-data.co/v1" + p, { headers: { "X-Api-Key": env.SOCCERDATA_KEY } });
+        const t = await r.text();
+        return new Response(JSON.stringify({ status: r.status, limite: r.headers.get("x-ratelimit-remaining"), corps: t.slice(0, Number(q("n")) || 1800) }), { headers: { "content-type": "application/json" } });
+      }
+
       // TEMPORAIRE (12/11/2026) : sonde Soccer Data (couverture 5 grands championnats, xG, blessures). ~20 appels, résultat gardé 6 h. À supprimer ensuite.
       if (path === "/test-soccerdata") {
         const cached = await env.PRONO_CACHE.get("tmp:soccerdata");

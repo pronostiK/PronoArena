@@ -20,6 +20,7 @@
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const frNames = (d) => (I18N.names ? I18N.names(d) : d);
   const pct = (x) => Math.round((x || 0) * 100);
+  const dec2 = (x) => (x == null ? "—" : Number(x).toFixed(2).replace(".", I18N.lang === "en" ? "." : ","));
   const dec = (x) => (x == null ? "—" : Number(x).toFixed(1).replace(".", I18N.lang === "en" ? "." : ","));
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -527,10 +528,12 @@
         ${D.classement && E.classement ? cmp("Classement", D.classement.rang, E.classement.rang, (x) => x + (x === 1 ? "er" : "e"), true) : ""}
         ${cmp("Buts marqués / match", SD.butsMarquesParMatch, SE.butsMarquesParMatch, dec)}
         ${cmp("Buts encaissés / match", SD.butsEncaissesParMatch, SE.butsEncaissesParMatch, dec, true)}
+        ${SD.xg && SE.xg ? cmp("xG créés / match", SD.xg.pour, SE.xg.pour, dec2) + cmp("xG concédés / match", SD.xg.contre, SE.xg.contre, dec2, true) : ""}
         ${cmp("Plus de 2,5 buts", SD.pctOver25, SE.pctOver25, (x) => x + "%")}
         ${cmp("Les deux marquent", SD.pctBTTS, SE.pctBTTS, (x) => x + "%")}
         ${cmp("Sans encaisser", SD.pctCleanSheet, SE.pctCleanSheet, (x) => x + "%")}
         ${SD.domicile && SE.exterieur ? cmp(`Buts marqués (dom. / ext.)`, SD.domicile.butsMarques, SE.exterieur.butsMarques, dec) : ""}
+        ${SD.xg && SE.xg ? `<p class="note">xG : moyenne sur les ${Math.min(SD.xg.n, SE.xg.n)} derniers matchs · Soccer Data</p>` : ""}
       </section>` : ""}`;
 
     const tabsDef = [["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];

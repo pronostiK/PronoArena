@@ -136,3 +136,13 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
   - Tests : section « Scores en direct » de test/test.mjs (194 réussis) ; aperçu navigateur : `PLAYWRIGHT_PATH=… node test/live-preview.mjs <dossier>`. Cache dp21.
   - À vérifier en vrai avec l'utilisateur sur un match en cours (CAN à 14 h le 13/11, Ligue des Nations le soir) : score affiché, minute ESPN.
 - Accès au dépôt : une conversation non rattachée au dépôt doit demander l'accès en écriture avec l'accord explicite de l'utilisateur.
+
+## 14/11/2026 — xG affichés (Soccer Data), affichage seulement
+- Décision utilisateur : le modèle est jugé assez proche de la réalité ; le calcul des probabilités n'utilise PAS les xG. Le site doit afficher plus d'infos. Test « 50 % buts / 50 % xG » reporté : il attend `xg_understat.csv` (script Understat de Perplexity, à lancer sur un ordinateur) ; Understat et Soccer Data ne sont pas transférables vers ma session (aucun accès réseau direct, WebFetch ne renvoie que des résumés).
+- Code : `src/xg.js` (nouveau). Le robot appelle `refreshXg` à chaque passage : 1) recherche compétition + saison (5 championnats : PL 39, Liga 140, Serie A 135, Bundesliga 78, Ligue 1 61 ; ids Soccer Data en KV `xg:all`, revérifiés chaque semaine), 2) liste des 100 derniers matchs terminés (1 appel/compétition/jour), 3) xG match par match (`/matches/{id}/stats` → `data.overview.expected_goals.all`), les plus récents d'abord, 3 appels max par passage, 44 appels/jour max (limite gratuite 50, 10/min). Refus 429 : pause 15 min ; autre refus : 2 h. Sans `SOCCERDATA_KEY` : rien.
+- Affichage : `/match-details` ajoute `stats.domicile.xg` / `stats.exterieur.xg` = `{pour, contre, n}` (moyenne des 5 derniers matchs, seulement si ≥ 3 matchs) ; onglet Stats : « xG créés / match » et « xG concédés / match » + note « xG : moyenne sur les N derniers matchs · Soccer Data » (anglais dans i18n.js). Cache du site `?v=dp23`.
+- Remplissage progressif : environ 500 matchs à récupérer à 29–44 appels/jour ⇒ premières équipes affichées au bout de ~4 jours, complet en ~2 semaines.
+- `/status` → `xg` : appels du jour, par compétition `matchs / avecXg / enAttente / sansCorrespondance` (équipes Soccer Data sans équivalent chez nous : à ajouter dans `ALIAS` de `src/xg.js`, ex. PSG, Wolves).
+- Rappel : le gratuit ne donne que la saison en cours ; les compositions et blessures restent absentes (Soccer Data Pro 19 $/mois, SportAPI ids différents).
+- Tests : 207 réussis (section « xG (Soccer Data) » dans test/test.mjs ; Soccer Data simulé dans test/sim.mjs).
+- Sondes TEMPORAIRES restantes à supprimer de src/index.js : /test-soccerdata, /test-soccerdata2, /test-soccerdata3, /test-soccerdata4, /test-sp-dump.

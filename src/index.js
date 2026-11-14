@@ -21,6 +21,7 @@ import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./s
 import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
+import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
 import { buildLive } from "./live.js";
 import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
 
@@ -134,6 +135,10 @@ export default {
         const stats = pred
           ? { domicile: { ...(pred.teams.domicile.stats || {}), classement: pred.teams.domicile.classement }, exterieur: { ...(pred.teams.exterieur.stats || {}), classement: pred.teams.exterieur.classement } }
           : { domicile: {}, exterieur: {} };
+        if (pred && leagueId && XG_LEAGUES[leagueId]) { // xG des 5 derniers matchs (affichage seulement)
+          const xs = await kvGet(env, XG_KEY);
+          for (const side of ["domicile", "exterieur"]) { const x = xgTeam(xs, leagueId, pred.teams[side].name); if (x) stats[side].xg = x; }
+        }
         const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
         return json({ success: true, stats, h2h: h.h2h, compositions: lineups }, 200, cacheFor(who, env, 1800));
       }
@@ -176,17 +181,6 @@ export default {
           if (d) out[`${s}@${y}`] = { complete: d.complete, equipes: Object.fromEntries(Object.entries(d.teams).map(([k, v]) => [k, v[0]])), termines: d.finished };
         }
         return json(out);
-      }
-
-      // TEMPORAIRE (14/11/2026) : sonde Soccer Data à un appel (lecture des formes de réponse pour l'affichage xG). À supprimer ensuite.
-      if (path === "/test-sd") {
-        if (!env.SOCCERDATA_KEY) return json({ erreur: "SOCCERDATA_KEY absente" });
-        const extra = [...url.searchParams].filter(([k]) => !["p", "n", "k"].includes(k)).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
-        const p = (q("p") || "/competitions") + (extra ? (String(q("p")).includes("?") ? "&" : "?") + extra : "");
-        if (!p.startsWith("/")) return json({ erreur: "chemin invalide" });
-        const r = await fetch("https://api.soccer-data.co/v1" + p, { headers: { "X-Api-Key": env.SOCCERDATA_KEY } });
-        const t = await r.text();
-        return new Response(JSON.stringify({ status: r.status, limite: r.headers.get("x-ratelimit-remaining"), corps: t.slice(0, Number(q("n")) || 1800) }), { headers: { "content-type": "application/json" } });
       }
 
       // TEMPORAIRE (12/11/2026) : sonde Soccer Data (couverture 5 grands championnats, xG, blessures). ~20 appels, résultat gardé 6 h. À supprimer ensuite.
@@ -304,7 +298,11 @@ export default {
       // Scores en direct : appelé par le site une fois par minute pendant les matchs (voir src/live.js)
       if (path === "/live") return json(await buildLive(env), 200, { "Cache-Control": "public, max-age=30" });
 
-      if (path === "/status") return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env) });
+      if (path === "/status") {
+        const xs = await kvGet(env, XG_KEY), names = {};
+        if (xs) for (const id of Object.keys(XG_LEAGUES)) { const pr = await kvGet(env, predsKey(Number(id), currentSeason())); names[id] = (pr?.classement || []).map((r) => r.nom); }
+        return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env), xg: xgStatus(xs, names) });
+      }
 
       // ---------- Arène ----------
       const post = request.method === "POST";

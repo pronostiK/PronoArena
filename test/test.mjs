@@ -593,6 +593,58 @@ console.log("\n— Arène —");
   check("Base absente : réponse propre, le reste du site continue", noDb.status === 503 && (await get("/league-predictions?leagueId=61")).success);
 }
 
+console.log("\n— xG (Soccer Data) —");
+{
+  const X = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", SOCCERDATA_KEY: "sd_test", ...makeKV() };
+  const getX = async (path) => (await worker.fetch(new Request("https://w" + path), X, { waitUntil: () => {} })).json();
+  let t = Date.UTC(2026, 10, 9, 8, 0);
+  const run = async (n) => { for (let i = 0; i < n; i++, t += 600000) { SIM.now = t; await runRobot(X, t); } };
+  calls.sd = 0; SIM.sdAuth = null; SIM.sd429 = false; SIM.sdDown = false;
+  await run(60); // 10 h
+  const st1 = (await getX("/status")).xg;
+  check("xG : clé envoyée à Soccer Data", SIM.sdAuth === "sd_test");
+  check("xG : jamais plus de 44 appels par jour", calls.sd <= 44 && st1.appelsAujourdhui <= 44, `${calls.sd} appels`);
+  const comp39 = st1.competitions[39];
+  check("xG : compétitions retrouvées et matchs récupérés (5 championnats)", Object.values(st1.competitions).every((c) => c.matchs > 0) && comp39.avecXg > 0, JSON.stringify(comp39));
+  check("xG : noms d'équipes tous rapprochés (aucune équipe orpheline)", Object.values(st1.competitions).every((c) => !c.sansCorrespondance?.length), JSON.stringify(st1.competitions[61].sansCorrespondance));
+  await run(160); // + plus d'un jour : le compteur repart et la collecte continue
+  const st2 = (await getX("/status")).xg;
+  check("xG : la collecte continue le jour suivant (compteur remis à zéro)", st2.jour !== st1.jour && st2.competitions[39].avecXg > comp39.avecXg, `${comp39.avecXg} → ${st2.competitions[39].avecXg}`);
+  // Affichage : moyenne des 5 derniers matchs, via /match-details (après quelques jours de collecte)
+  await run(430);
+  const { kvGet: kvg } = await import("../src/sources.js"), { XG_KEY: XK } = await import("../src/xg.js");
+  const stX = await kvg(X, XK);
+  const lp = await getX("/league-predictions?leagueId=39");
+  const detail = async (p0) => getX(`/match-details?matchId=${encodeURIComponent(p0.matchId)}&source=football-data&leagueId=39&teamDomId=${p0.teams.domicile.id}&teamExtId=${p0.teams.exterieur.id}`);
+  let p0 = null, md = null;
+  for (const c of lp.predictions) { const d = await detail(c); if (d.stats?.domicile?.xg && d.stats?.exterieur?.xg) { p0 = c; md = d; break; } }
+  check("xG : affiché pour les deux équipes quand ≥ 3 matchs ont leurs xG", !!md, md ? JSON.stringify(md.stats.domicile.xg) : "aucun match avec xG");
+  if (md) {
+    const nm = `Équipe ${p0.teams.domicile.id} FC`;
+    const rows = Object.values(stX.m).filter((e) => e[0] === 39 && typeof e[4] === "number" && e[4] >= 0 && (e[2] === nm || e[3] === nm)).sort((a, b) => b[1] - a[1]).slice(0, 5).map((e) => (e[2] === nm ? [e[4], e[5]] : [e[5], e[4]]));
+    const avg = (k) => Math.round((rows.reduce((a, r) => a + r[k], 0) / rows.length) * 100) / 100;
+    const xd = md.stats.domicile.xg;
+    check("xG : moyenne des 5 derniers matchs exacte (pour / contre)", xd.n === rows.length && Math.abs(xd.pour - avg(0)) < 0.011 && Math.abs(xd.contre - avg(1)) < 0.011, `${JSON.stringify(xd)} attendu ${avg(0)} / ${avg(1)}`);
+    const mm = Object.entries(stX.m).find(([, e]) => typeof e[4] === "number" && e[4] >= 0), fx = WORLD["fd:PL@2026"].concat(WORLD["fd:PD@2026"], WORLD["fd:SA@2026"], WORLD["fd:BL1@2026"], WORLD["fd:FL1@2026"]).find((x) => `match_${x.id}` === mm[0]);
+    check("xG : valeurs enregistrées = celles de Soccer Data", fx && Math.abs(mm[1][4] - (0.7 + 0.5 * fx.hg)) < 0.011 && Math.abs(mm[1][5] - (0.5 + 0.5 * fx.ag)) < 0.011);
+  }
+  // Pas d'xG hors des 5 championnats
+  const lp2 = await getX("/league-predictions?leagueId=94"), q0 = lp2.predictions?.[0];
+  if (q0) { const m2 = await getX(`/match-details?matchId=${encodeURIComponent(q0.matchId)}&source=football-data&leagueId=94&teamDomId=${q0.teams.domicile.id}&teamExtId=${q0.teams.exterieur.id}`); check("xG : rien d'affiché pour un championnat non couvert", !m2.stats?.domicile?.xg); }
+  // Blocage 429 : pause, puis reprise
+  const Y = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", SOCCERDATA_KEY: "sd_test", ...makeKV() };
+  SIM.sd429 = true; calls.sd = 0; let t2 = Date.UTC(2026, 10, 12, 8, 0);
+  for (let i = 0; i < 2; i++, t2 += 600000) { SIM.now = t2; await runRobot(Y, t2); }
+  check("xG : un refus 429 met en pause (pas d'insistance)", calls.sd === 1, `${calls.sd} appel(s) en 20 min`);
+  t2 += 600000;
+  SIM.sd429 = false; for (let i = 0; i < 3; i++, t2 += 600000) { SIM.now = t2; await runRobot(Y, t2); }
+  check("xG : reprise après la pause", calls.sd > 1);
+  // Sans clé : aucun appel
+  const Z = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() }; calls.sd = 0;
+  for (let i = 0; i < 5; i++, t2 += 600000) { SIM.now = t2; await runRobot(Z, t2); }
+  check("xG : sans clé, aucun appel", calls.sd === 0);
+}
+
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;
 process.exit(ko ? 1 : 0);

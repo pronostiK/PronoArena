@@ -1,6 +1,6 @@
 // Monde simulé : championnats, coupes, deux saisons, fausses API football-data et ESPN, faux cache KV.
 export const NOW = Date.UTC(2026, 10, 10, 17, 0); // 10 nov. 2026
-export const SIM = { spDown: false, scDown: false, spAuth: null, now: NOW, fdDown: new Set(), espnBlocked: false, mails: [], mailDown: false };
+export const SIM = { spDown: false, scDown: false, sdDown: false, sd429: false, sdAuth: null, spAuth: null, now: NOW, fdDown: new Set(), espnBlocked: false, mails: [], mailDown: false };
 const isDone = (x) => x.ts + 2 * 3600000 < SIM.now;
 const isLive = (x) => x.ts <= SIM.now && !isDone(x);
 const DAY = 86400000;
@@ -120,6 +120,31 @@ export function installFetch() {
           status: isDone(x) ? "finished" : live ? "live" : "upcoming", status_text: isDone(x) ? "Ended" : live ? (x.ht ? "Half time" : x.second ? "2nd half" : "1st half") : "Not started", time: new Date(x.ts).toISOString().replace("Z", "+00:00"), competition: "x" };
       });
       return { ok: true, json: async () => ({ sport: "football", date: day, count: rows.length, matches: rows }) };
+    }
+    if (u.hostname === "api.soccer-data.co") {
+      // Soccer Data (xG) : compétitions, matchs terminés, xG par match
+      calls.sd = (calls.sd || 0) + 1; SIM.sdAuth = opts?.headers?.["X-Api-Key"] ?? null;
+      if (SIM.sd429) return { ok: false, status: 429 };
+      if (SIM.sdDown) return { ok: false, status: 503 };
+      const SD = { PL: ["Premier League", "England"], PD: ["La Liga", "Spain"], SA: ["Serie A", "Italy"], BL1: ["Bundesliga", "Germany"], FL1: ["Ligue 1", "France"] };
+      const sdName = (id) => `Équipe ${id} FC`;
+      if ((m = u.pathname.match(/^\/v1\/competitions$/))) {
+        const q = (u.searchParams.get("search") || "").toLowerCase().replace("laliga", "la liga");
+        const hit = Object.entries(SD).filter(([, [n, c]]) => n.toLowerCase() === q && c === u.searchParams.get("country"));
+        return { ok: true, json: async () => ({ data: hit.map(([code, [n, c]]) => ({ id: `competition_${code}`, name: n, country: c, type: "league", xg_available: true })), meta: { page: 1, total: hit.length } }) };
+      }
+      if ((m = u.pathname.match(/^\/v1\/competitions\/competition_(\w+)$/))) return { ok: true, json: async () => ({ data: { id: `competition_${m[1]}`, current_season_id: `season_${m[1]}` } }) };
+      if (u.pathname === "/v1/matches") {
+        const code = String(u.searchParams.get("competition_id")).replace("competition_", "");
+        const list = (DB[`fd:${code}@2026`] || []).filter(isDone).sort((a, b) => b.ts - a.ts).slice(0, 100);
+        return { ok: true, json: async () => ({ data: list.map((x) => ({ id: `match_${x.id}`, utc_date: new Date(x.ts).toISOString(), status: "finished", home_team: { id: x.h, name: sdName(x.h) }, away_team: { id: x.a, name: sdName(x.a) }, xg_available: true })) }) };
+      }
+      if ((m = u.pathname.match(/^\/v1\/matches\/match_(.+)\/stats$/))) {
+        const x = Object.entries(DB).filter(([k]) => k.startsWith("fd:")).flatMap(([, v]) => v).find((y) => String(y.id) === m[1]);
+        if (!x) return { ok: false, status: 404 };
+        return { ok: true, json: async () => ({ data: { overview: { expected_goals: { all: { home: Math.round((0.7 + 0.5 * x.hg) * 100) / 100, away: Math.round((0.5 + 0.5 * x.ag) * 100) / 100 } } } } }) };
+      }
+      return { ok: false, status: 404 };
     }
     if (u.hostname === "api.resend.com") { const b = JSON.parse(opts?.body || "{}"); SIM.mails.push({ ...b, auth: opts?.headers?.Authorization }); return { ok: !SIM.mailDown, status: SIM.mailDown ? 500 : 200, json: async () => ({ id: "m" + SIM.mails.length }) }; }
     if (u.hostname === "raw.githubusercontent.com") { calls.seed = (calls.seed || 0) + 1; return { ok: false, status: 404 }; }

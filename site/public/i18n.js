@@ -117,7 +117,7 @@
     "Victoire et plus": "Win and more", "Victoire sans encaisser": "Win to nil", "Victoire + les deux marquent": "Win + both teams score", "Victoire par 2 buts ou +": "Win by 2+ goals",
     "Scores exacts": "Exact scores", "Forme · 5 derniers matchs": "Form · last 5 matches", "Pas encore de match joué cette saison.": "No match played yet this season.",
     "Défaite": "Loss", "Face à face des stats": "Stats head-to-head", "Saison": "Season", "Classement": "Ranking",
-    "Buts marqués / match": "Goals scored / match", "Buts encaissés / match": "Goals conceded / match", "Plus de 2,5 buts": "Over 2.5 goals",
+    "xG créés / match": "xG for / match", "xG concédés / match": "xG against / match", "Buts marqués / match": "Goals scored / match", "Buts encaissés / match": "Goals conceded / match", "Plus de 2,5 buts": "Over 2.5 goals",
     "Les deux marquent": "Both teams score", "Sans encaisser": "Clean sheets", "Buts marqués (dom. / ext.)": "Goals scored (home / away)",
     "Compositions": "Line-ups", "Chargement…": "Loading…", "Derniers duels": "Recent meetings",
     "Aucune confrontation récente entre ces deux équipes.": "No recent meeting between these two teams.",
@@ -212,6 +212,7 @@
   const AFTER = "Every forecast is frozen before kick-off: nothing is changed afterwards.";
   const R = [
     [/^Score à (\d{1,2}:\d{2})$/, (m) => `Score at ${m[1]}`],
+    [/^xG : moyenne sur les (\d+) derniers matchs · Soccer Data$/, (m) => `xG: average over the last ${m[1]} matches · Soccer Data`],
     [/^(\d+) matchs?$/, (m) => pl(m[1], "match", "matches")],
     [/^(\d+) matchs offerts chaque jour\.$/, (m) => `${m[1]} free matches every day.`],
     [/^Fiabilité (élevée|moyenne|faible|—)$/, (m) => (m[1] === "—" ? "Reliability —" : `${REL[m[1]]} reliability`)],

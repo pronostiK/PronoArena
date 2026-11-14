@@ -8,6 +8,7 @@ import { kvGet, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, 
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcoming, allKey } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
+import { refreshXg } from "./xg.js";
 import { refreshSeed } from "./nations.js";
 import { LEAGUES } from "./config.js";
 
@@ -89,6 +90,8 @@ export async function runRobot(env, now = Date.now()) {
   const busy = pending.some((x) => (x.urgent && !x.src.startsWith("sp:")) || !index[x.k] || index[x.k].complete === false);
   if (!busy && !espnPaused) try { const r = await refreshOneCompo(env, index, season, now); if (r) { report.push(r); compoDone = true; } }
   catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; if (refused(e)) pauseEspn("compositions refusées"); }
+  // xG (Soccer Data, affichage seulement) : quelques appels par passage, plafonnés par jour
+  { const r = await refreshXg(env, now); if (r) report.push(r); }
   // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
   // SportAPI : un seul appel alimente toutes ses compétitions d'une saison, donc une seule place par saison
   const spSeen = new Set();

@@ -10,7 +10,7 @@ import { nameSim, nameTokens } from "./live.js";
 
 const DAY = 86400000, PER_TICK = 3, SCAN_DAYS = 80, REDO_MS = 45 * DAY;
 export const logoKey = (id) => `clublogos:${id}`;
-export const usesClubLogos = (lg) => !!(lg && lg.sc && !lg.national && String(lg.src).startsWith("sp:"));
+export const usesClubLogos = (lg) => !!((lg && (lg.sc || lg.logosc)) && !lg.national && String(lg.src).startsWith("sp:"));
 
 export async function refreshClubLogos(env, now = Date.now()) {
   if (!env.PRONO_CACHE) return null;
@@ -23,12 +23,17 @@ export async function refreshClubLogos(env, now = Date.now()) {
     for (; calls < PER_TICK && rec.n < SCAN_DAYS; calls++, rec.n++) {
       const day = new Date(now - rec.n * DAY).toISOString().slice(0, 10);
       try {
-        const res = await fetch(`https://sportscore.com/api/v1/fixtures/?sport=football&competition=${lg.sc}&date=${day}&limit=100`, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)", ...(env.SPORTSCORE_KEY ? { "X-Api-Key": env.SPORTSCORE_KEY } : {}) } });
-        if (!res.ok) break; // on réessaiera au prochain passage
-        const j = await res.json();
-        for (const x of j?.matches || []) {
-          if (x.home && /^https?:\/\//.test(x.home_logo || "")) rec.m[x.home] = x.home_logo;
-          if (x.away && /^https?:\/\//.test(x.away_logo || "")) rec.m[x.away] = x.away_logo;
+        for (const slug of rec.slug ? [rec.slug] : lg.sc ? [lg.sc] : lg.logosc) {
+          const res = await fetch(`https://sportscore.com/api/v1/fixtures/?sport=football&competition=${slug}&date=${day}&limit=100`, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)", ...(env.SPORTSCORE_KEY ? { "X-Api-Key": env.SPORTSCORE_KEY } : {}) } });
+          if (!res.ok) continue;
+          const j = await res.json();
+          const ms = (j?.matches || []).filter((x) => lg.sc || new RegExp(lg.name.split(" ").pop(), "i").test(String(x.competition || "").normalize("NFD").replace(/[̀-ͯ]/g, "")) || /super lig/i.test(String(x.competition || "").normalize("NFD").replace(/[̀-ͯ]/g, "")));
+          for (const x of ms) {
+            if (x.home && /^https?:\/\//.test(x.home_logo || "")) rec.m[x.home] = x.home_logo;
+            if (x.away && /^https?:\/\//.test(x.away_logo || "")) rec.m[x.away] = x.away_logo;
+          }
+          if (ms.length && !lg.sc) { rec.slug = slug; break; }
+          if (lg.sc || rec.slug) break;
         }
       } catch { break; }
     }

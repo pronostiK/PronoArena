@@ -7,6 +7,7 @@ import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
 import { buildModel, computeTeamRatings, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
 import { flagTeams, flagUrl } from "./flags.js";
+import { usesClubLogos, logoKey, applyClubLogos, clubLogo } from "./clublogos.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 export const predsKey = (leagueId, season) => `preds:${leagueId}@${season}`;
@@ -91,6 +92,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   if (!cur) return null;
   const prev = lg.cup || secours ? null : await kvGet(env, srcKey(src, season - 1));
   if (lg.national && provider === "sp") { flagTeams(cur.teams); if (prev) flagTeams(prev.teams); } // pas de logos chez SportAPI : drapeaux
+  if (usesClubLogos(lg) && provider === "sp") { const lr = await kvGet(env, logoKey(leagueId)); if (lr?.m && applyClubLogos(cur.teams, lr.m) && prev) applyClubLogos(prev.teams, lr.m); } // logos des clubs via SportScore, tout ou rien
 
   const finishedCur = toFinished(cur);
   const finishedAll = prev ? [...toFinished(prev), ...finishedCur] : finishedCur;
@@ -189,6 +191,7 @@ export async function buildVerdict(env, leagueIds, season, now = Date.now(), day
     if (!lg) continue;
     const archive = await kvGet(env, archiveKey(id, season));
     if (!archive) continue;
+    const lmap = usesClubLogos(lg) ? (await kvGet(env, logoKey(id)))?.m : null;
     const scores = new Map();
     for (const s of [lg.src, lg.backup].filter(Boolean)) {
       const data = await kvGet(env, srcKey(s, season));
@@ -202,7 +205,7 @@ export async function buildVerdict(env, leagueIds, season, now = Date.now(), day
       const prono = pick1N2(e.p), dc = dcOf(e.p);
       out.push({
         matchId: e.id, leagueId: id, competition: lg.name, date: new Date(e.ts).toISOString(),
-        domicile: { nom: e.h[0], logo: (lg.national && flagUrl(e.h[0])) || e.h[1] }, exterieur: { nom: e.a[0], logo: (lg.national && flagUrl(e.a[0])) || e.a[1] }, // pronostics figés avant les drapeaux : on les remet
+        domicile: { nom: e.h[0], logo: (lg.national && flagUrl(e.h[0])) || e.h[1] || (lmap && clubLogo(lmap, e.h[0])) || null }, exterieur: { nom: e.a[0], logo: (lg.national && flagUrl(e.a[0])) || e.a[1] || (lmap && clubLogo(lmap, e.a[0])) || null }, // pronostics figés avant les drapeaux : on les remet
         score: { dom: hg, ext: ag },
         moteur: { prono, proba: e.p[prono === "1" ? 0 : prono === "N" ? 1 : 2], doubleChance: dc, plus25: e.o25 },
         juste: { "1N2": prono === res, doubleChance: dc.includes(res), plusMoins25: (e.o25 >= 0.5) === (hg + ag > 2.5) },

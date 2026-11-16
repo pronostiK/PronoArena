@@ -146,3 +146,21 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Rappel : le gratuit ne donne que la saison en cours ; les compositions et blessures restent absentes (Soccer Data Pro 19 $/mois, SportAPI ids différents).
 - Tests : 207 réussis (section « xG (Soccer Data) » dans test/test.mjs ; Soccer Data simulé dans test/sim.mjs).
 - Sondes TEMPORAIRES restantes à supprimer de src/index.js : /test-soccerdata, /test-soccerdata2, /test-soccerdata3, /test-soccerdata4, /test-sp-dump.
+
+## Stratégie de lancement commercial (décidée le 16/11/2026)
+Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnement, aucun système de paiement pour l'instant. Ne pas confondre développement technique et lancement commercial. Aucune fonctionnalité existante modifiée par cette décision.
+
+### Les 4 phases
+1. **Développement** (en cours) : continuer à améliorer et finaliser. Pas de micro-entreprise prématurée tant que le site ne rapporte rien (ni abonnement, ni pub, ni affiliation).
+2. **Tests gratuits** : ouverture gratuite pour mesurer l'intérêt et recueillir des retours. Aucun encaissement.
+3. **Préparation commerciale** : vérifier les obligations légales, déclarer l'activité au guichet unique (formalites.entreprises.gouv.fr) AVANT le premier encaissement, préparer CGV, mentions légales, confidentialité, résiliation, installer et tester le paiement.
+4. **Lancement payant** : activer les abonnements seulement quand tout le cadre administratif, juridique et technique est prêt. L'utilisateur et Claude décident ensemble du moment.
+
+### Points de vigilance (sources officielles françaises, vérifiées le 16/11/2026 ; pas de conseil juridique)
+- **OBSTACLE MAJEUR phase 3 — vente de « pronostics »** : l'ANJ indique que fournir contre rémunération (ex. abonnement) des conseils ou méthodes censés augmenter les chances de gagner aux jeux d'argent n'est pas autorisé en France ; la DGCCRF y voit une pratique commerciale trompeuse possible. Depuis la loi du 9 juin 2023, les influenceurs ne peuvent pas promouvoir d'abonnements à des pronostics sportifs. À faire avant la phase 3 : interroger l'ANJ ou un avocat. Entre-temps : site présenté comme probabilités, aucune promesse de gain, aucun lien vers un bookmaker, pas de mots « pari » / « bookmaker » côté visiteur. Pas d'abonnement ni de Stripe avant cette réponse.
+- **Données personnelles (déjà applicable, même en gratuit)** : le site crée des comptes. Pas de déclaration à la CNIL, mais : registre des traitements, mentions d'information à l'inscription (finalité, base légale, destinataires). À vérifier : registre + textes d'information ; sous-traitants (Cloudflare, Resend).
+- **Anonymat** : possible seulement tant que l'édition est non professionnelle (LCEN art. 6 III : seules les coordonnées de l'hébergeur). Dès l'activité payante : nom, prénom, adresse du domicile, e-mail, téléphone dans les mentions légales (société : Kbis public).
+- **Consommation (phase 3)** : rétractation 14 jours avec, depuis le 19/06/2026, un bouton gratuit « renoncer au contrat ici » pour les contrats en ligne ; résiliation en ligne gratuite ; mention du médiateur de la consommation ; si essai gratuit puis payant, l'annoncer clairement.
+- **Cumul avec le salaire** : possible, obligation de loyauté envers l'employeur ; relire le contrat de travail.
+- **Fournisseurs de données** : relire les conditions d'usage commercial (SportScore déjà à clarifier ; football-data, SportAPI, Soccer Data, ESPN).
+- Statut : micro-entreprise = option la plus légère ; EI au réel ou société (SASU/EURL) possibles ; à valider avec l'URSSAF ou un comptable.

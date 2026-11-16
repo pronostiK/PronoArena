@@ -146,6 +146,7 @@ export function xgStatus(st, ourNames = {}) {
     const sd = [...new Set(ms.flatMap((e) => [e[2], e[3]]))];
     const ours = ourNames[id] || [];
     out.competitions[id] = {
+      equipesAffichables: sd.filter((n) => xgTeam(st, Number(id), n)).length, equipes: sd.length,
       matchs: ms.length, avecXg: ms.filter(has).length, enAttente: ms.filter((e) => e[4] === null).length,
       sansCorrespondance: ours.length ? sd.filter((n) => !ours.some((o) => sameTeam(o, n))) : undefined,
     };

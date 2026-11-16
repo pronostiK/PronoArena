@@ -76,12 +76,16 @@ async function step(env, st, now) {
   const needComp = Object.entries(XG_LEAGUES).find(([id]) => { const c = st.comps[id]; return !c || now - c.at > COMP_MS; });
   if (needComp) {
     const [id, lg] = needComp;
-    const s = await call(env, st, `/competitions?search=${encodeURIComponent(lg.names[0])}&country=${encodeURIComponent(lg.country)}&per_page=10`);
     const alnum = (x) => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
     // nom exact, ou nom + sponsor (« LaLiga EA Sports ») ; jamais une deuxième division ou une compétition féminine
     const isTop = (c) => lg.names.some((n) => { const a = alnum(c.name), b = alnum(n); return a === b || (a.startsWith(b) && !/\d|hypermotion|segunda|femin|women/.test(a.slice(b.length))); });
-    const comp = (s.data || []).find((c) => c.type === "league" && c.xg_available && isTop(c));
-    if (!comp) { st.comps[id] = { err: "compétition introuvable", at: now - COMP_MS + DAY }; return `xG ${id} : compétition introuvable`; }
+    let comp = null;
+    for (const n of lg.names) { // « la liga » puis « laliga » : le service n'écrit pas toujours le nom pareil
+      const s = await call(env, st, `/competitions?search=${encodeURIComponent(n)}&country=${encodeURIComponent(lg.country)}&per_page=10`);
+      comp = (s.data || []).find((c) => c.type === "league" && c.xg_available && isTop(c));
+      if (comp || st.used >= XG_DAILY) break;
+    }
+    if (!comp) { st.comps[id] = { err: "compétition introuvable", at: now - COMP_MS + 6 * HOUR }; return `xG ${id} : compétition introuvable`; }
     const d = await call(env, st, `/competitions/${comp.id}`);
     const sid = d.data?.current_season_id;
     if (!sid) { st.comps[id] = { err: "saison introuvable", at: now - COMP_MS + DAY }; return `xG ${id} : saison introuvable`; }

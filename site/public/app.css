@@ -578,3 +578,6 @@ a.more { color: var(--orange); }
 /* Mention obligatoire de la source des scores en direct (SportScore) */
 .legal .credit { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
 .legal .credit a { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }
+
+/* xG : les lignes se comportent comme les autres lignes du bloc (même espacement) */
+#xg-box, #xg-note { display: contents; }

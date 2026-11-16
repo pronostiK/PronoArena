@@ -528,12 +528,12 @@
         ${D.classement && E.classement ? cmp("Classement", D.classement.rang, E.classement.rang, (x) => x + (x === 1 ? "er" : "e"), true) : ""}
         ${cmp("Buts marqués / match", SD.butsMarquesParMatch, SE.butsMarquesParMatch, dec)}
         ${cmp("Buts encaissés / match", SD.butsEncaissesParMatch, SE.butsEncaissesParMatch, dec, true)}
-        ${SD.xg && SE.xg ? cmp("xG créés / match", SD.xg.pour, SE.xg.pour, dec2) + cmp("xG concédés / match", SD.xg.contre, SE.xg.contre, dec2, true) : ""}
+        <div id="xg-box"></div>
         ${cmp("Plus de 2,5 buts", SD.pctOver25, SE.pctOver25, (x) => x + "%")}
         ${cmp("Les deux marquent", SD.pctBTTS, SE.pctBTTS, (x) => x + "%")}
         ${cmp("Sans encaisser", SD.pctCleanSheet, SE.pctCleanSheet, (x) => x + "%")}
         ${SD.domicile && SE.exterieur ? cmp(`Buts marqués (dom. / ext.)`, SD.domicile.butsMarques, SE.exterieur.butsMarques, dec) : ""}
-        ${SD.xg && SE.xg ? `<p class="note">xG : moyenne sur les ${Math.min(SD.xg.n, SE.xg.n)} derniers matchs · Soccer Data</p>` : ""}
+        <div id="xg-note"></div>
       </section>` : ""}`;
 
     const tabsDef = [["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
@@ -564,6 +564,12 @@
 
     try {
       const md = await api(`/match-details?matchId=${encodeURIComponent(p.matchId)}&source=${encodeURIComponent(p.source)}&teamDomId=${encodeURIComponent(D.id)}&teamExtId=${encodeURIComponent(E.id)}&leagueId=${leagueId}`, 300000);
+      // xG : arrivent avec les détails du match (affichés seulement si les deux équipes ont assez de matchs)
+      const xd = md.stats?.domicile?.xg, xe = md.stats?.exterieur?.xg, xbox = document.getElementById("xg-box");
+      if (xd && xe && xbox) {
+        xbox.innerHTML = cmp("xG créés / match", xd.pour, xe.pour, dec2) + cmp("xG concédés / match", xd.contre, xe.contre, dec2, true);
+        document.getElementById("xg-note").innerHTML = `<p class="note">xG : moyenne sur les ${Math.min(xd.n, xe.n)} derniers matchs · Soccer Data</p>`;
+      }
       const h = md.h2h || [];
       document.getElementById("h2h").innerHTML = h.length
         ? h.map((m) => {

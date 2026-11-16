@@ -183,6 +183,16 @@ export default {
         return json(out);
       }
 
+      // TEMPORAIRE (16/11/2026) : sonde SportScore à un appel (formes de réponse pour les logos des clubs). À supprimer ensuite.
+      if (path === "/test-sc") {
+        const extra = [...url.searchParams].filter(([k]) => !["p", "n", "k"].includes(k)).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
+        const p = (q("p") || "/api/v1/standings/") + (extra ? "?" + extra : "");
+        if (!p.startsWith("/api/")) return json({ erreur: "chemin invalide" });
+        const r = await fetch("https://sportscore.com" + p, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)", ...(env.SPORTSCORE_KEY ? { "X-Api-Key": env.SPORTSCORE_KEY } : {}) } });
+        const t = await r.text();
+        return new Response(JSON.stringify({ status: r.status, corps: t.slice(0, Number(q("n")) || 1800) }), { headers: { "content-type": "application/json" } });
+      }
+
       // TEMPORAIRE (12/11/2026) : sonde Soccer Data (couverture 5 grands championnats, xG, blessures). ~20 appels, résultat gardé 6 h. À supprimer ensuite.
       if (path === "/test-soccerdata") {
         const cached = await env.PRONO_CACHE.get("tmp:soccerdata");

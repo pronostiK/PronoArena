@@ -10,7 +10,7 @@ import { kvGet } from "./sources.js";
 export const XG_KEY = "xg:all";
 const BASE = "https://api.soccer-data.co/v1";
 const HOUR = 3600000, DAY = 24 * HOUR;
-export const XG_DAILY = 44;          // appels par jour (la limite gratuite est de 50)
+export const XG_DAILY = 40;          // appels par jour (la limite gratuite est de 50 ; marge pour la fenêtre glissante de 24 h)
 const PER_TICK = 3;                  // appels max par passage du robot (limite : 10 par minute)
 const LIST_MS = 24 * HOUR;           // liste des matchs d'une compétition : au plus une fois par jour (5 appels sur 44)
 const COMP_MS = 7 * DAY;             // identifiants de compétition / saison revérifiés chaque semaine
@@ -30,7 +30,7 @@ export const XG_LEAGUES = {
 // Noms qui ne se rapprochent pas tout seuls (ajouter ici les cas listés dans /status → xg.sansCorrespondance)
 const ALIAS = {
   psg: "paris saint germain", wolves: "wolverhampton wanderers", spurs: "tottenham hotspur", inter: "internazionale",
-  "man city": "manchester city", "man united": "manchester united", "man utd": "manchester united",
+  "borussia m gladbach": "borussia monchengladbach", "man city": "manchester city", "man united": "manchester united", "man utd": "manchester united",
 };
 const canon = (n) => { const k = String(n || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); return ALIAS[k] || n; };
 export const sameTeam = (a, b) => nameSim(canon(a), canon(b)) >= 1;
@@ -61,7 +61,7 @@ export async function refreshXg(env, now = Date.now()) {
     report = await step(env, st, now);
   } catch (e) {
     // refus (429 / 401 / 403) : on attend avant de réessayer, sans insister
-    st.pauseUntil = now + (/\[429\]/.test(String(e.message)) ? 15 * 60000 : 2 * HOUR);
+    st.pauseUntil = now + (/\[429\]/.test(String(e.message)) ? 3 * HOUR : 2 * HOUR); // 429 : limite atteinte (la fenêtre de Soccer Data peut être glissante) → on attend 3 h
     st.erreur = String(e.message).slice(0, 120);
     report = `xG : ERREUR ${e.message}`;
   }
@@ -77,7 +77,10 @@ async function step(env, st, now) {
   if (needComp) {
     const [id, lg] = needComp;
     const s = await call(env, st, `/competitions?search=${encodeURIComponent(lg.names[0])}&country=${encodeURIComponent(lg.country)}&per_page=10`);
-    const comp = (s.data || []).find((c) => c.type === "league" && c.xg_available && lg.names.includes(String(c.name).toLowerCase()));
+    const alnum = (x) => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
+    // nom exact, ou nom + sponsor (« LaLiga EA Sports ») ; jamais une deuxième division ou une compétition féminine
+    const isTop = (c) => lg.names.some((n) => { const a = alnum(c.name), b = alnum(n); return a === b || (a.startsWith(b) && !/\d|hypermotion|segunda|femin|women/.test(a.slice(b.length))); });
+    const comp = (s.data || []).find((c) => c.type === "league" && c.xg_available && isTop(c));
     if (!comp) { st.comps[id] = { err: "compétition introuvable", at: now - COMP_MS + DAY }; return `xG ${id} : compétition introuvable`; }
     const d = await call(env, st, `/competitions/${comp.id}`);
     const sid = d.data?.current_season_id;
@@ -133,7 +136,7 @@ export function xgTeam(st, leagueId, teamName) {
 // Pour /status : avancement par compétition
 export function xgStatus(st, ourNames = {}) {
   if (!st) return null;
-  const out = { appelsAujourdhui: st.used, jour: st.day, erreur: st.erreur || null, pause: st.pauseUntil && st.pauseUntil > Date.now() ? new Date(st.pauseUntil).toISOString() : null, competitions: {} };
+  const out = { comps: Object.fromEntries(Object.entries(st.comps || {}).map(([k, c]) => [k, c.err || (c.cid ? "ok" : "?")])), appelsAujourdhui: st.used, jour: st.day, erreur: st.erreur || null, pause: st.pauseUntil && st.pauseUntil > Date.now() ? new Date(st.pauseUntil).toISOString() : null, competitions: {} };
   for (const id of Object.keys(XG_LEAGUES)) {
     const ms = Object.values(st.m).filter((e) => e[0] === Number(id));
     const sd = [...new Set(ms.flatMap((e) => [e[2], e[3]]))];

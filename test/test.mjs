@@ -603,7 +603,7 @@ console.log("\n— xG (Soccer Data) —");
   await run(60); // 10 h
   const st1 = (await getX("/status")).xg;
   check("xG : clé envoyée à Soccer Data", SIM.sdAuth === "sd_test");
-  check("xG : jamais plus de 44 appels par jour", calls.sd <= 44 && st1.appelsAujourdhui <= 44, `${calls.sd} appels`);
+  check("xG : jamais plus de 40 appels par jour", calls.sd <= 40 && st1.appelsAujourdhui <= 40, `${calls.sd} appels`);
   const comp39 = st1.competitions[39];
   check("xG : compétitions retrouvées et matchs récupérés (5 championnats)", Object.values(st1.competitions).every((c) => c.matchs > 0) && comp39.avecXg > 0, JSON.stringify(comp39));
   check("xG : noms d'équipes tous rapprochés (aucune équipe orpheline)", Object.values(st1.competitions).every((c) => !c.sansCorrespondance?.length), JSON.stringify(st1.competitions[61].sansCorrespondance));
@@ -638,6 +638,8 @@ console.log("\n— xG (Soccer Data) —");
   check("xG : un refus 429 met en pause (pas d'insistance)", calls.sd === 1, `${calls.sd} appel(s) en 20 min`);
   t2 += 600000;
   SIM.sd429 = false; for (let i = 0; i < 3; i++, t2 += 600000) { SIM.now = t2; await runRobot(Y, t2); }
+  check("xG : toujours en pause 30 min après un 429 (limite atteinte)", calls.sd === 1, `${calls.sd} appel(s)`);
+  t2 += 3 * 3600000; for (let i = 0; i < 2; i++, t2 += 600000) { SIM.now = t2; await runRobot(Y, t2); }
   check("xG : reprise après la pause", calls.sd > 1);
   // Sans clé : aucun appel
   const Z = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() }; calls.sd = 0;

@@ -259,7 +259,9 @@
     setTab("duels");
     // Colonne de gauche : seulement les compétitions qui ont au moins un match à venir
     const every = await getLeagues();
-    const withMatch = every.filter((l) => l.matchsAVenir > 0);
+    // et dont le prochain match tombe dans les 7 jours (la compétition ouverte reste toujours visible)
+    const soon = (l) => !l.prochain || Date.parse(l.prochain) - Date.now() <= 7 * 864e5;
+    const withMatch = every.filter((l) => l.matchsAVenir > 0 && (soon(l) || l.id === Number(which)));
     const list = withMatch.length ? withMatch : every;
     const isAll = which === "all" || !every.some((l) => l.id === Number(which));
     const current = isAll ? "all" : Number(which);

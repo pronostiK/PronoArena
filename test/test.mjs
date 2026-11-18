@@ -51,7 +51,7 @@ for (const [id, nom, n] of [[203, "Süper Lig (Turquie)", 18], [144, "Pro League
   const C = await get(`/league-predictions?leagueId=${id}`);
   const p0 = C.predictions?.[0];
   check(`${nom} : pronostics présents, source SportAPI`, C.count >= 5 && C.predictions.every((x) => x.source === "sportapi"), `${C.count} pronostics`);
-  check(`${nom} : logos des deux équipes, classement à ${n} équipes`, C.predictions.every((x) => x.teams.domicile.logo && x.teams.exterieur.logo) && C.classement.length === n && C.classement.every((r) => r.logo));
+  check(`${nom} : logos des deux équipes, classement à ${n} équipes`, C.predictions.every((x) => /^https?:\/\//.test(x.teams.domicile.logo || "") && /^https?:\/\//.test(x.teams.exterieur.logo || "")) && C.classement.length === n && C.classement.every((r) => /^https?:\/\//.test(r.logo || "")), JSON.stringify(C.predictions?.[0]?.teams?.domicile?.logo));
   check(`${nom} : saison précédente intégrée, forme et rang au classement`, C.modele.matchsAnalyses > 100 && p0.teams.domicile.stats?.forme?.length >= 4 && p0.teams.domicile.classement?.rang >= 1 && !p0.teams.domicile.classement.groupe, `${C.modele.matchsAnalyses} matchs analysés`);
   const top = C.classement[0], bottom = C.classement.at(-1);
   check(`${nom} : classement cohérent avec les forces réelles`, STRENGTH[top.id] > STRENGTH[bottom.id]);

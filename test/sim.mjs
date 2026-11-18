@@ -113,11 +113,11 @@ export function installFetch() {
       // SportScore : une compétition et un jour par appel ; noms d'équipes écrits autrement que chez SportAPI (suffixe « KV »)
       calls.sc = (calls.sc || 0) + 1; SIM.scAuth = opts?.headers?.["X-Api-Key"] ?? null;
       if (SIM.scDown) return { ok: false, status: 503 };
-      const lid = { "belgian-pro-league": 5, "scottish-premiership": 88, "caf-africa-cup-of-nations": 72 }[u.searchParams.get("competition")], day = u.searchParams.get("date");
+      const lid = { "belgian-pro-league": 5, "scottish-premiership": 88, "caf-africa-cup-of-nations": 72, "turkish-super-league": 16 }[u.searchParams.get("competition")], day = u.searchParams.get("date");
       const rows = (DB[`sp:${lid}@2026`] || []).filter((x) => new Date(x.ts).toISOString().slice(0, 10) === day).map((x) => {
         const late = x.lateUntil && SIM.now < x.lateUntil, live = isLive(x) && !late;
-        return { home: teamName(x.h) + (lid === 5 ? " KV" : ""), away: teamName(x.a) + (lid === 5 ? " KV" : ""), home_score: isDone(x) ? String(x.hg) : live ? String(x.lh ?? 0) : null, away_score: isDone(x) ? String(x.ag) : live ? String(x.la ?? 0) : null,
-          status: isDone(x) ? "finished" : live ? "live" : "upcoming", status_text: isDone(x) ? "Ended" : live ? (x.ht ? "Half time" : x.second ? "2nd half" : "1st half") : "Not started", time: new Date(x.ts).toISOString().replace("Z", "+00:00"), competition: "x" };
+        return { home: teamName(x.h) + (lid === 5 ? " KV" : ""), away: teamName(x.a) + (lid === 5 ? " KV" : ""), home_logo: `https://sportscore.com/media/logos/club-${x.h}.png`, away_logo: `https://sportscore.com/media/logos/club-${x.a}.png`, home_score: isDone(x) ? String(x.hg) : live ? String(x.lh ?? 0) : null, away_score: isDone(x) ? String(x.ag) : live ? String(x.la ?? 0) : null,
+          status: isDone(x) ? "finished" : live ? "live" : "upcoming", status_text: isDone(x) ? "Ended" : live ? (x.ht ? "Half time" : x.second ? "2nd half" : "1st half") : "Not started", time: new Date(x.ts).toISOString().replace("Z", "+00:00"), competition: lid === 16 ? "Süper Lig" : "x" };
       });
       return { ok: true, json: async () => ({ sport: "football", date: day, count: rows.length, matches: rows }) };
     }

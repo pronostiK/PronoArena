@@ -145,6 +145,9 @@ const SP_FINISHED = ["FT", "AET", "PENS"];
 const SP_SKIP = ["Postponed", "Cancelled", "Canceled", "Suspended", "Abandoned"];
 export const SP_RECENT_DAYS = 2;     // aujourd'hui et hier, à chaque mise à jour
 export const spLeagueIds = (src) => src.slice(3).split("+").map(Number);
+// SportAPI donne un simple nom de fichier (ex. « celtic.svg »), pas une adresse : le navigateur ne le trouve pas et affiche les initiales.
+// On ne garde qu'une vraie adresse ; sinon null, et les logos SportScore (clublogos.js) peuvent s'appliquer.
+const spLogo = (u) => (/^https?:\/\//.test(u || "") ? u : null);
 const isoDay = (ts) => new Date(ts).toISOString().slice(0, 10);
 
 async function spDay(env, date) {
@@ -204,8 +207,8 @@ export async function refreshSportapi(env, srcs, season, now = Date.now(), extra
       for (const st of state.values()) {
         if (!st.ids.includes(lid)) continue;
         if (SP_SKIP.includes(m.status)) { st.up.delete(id); continue; }
-        st.teams[h] = [m.home_team || "Domicile", m.home_logo || null];
-        st.teams[a] = [m.away_team || "Extérieur", m.away_logo || null];
+        st.teams[h] = [m.home_team || "Domicile", spLogo(m.home_logo)];
+        st.teams[a] = [m.away_team || "Extérieur", spLogo(m.away_logo)];
         if (SP_FINISHED.includes(m.status)) {
           const hg = Number(m.home_score), ag = Number(m.away_score);
           if (m.home_score == null || m.away_score == null || !Number.isFinite(hg) || !Number.isFinite(ag)) continue;

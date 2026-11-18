@@ -1132,6 +1132,21 @@
       <p>Duel Prono n'est pas un opérateur de jeux d'argent et ne prend aucun pari. Les probabilités affichées sont des estimations statistiques, sans garantie de résultat. Le jeu est gratuit, sans mise ni gain.</p>
       <h2>Propriété intellectuelle</h2>
       <p>Le nom, le logo, les textes et les calculs de Duel Prono ne peuvent pas être reproduits sans autorisation. Les noms et emblèmes des clubs et des compétitions appartiennent à leurs propriétaires respectifs.</p>` },
+    "installer": { kicker: "Sur ton téléphone", titre: "Installer l'application", html: `
+      <h2>Sur iPhone</h2>
+      <ol>
+        <li>Ouvre duelprono.com dans Safari.</li>
+        <li>Touche le bouton Partager (le carré avec une flèche vers le haut).</li>
+        <li>Choisis « Sur l'écran d'accueil », puis « Ajouter ».</li>
+      </ol>
+      <h2>Sur Android</h2>
+      <ol>
+        <li>Ouvre duelprono.com dans Chrome.</li>
+        <li>Touche le menu ⋮ en haut à droite.</li>
+        <li>Choisis « Installer l'application » (ou « Ajouter à l'écran d'accueil »).</li>
+      </ol>
+      <p>Tu peux aussi télécharger l'<a href="https://github.com/pronostiK/PronoArena/releases/download/apk-latest/DuelProno.apk">application Android (APK)</a> : ouvre le fichier téléchargé et autorise l'installation depuis cette source quand Android te le demande.</p>
+      <p>L'icône Duel Prono apparaît sur ton écran d'accueil et le site s'ouvre en plein écran, comme une application. Elle se met à jour toute seule.</p>` },
   };
   const DOCS_EN = {
     "a-propos": { kicker: "Who we are", titre: "About", html: `
@@ -1232,6 +1247,21 @@
       <p>Duel Prono is not a gambling operator and takes no bets. The probabilities shown are statistical estimates, with no guarantee of results. The game is free, with no stakes and no winnings.</p>
       <h2>Intellectual property</h2>
       <p>The Duel Prono name, logo, texts and calculations may not be reproduced without permission. The names and emblems of clubs and competitions belong to their respective owners.</p>` },
+    "installer": { kicker: "On your phone", titre: "Install the app", html: `
+      <h2>On iPhone</h2>
+      <ol>
+        <li>Open duelprono.com in Safari.</li>
+        <li>Tap the Share button (the square with an arrow pointing up).</li>
+        <li>Choose "Add to Home Screen", then "Add".</li>
+      </ol>
+      <h2>On Android</h2>
+      <ol>
+        <li>Open duelprono.com in Chrome.</li>
+        <li>Tap the ⋮ menu at the top right.</li>
+        <li>Choose "Install app" (or "Add to Home screen").</li>
+      </ol>
+      <p>You can also download the <a href="https://github.com/pronostiK/PronoArena/releases/download/apk-latest/DuelProno.apk">Android app (APK)</a>: open the downloaded file and allow installation from this source when Android asks.</p>
+      <p>The Duel Prono icon appears on your home screen and the site opens full screen, like an app. It updates by itself.</p>` },
   };
   const DOCS = I18N.lang === "en" ? DOCS_EN : DOCS_FR;
   function renderDoc(key) {

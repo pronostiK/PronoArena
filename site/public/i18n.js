@@ -86,7 +86,7 @@
   // ---------- Textes fixes ----------
   const D = {
     // Navigation, pied de page
-    "Connexion": "Log in", "Arène": "Arena", "À propos": "About", "Conditions d'utilisation": "Terms of use", "Confidentialité": "Privacy", "Mentions légales": "Legal notice",
+    "Connexion": "Log in", "Arène": "Arena", "À propos": "About", "Conditions d'utilisation": "Terms of use", "Confidentialité": "Privacy", "Mentions légales": "Legal notice", "Installer l'application": "Install the app",
     "Probabilités calculées par un modèle statistique, sans garantie de résultat. Duel Prono est un jeu gratuit, sans mise ni gain d'argent. Réservé aux 18 ans et plus.": "Probabilities calculated by a statistical model, with no guarantee of results. Duel Prono is a free game, with no stakes and no cash prizes. For ages 18 and over.",
     // Compétitions et pays
     "Ligue des champions": "Champions League", "Süper Lig": "Turkish Super Lig", "Ligue des Nations": "Nations League", "Coupe du monde": "World Cup",

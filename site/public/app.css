@@ -402,7 +402,7 @@ a.more { color: var(--orange); }
 .doc h2 { margin-top: 10px; }
 .doc h2:first-child { margin-top: 0; }
 .doc p, .doc li { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-2); }
-.doc ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.doc ul, .doc ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .doc a { text-decoration: underline; text-underline-offset: 3px; }
 .doc .maj { font-size: 12px; color: var(--muted); }
 .check { flex-direction: row !important; align-items: flex-start; gap: 10px !important; font-weight: 400 !important; font-size: 13px !important; line-height: 1.45; color: var(--text-2); }

@@ -1,0 +1,49 @@
+name: Export xG (Bzzoiro)
+
+# Récupère les xG par match des 5 grands championnats (saisons 2023/24 à 2025/26) depuis Bzzoiro (BSD),
+# pour le test xG du moteur. Quota gratuit : 7 500 requêtes par jour ; l'export en demande environ 6 000.
+# Le script reprend où il s'est arrêté et s'arrête seul quand tout est récupéré.
+# L'état est gardé dans le cache GitHub (pas dans le dépôt, qui est public) ; le CSV est déposé en
+# « artifact » (onglet Actions, rubrique Artifacts de l'exécution), conservé 14 jours.
+# Secret requis : BZZOIRO_TOKEN (Settings > Secrets and variables > Actions).
+
+on:
+  schedule:
+    - cron: "20 1 * * *"   # 01h20 UTC : le quota du jour est remis à zéro à 00h00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: État précédent (cache)
+        uses: actions/cache@v4
+        with:
+          path: xg-bzz
+          key: xg-bzz-${{ github.run_id }}
+          restore-keys: xg-bzz-
+
+      - name: Export des xG
+        env:
+          BZZOIRO_TOKEN: ${{ secrets.BZZOIRO_TOKEN }}
+        run: |
+          mkdir -p xg-bzz
+          cd xg-bzz
+          python3 ../test/lab/export_xg_bzzoiro.py --limite 7000
+
+      - name: CSV et résumé (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xg-bzzoiro
+          path: |
+            xg-bzz/xg_bzzoiro.csv
+            xg-bzz/xg_bzzoiro_resume.txt
+          retention-days: 14
+          if-no-files-found: ignore

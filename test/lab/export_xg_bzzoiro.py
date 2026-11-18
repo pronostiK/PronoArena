@@ -20,6 +20,7 @@ Utilisation locale (Windows) :
 """
 import argparse
 import csv
+import http.client
 import json
 import os
 import sys
@@ -62,7 +63,7 @@ class Client:
         url = BASE + chemin + ("?" + urllib.parse.urlencode(params) if params else "")
         req = urllib.request.Request(url, headers={"Authorization": "Token " + self.cle,
                                                    "User-Agent": "export-duelprono/1.0"})
-        for essai in (1, 2, 3):
+        for essai in (1, 2, 3, 4, 5):
             self.n += 1
             try:
                 with urllib.request.urlopen(req, timeout=40) as r:
@@ -77,12 +78,12 @@ class Client:
                     raise Arret("Quota ou débit atteint (HTTP 429). Reprise à la prochaine exécution.")
                 if e.code == 404:
                     return None
-                if essai == 3:
+                if essai == 5:
                     raise Arret(f"Erreur HTTP {e.code} sur {chemin} : {corps}")
-            except (urllib.error.URLError, TimeoutError, ValueError) as e:
-                if essai == 3:
+            except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as e:
+                if essai == 5:
                     raise Arret(f"Erreur réseau sur {chemin} : {type(e).__name__} {e}")
-            time.sleep(3 * essai)
+            time.sleep(5 * essai)
 
 
 def liste(d, cle=None):

@@ -164,3 +164,21 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - **Cumul avec le salaire** : possible, obligation de loyauté envers l'employeur ; relire le contrat de travail.
 - **Fournisseurs de données** : relire les conditions d'usage commercial (SportScore déjà à clarifier ; football-data, SportAPI, Soccer Data, ESPN).
 - Statut : micro-entreprise = option la plus légère ; EI au réel ou société (SASU/EURL) possibles ; à valider avec l'URSSAF ou un comptable.
+
+## 18/11/2026 — Test xG du modèle (état en fin de conversation)
+
+**Objectif** : tester le modèle avec 50 % buts réels / 50 % xG (une seule variante fixée à l'avance, moteur inchangé sauf gain confirmé sur période fraîche ; Perplexity audite le calcul). Il faut des xG historiques par match, donc une source réelle.
+
+**Source retenue : Bzzoiro (BSD)** — gratuite, 7 500 requêtes/jour, clé dans le secret GitHub `BZZOIRO_TOKEN` (jamais dans le chat). API `https://sports.bzzoiro.com/api/v2`, en-tête `Authorization: Token <clé>`. Sonde validée sur la Premier League 2023/24 : xG mesuré par tir. Règle : ne garder que `xg_estimated == false` pour le test, ne jamais mélanger mesuré et estimé. Pas encore vérifiés : qualité xG des 4 autres ligues et de 2024/25–2025/26, licence d'affichage public des données brutes (à lire avant tout remplacement de la source du robot).
+
+**Export automatique** : `test/lab/export_xg_bzzoiro.py` + workflow `.github/workflows/xg-export-bzzoiro.yml` (cron 01h20 UTC + lancement manuel). 5 grands championnats × 3 saisons (~5 900 requêtes). Reprenable via cache. Sorties (artefact `xg-bzzoiro`, 14 jours) : `xg_bzzoiro.csv` et `xg_bzzoiro_resume.txt`.
+
+**Run n°1 (18/11)** : a planté après 31 min sur `ConnectionResetError` (Bzzoiro a coupé la connexion). Cause : erreur réseau non rattrapée, et le cache d'état n'était pas sauvegardé en cas d'échec, donc progression perdue. Corrigé : 5 tentatives avec attente, erreurs réseau rattrapées, sauvegarde du cache même en échec. À relancer à la main (Actions → Export xG (Bzzoiro) → Run workflow), puis récupérer l'artefact. Un artefact partiel du run n°1 existe (62 Ko).
+
+**Ensuite** : lire le résumé (mesuré / estimé / sans xG par ligue et saison), puis lancer le test de la variante 50/50 en exploratoire (périodes déjà vues), verdict réel sur matchs frais, audit Perplexity.
+
+**Idée à valider plus tard** : remplacer la source à 50 requêtes/jour du robot par Bzzoiro (plus de championnats). Phase 1 : fonctionnement en parallèle 2–3 semaines, ancienne source gardée en secours.
+
+**Export parallèle SportsAPI Pro** (PL 23/24, ~100 req/jour) : workflow `xg-export.yml`, toujours actif.
+
+**Non encore documenté ailleurs** : appli Android/APK et page d'installation, logos Süper Lig, filtre ligues 7 jours, audit `marche.py`.

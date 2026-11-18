@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: État précédent (cache)
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: xg-bzz
           key: xg-bzz-${{ github.run_id }}
@@ -36,6 +36,13 @@ jobs:
           mkdir -p xg-bzz
           cd xg-bzz
           python3 ../test/lab/export_xg_bzzoiro.py --limite 7000
+
+      - name: Sauvegarde de l'état (même en cas d'erreur)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: xg-bzz
+          key: xg-bzz-${{ github.run_id }}
 
       - name: CSV et résumé (artifact)
         if: always()

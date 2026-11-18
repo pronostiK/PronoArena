@@ -1,0 +1,7 @@
+{
+  "appId": "com.duelprono.app",
+  "appName": "Duel Prono",
+  "webDir": "www",
+  "server": { "url": "https://duelprono.com", "cleartext": false },
+  "android": { "backgroundColor": "#121212" }
+}

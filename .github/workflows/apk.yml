@@ -1,0 +1,37 @@
+# Construit l'application Android (APK) de Duel Prono et la publie dans « Releases » (tag apk-latest).
+# Lancement : onglet Actions > « APK Android » > Run workflow (ou automatiquement quand app-android/ change).
+name: APK Android
+on:
+  workflow_dispatch:
+  push:
+    paths: ["app-android/**", ".github/workflows/apk.yml"]
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm install
+      - run: npx cap add android
+      - run: npx capacitor-assets generate --android
+      - run: npx cap sync android
+      - name: Construire l'APK
+        working-directory: app-android/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Renommer
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk DuelProno.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: DuelProno-apk, path: app-android/DuelProno.apk }
+      - name: Publier (Releases, tag apk-latest)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release delete apk-latest --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
+          gh release create apk-latest DuelProno.apk --repo "$GITHUB_REPOSITORY" --title "Duel Prono (APK Android)" --notes "Application Android de Duel Prono (version de test, signature de développement). Télécharger DuelProno.apk, l'ouvrir sur le téléphone et accepter l'installation depuis cette source."

@@ -36,7 +36,7 @@ Nuls annoncés 25,7 % / 26,1 % (A / B) contre 25,5 % / 25,8 % observés : pas de
 1. Les pistes 1 et 2 n'ont pas de finaliste : la période C n'a pas été utilisée pour elles.
 2. Piste 3 : les paramètres Elo sont ajustés sur A (donc optimistes sur A) ; α retenu sur A puis jugé sur B et C.
 3. Piste 2 : ρ non estimé avec les forces ; pas de paramètres propres domicile/extérieur (le moteur actuel en a, poids 0,3).
-4. Comparaison aux bookmakers sur cotes moyennes (probablement de clôture) : légèrement favorable à eux.
+4. Comparaison aux bookmakers sur cotes moyennes : dans cet export, avgH/avgD/avgA contenaient les cotes de clôture (précisé le 18/11/2026). Légèrement favorable à eux.
 5. Plusieurs dizaines de variantes testées : un petit gain isolé serait à interpréter avec prudence (comparaisons multiples).
 6. Non testé : Poisson bivarié / binomiale négative (nuls bien calibrés), xG, absences, cotes.
 
@@ -52,3 +52,9 @@ Script : `recalibration-favoris.py <baseline.json>` (baseline produit par `dump-
 
 ## Prochaine étape — test xG (non lancé)
 Une seule variante fixée à l'avance : 50 % buts / 50 % xG (buts marqués et encaissés dans les forces, moyennes de championnat recalculées avec le même mélange), autres réglages inchangés, mêmes matchs, uniquement des xG de matchs antérieurs. Poids = choix de test, pas un optimum. C reste exploratoire : une nouvelle période intacte devra confirmer. Bloquant : fichier xG historique des 5 grands championnats (Understat à vérifier : accès, couverture, conditions d'utilisation).
+
+## Piste 5 — comparaison du moteur au marché (18/11/2026)
+Scripts : `dump-baseline-cotes.mjs` puis `marche.py` (retrait de la marge : proportionnel, puissance, Shin ; mélange à poids unique ; écarts de Brier avec rééchantillonnage regroupé par date).
+- **Conclusion : sur les 7 437 matchs étudiés, le marché obtient un meilleur Brier que Duel Prono, avant clôture comme à la clôture (0,58571 et 0,58381 avec Shin, contre 0,60057). Le mélange à poids unique testé n'améliore pas le marché seul. Cela ne démontre pas que le moteur n'apporte jamais d'information utile.**
+- Précisions sur les données : dans cet export, avgH/avgD/avgA contenaient les cotes de clôture.
+- Précisions sur le calcul : l'Elo des clubs était exporté (champ `elo` de `dump-baseline-cotes.mjs`), mais il n'entrait pas dans le calcul 1/N/2 testé. Le test compare les probabilités du moteur seul (proba1, probaN, proba2) aux cotes.

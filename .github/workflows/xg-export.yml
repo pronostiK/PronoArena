@@ -1,0 +1,45 @@
+name: Export xG (SportsAPI Pro)
+
+# Récupère chaque jour, dans la limite du quota gratuit (100 requêtes/jour), les xG par match
+# de la Premier League 2023/24, pour le test xG du moteur. Le script reprend où il s'est arrêté.
+# L'état est gardé dans le cache GitHub (pas dans le dépôt, qui est public) ; le CSV final est
+# déposé en « artifact » (onglet Actions, rubrique Artifacts de l'exécution), conservé 14 jours.
+# Secret requis : SPORTS_API_KEY (Settings > Secrets and variables > Actions).
+
+on:
+  schedule:
+    - cron: "30 0 * * *"   # 00h30 UTC : le quota du jour est remis à zéro à 00h00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: État précédent (cache)
+        uses: actions/cache@v4
+        with:
+          path: xg-etat
+          key: xg-etat-${{ github.run_id }}
+          restore-keys: xg-etat-
+
+      - name: Export des xG
+        env:
+          SPORTS_API_KEY: ${{ secrets.SPORTS_API_KEY }}
+        run: |
+          mkdir -p xg-etat
+          cd xg-etat
+          python3 ../test/lab/export_xg_sportsapipro.py --tournoi 17 --saison 23/24 --nom PL --limite 95
+
+      - name: CSV (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: xg-sportsapipro-PL-23-24
+          path: xg-etat/*.csv
+          retention-days: 14
+          if-no-files-found: ignore

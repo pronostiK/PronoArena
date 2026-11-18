@@ -58,6 +58,12 @@ export function clubLogo(map, name) {
   return bs >= 0.5 && !tie ? best : null;
 }
 
+// Anciennes données déjà enregistrées : SportAPI donnait un simple nom de fichier (« celtic.svg ») au lieu d'une adresse.
+// Tout logo qui n'est pas une adresse http(s) est retiré (le navigateur ne le trouverait pas) pour laisser place aux logos SportScore.
+export function dropBareLogos(teams) {
+  for (const t of Object.values(teams || {})) if (t[1] && !/^https?:\/\//.test(t[1])) t[1] = null;
+}
+
 // teams : { id: [nom, logo] } ; tout ou rien : rien n'est modifié si un seul club manque.
 export function applyClubLogos(teams, map) {
   const found = {};

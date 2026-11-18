@@ -7,7 +7,7 @@ import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
 import { buildModel, computeTeamRatings, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
 import { flagTeams, flagUrl } from "./flags.js";
-import { usesClubLogos, logoKey, applyClubLogos, clubLogo } from "./clublogos.js";
+import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 export const predsKey = (leagueId, season) => `preds:${leagueId}@${season}`;
@@ -91,6 +91,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const cur = await kvGet(env, srcKey(src, season));
   if (!cur) return null;
   const prev = lg.cup || secours ? null : await kvGet(env, srcKey(src, season - 1));
+  if (provider === "sp") { dropBareLogos(cur.teams); if (prev) dropBareLogos(prev.teams); } // noms de fichier SportAPI déjà enregistrés : ce ne sont pas des logos
   if (lg.national && provider === "sp") { flagTeams(cur.teams); if (prev) flagTeams(prev.teams); } // pas de logos chez SportAPI : drapeaux
   if (usesClubLogos(lg) && provider === "sp") { const lr = await kvGet(env, logoKey(leagueId)); if (lr?.m && applyClubLogos(cur.teams, lr.m) && prev) applyClubLogos(prev.teams, lr.m); } // logos des clubs via SportScore, tout ou rien
 

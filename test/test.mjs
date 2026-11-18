@@ -7,6 +7,7 @@ import { calculate_poisson_match, buildModel, calculate_match_prediction, teamSt
 import { weekOf, pointsFor } from "../src/arena.js";
 import { nationName, nationsPredict, fitLambdas, applyResults } from "../src/nations.js";
 import SEED from "../src/nations-seed.js";
+import { dropBareLogos, applyClubLogos } from "../src/clublogos.js";
 
 let ok = 0, ko = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : ko++; console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
@@ -45,6 +46,13 @@ console.log(`     info : ESPN ${calls.espn - espn1} appels/jour`);
 check("Appels SportAPI : très en dessous du quota (2 000/jour jusqu'au 30/11, puis 7 000/mois ≈ 230/jour)", calls.sp - sp1 < 200, `${calls.sp - sp1} appels/jour`);
 check("SportAPI : la clé est envoyée dans l'en-tête X-Api-Key", SIM.spAuth === "sp_test");
 
+// ---- 1 ter. Anciennes données déjà enregistrées avec des noms de fichier (bug du 18/11/2026) ----
+{
+  const teams = { a: ["Celtic", "scottish-premiership--celtic.svg"], b: ["St. Mirren", "wiki2-24635.png"], c: ["Rangers", "https://x.test/r.png"] };
+  dropBareLogos(teams);
+  const okApply = applyClubLogos(teams, { Celtic: "https://s.test/celtic.svg", "St. Mirren": "https://s.test/mirren.svg" });
+  check("Logos : un nom de fichier enregistré n'est pas un logo, l'écusson SportScore le remplace", okApply && teams.a[1] === "https://s.test/celtic.svg" && teams.b[1] === "https://s.test/mirren.svg" && teams.c[1] === "https://x.test/r.png", JSON.stringify(teams));
+}
 // ---- 1 bis. SportAPI : Turquie, Belgique, Écosse ----
 console.log("\n— SportAPI —");
 for (const [id, nom, n] of [[203, "Süper Lig (Turquie)", 18], [144, "Pro League (Belgique)", 16], [179, "Scottish Premiership (Écosse)", 12]]) {

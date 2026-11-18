@@ -177,6 +177,8 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 
 **Ensuite** : lire le résumé (mesuré / estimé / sans xG par ligue et saison), puis lancer le test de la variante 50/50 en exploratoire (périodes déjà vues), verdict réel sur matchs frais, audit Perplexity.
 
+**Run n°2 (18/11, soir)** : relancé à la main par l'utilisateur après la correction, **en cours** au moment de la passation (résultat inconnu). **Prochaine étape (19/11)** : vérifier dans GitHub → Actions que le run est terminé (vert), récupérer l'artefact `xg-bzzoiro` (`xg_bzzoiro.csv` + `xg_bzzoiro_resume.txt`), lire le résumé (mesuré / estimé / sans xG par ligue et saison), puis lancer le test 50/50. Si le run a de nouveau échoué : lire les journaux, ne pas tout relancer sans comprendre (le cache reprend là où ça s'est arrêté).
+
 **Idée à valider plus tard** : remplacer la source à 50 requêtes/jour du robot par Bzzoiro (plus de championnats). Phase 1 : fonctionnement en parallèle 2–3 semaines, ancienne source gardée en secours.
 
 **Export parallèle SportsAPI Pro** (PL 23/24, ~100 req/jour) : workflow `xg-export.yml`, toujours actif.

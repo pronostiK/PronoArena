@@ -4,12 +4,12 @@
 // puis recalcule les pronostics des compétitions concernées.
 // ============================================================
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
-import { kvGet, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS, refreshSportapi, resetSpBudget, spBudgetLeft } from "./sources.js";
+import { kvGet, srcKey, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS, refreshSportapi, resetSpBudget, spBudgetLeft } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcoming, allKey } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
 import { refreshXg } from "./xg.js";
-import { refreshClubLogos } from "./clublogos.js";
+import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
 import { LEAGUES } from "./config.js";
 
@@ -217,5 +217,14 @@ export async function robotStatus(env, now = Date.now()) {
   const total = sources.length, ok = sources.filter((s) => s.etat === "à jour").length;
   const pause = (index._espnPause?.until || 0) > now ? { jusqua: new Date(index._espnPause.until).toISOString(), raison: index._espnPause.raison, refusConsecutifs: index._espnPause.n } : null;
   const selections = Object.fromEntries(Object.entries(index).filter(([k]) => k.startsWith("selections:")).map(([k, v]) => [LEAGUES[k.slice(11)]?.name || k, v]));
-  return { saison: season, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  // Logos des clubs (SportScore) : pour chaque championnat concerné, clubs sans écusson (tout ou rien : un seul manquant = aucun écusson)
+  const logos = {};
+  for (const [id, lg] of Object.entries(LEAGUES)) {
+    if (!usesClubLogos(lg)) continue;
+    const [rec, cur] = [await kvGet(env, logoKey(id)), await kvGet(env, srcKey(lg.src, season))];
+    const noms = [...new Set(Object.values(cur?.teams || {}).map((t) => t[0]))];
+    const manquants = noms.filter((n) => !clubLogo(rec?.m, n));
+    logos[lg.name] = { clubsConnus: noms.length, clubsSportScore: Object.keys(rec?.m || {}).length, jours: rec ? `${rec.n}/80${rec.done ? " (terminé)" : ""}` : "pas commencé", manquants, noms_sportscore: Object.keys(rec?.m || {}) };
+  }
+  return { saison: season, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

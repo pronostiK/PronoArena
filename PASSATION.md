@@ -82,7 +82,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Compétitions ajoutées (identifiants du site) : 203 Süper Lig (sp:16), 144 Pro League belge (sp:5), 179 Scottish Premiership (sp:88), 6 CAN (sp:72+123, sélections : Elo des sélections, rang dans le groupe tant que les groupes se lisent). Logos ESPN 18, 6, 45, 76.
 - Coupe de France (sp:28) NON ajoutée : beaucoup de clubs amateurs sans logo (tout ou rien). À reprendre avec un écusson par défaut.
 - Piège : les sources `sp:` ne doivent jamais entrer dans les compositions (`compos.js`) ; `FREE_PRIORITY` (`build.js`) doit contenir tout nouvel identifiant (sinon -1 = passe devant la Ligue des champions).
-- Route temporaire `/test-sp-dump` (copie des matchs SportAPI enregistrés, pour le test sur matchs passés) : À SUPPRIMER après lecture.
+- Route temporaire `/test-sp-dump` : supprimée le 18/11/2026.
 
 ## Tests
 - `npm test` : monde simulé complet (robot, coupes, secours, Verdict, compositions, quotas, Arène avec un vrai SQLite) — 160 tests, plus 4 contrôles de traduction (`test/i18n.mjs`).
@@ -120,7 +120,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - Poussé : priorité de remplissage de l'historique sp (Turquie/Belgique/Écosse paraissent quand sp:16/5/88@2025 sont « à jour » dans /status) ; drapeaux CAN (src/flags.js, flagcdn) ; compétition 6 renommée « Qualifications CAN » (à renommer « CAN » à l'approche de la phase finale) ; `_natRev` = 2 (reconstruction des sélections). Tests : 163 réussis.
 - À vérifier avec l'utilisateur : nom + drapeaux visibles sur le site (sinon vider le cache / noms SportAPI non reconnus à ajouter dans flags.js) ; /status après remplissage ; Arménie–Chypre « 3e/2e du groupe ».
 - Soccer Data (secret SOCCERDATA_KEY déjà ajouté par l'utilisateur, plan gratuit 50 appels/j, 10/min, saison en cours seule) : xG réels confirmés sur PL, Liga, Serie A, Bundesliga, Ligue 1 (`/matches/{id}/stats` → overview.expected_goals.all) ; blessures : `GET /teams/{id}/injuries-suspensions` (confirmé, ids joueurs sans noms). Pas d'abonnement avant preuve d'un gain sur le modèle.
-- Sondes TEMPORAIRES à supprimer de src/index.js : /test-soccerdata, /test-soccerdata2, /test-soccerdata3, /test-soccerdata4, /test-sp-dump, (la sonde /test-sportscore a été retirée) (après le backtest Turquie/Belgique/Écosse).
+- Sondes temporaires `/test-soccerdata` (1 à 4) et `/test-sp-dump` : supprimées le 18/11/2026.
 - Attente : réponses des auditeurs (Perplexity / ChatGPT) ; recalibration éventuelle des gros favoris seulement avec l'accord de l'utilisateur. API-Football : retiré du projet, ne plus le proposer.
 
 ## 13/11/2026 (suite, matin)
@@ -145,7 +145,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 - `/status` → `xg` : appels du jour, par compétition `matchs / avecXg / enAttente / sansCorrespondance` (équipes Soccer Data sans équivalent chez nous : à ajouter dans `ALIAS` de `src/xg.js`, ex. PSG, Wolves).
 - Rappel : le gratuit ne donne que la saison en cours ; les compositions et blessures restent absentes (Soccer Data Pro 19 $/mois, SportAPI ids différents).
 - Tests : 207 réussis (section « xG (Soccer Data) » dans test/test.mjs ; Soccer Data simulé dans test/sim.mjs).
-- Sondes TEMPORAIRES restantes à supprimer de src/index.js : /test-soccerdata, /test-soccerdata2, /test-soccerdata3, /test-soccerdata4, /test-sp-dump.
+- Sondes temporaires `/test-soccerdata` (1 à 4) et `/test-sp-dump` : supprimées le 18/11/2026.
 
 ## Stratégie de lancement commercial (décidée le 16/11/2026)
 Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnement, aucun système de paiement pour l'instant. Ne pas confondre développement technique et lancement commercial. Aucune fonctionnalité existante modifiée par cette décision.

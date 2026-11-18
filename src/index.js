@@ -159,20 +159,6 @@ export default {
         return json({ success: true, saison: season, options: { motDePasseOublie: resetAvailable(env) }, competitions: list }, 200, { "Cache-Control": "public, max-age=300" });
       }
 
-      if (path === "/diag/espn") {
-        // Diagnostic : ce qu'ESPN accepte réellement (formats de période)
-        const lg = q("league") || "uefa.europa";
-        const d = new Date(), f = (x) => x.toISOString().slice(0, 10).replace(/-/g, "");
-        const minus = (n) => f(new Date(d.getTime() - n * 86400000));
-        const tests = { jour: f(d), "7 jours": `${minus(7)}-${f(d)}`, "30 jours": `${minus(30)}-${f(d)}`, "90 jours": `${minus(90)}-${f(d)}` };
-        const out = {};
-        for (const [k, range] of Object.entries(tests)) for (const lim of ["", "&limit=500", "&limit=1000"]) {
-          const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${range}${lim}`, { headers: ESPN_HEADERS });
-          out[`${k}${lim}`] = r.ok ? `${r.status} · ${((await r.json()).events || []).length} matchs` : `${r.status}`;
-        }
-        return json({ success: true, competition: lg, resultats: out });
-      }
-
       // Scores en direct : appelé par le site une fois par minute pendant les matchs (voir src/live.js)
       if (path === "/live") return json(await buildLive(env), 200, { "Cache-Control": "public, max-age=30" });
 

@@ -46,11 +46,16 @@ export async function refreshClubLogos(env, now = Date.now()) {
 
 // Cherche le logo d'un club par son nom (noms légèrement différents d'un fournisseur à l'autre).
 // Le meilleur candidat doit être net : s'il y a égalité entre deux clubs (Club Brugge / Cercle Brugge), on ne prend rien.
-export function clubLogo(map, name) {
+// SportScore écrit « Rangers F.C. », « Heart of Midlothian F.C. », « Oud-Heverlee Leuven » : on retire les points (« F.C. » = « FC », mot ignoré)
+// et on traduit les noms courts de SportAPI qui n'ont aucun mot en commun avec ceux de SportScore.
+const ALIAS = { hearts: "Heart of Midlothian", "oh leuven": "Oud-Heverlee Leuven" };
+const clean = (n) => String(n || "").replace(/\./g, "");
+export function clubLogo(map, rawName) {
+  const name = ALIAS[clean(rawName).toLowerCase().trim()] || clean(rawName);
   const A = nameTokens(name);
   let best = null, bs = 0, tie = false;
-  for (const [n, u] of Object.entries(map || {})) {
-    const B = nameTokens(n);
+  for (const [n0, u] of Object.entries(map || {})) {
+    const n = clean(n0), B = nameTokens(n);
     if (!A.length || !B.length || Math.min(nameSim(name, n), nameSim(n, name)) < 0.99) continue;
     const s = Math.min(A.length, B.length) / Math.max(A.length, B.length);
     if (s > bs) { bs = s; best = u; tie = false; } else if (s === bs && u !== best) tie = true;

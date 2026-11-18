@@ -7,7 +7,7 @@ import { calculate_poisson_match, buildModel, calculate_match_prediction, teamSt
 import { weekOf, pointsFor } from "../src/arena.js";
 import { nationName, nationsPredict, fitLambdas, applyResults } from "../src/nations.js";
 import SEED from "../src/nations-seed.js";
-import { dropBareLogos, applyClubLogos } from "../src/clublogos.js";
+import { dropBareLogos, applyClubLogos, clubLogo } from "../src/clublogos.js";
 
 let ok = 0, ko = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : ko++; console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
@@ -52,6 +52,14 @@ check("SportAPI : la clé est envoyée dans l'en-tête X-Api-Key", SIM.spAuth ==
   dropBareLogos(teams);
   const okApply = applyClubLogos(teams, { Celtic: "https://s.test/celtic.svg", "St. Mirren": "https://s.test/mirren.svg" });
   check("Logos : un nom de fichier enregistré n'est pas un logo, l'écusson SportScore le remplace", okApply && teams.a[1] === "https://s.test/celtic.svg" && teams.b[1] === "https://s.test/mirren.svg" && teams.c[1] === "https://x.test/r.png", JSON.stringify(teams));
+}
+{
+  // Noms réels relevés sur /status le 18/11/2026 : SportScore (à droite) contre SportAPI (à gauche)
+  const sco = { "Heart of Midlothian F.C.": "H", "Falkirk": "FA", "Celtic FC": "CE", "Kilmarnock F.C.": "KI", "St Johnstone F.C.": "SJ", "Dundee F.C.": "D", "Dundee United": "DU", "Motherwell F.C.": "MO", "Aberdeen F.C.": "AB", "Hibernian F.C.": "HI", "St Mirren F.C.": "SM", "Rangers F.C.": "RA" };
+  const nos = ["Rangers", "Aberdeen", "Hibernian", "Kilmarnock", "Motherwell", "Hearts", "Celtic", "Falkirk", "Dundee", "Dundee United", "St. Johnstone", "St. Mirren"];
+  const res = Object.fromEntries(nos.map((n) => [n, clubLogo(sco, n)]));
+  check("Logos Écosse : les 12 clubs retrouvés, Dundee n'a pas l'écusson de Dundee United", nos.every((n) => res[n]) && res.Dundee === "D" && res["Dundee United"] === "DU" && res.Hearts === "H", JSON.stringify(res));
+  check("Logos Belgique : OH Leuven retrouvé (Oud-Heverlee Leuven), Club Brugge ≠ Cercle Brugge", clubLogo({ "Oud-Heverlee Leuven": "L", "Club Brugge": "CB", "Cercle Brugge": "CE" }, "OH Leuven") === "L" && clubLogo({ "Club Brugge": "CB", "Cercle Brugge": "CE" }, "Club Brugge") === "CB");
 }
 // ---- 1 bis. SportAPI : Turquie, Belgique, Écosse ----
 console.log("\n— SportAPI —");

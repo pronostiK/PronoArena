@@ -17,7 +17,7 @@ export async function refreshClubLogos(env, now = Date.now()) {
   for (const [id, lg] of Object.entries(LEAGUES)) {
     if (!usesClubLogos(lg)) continue;
     let rec = await kvGet(env, logoKey(id));
-    if (rec?.done && now - rec.done < REDO_MS) continue;
+    if (rec?.done && now - rec.done < (Object.keys(rec.m || {}).length ? REDO_MS : DAY)) continue; // rien trouvé : on réessaie le lendemain
     if (!rec || rec.done) rec = { m: rec?.m || {}, n: 0, done: 0 }; // nouveau passage (on garde ce qu'on sait déjà)
     let calls = 0;
     for (; calls < PER_TICK && rec.n < SCAN_DAYS; calls++, rec.n++) {
@@ -27,7 +27,7 @@ export async function refreshClubLogos(env, now = Date.now()) {
           const res = await fetch(`https://sportscore.com/api/v1/fixtures/?sport=football&competition=${slug}&date=${day}&limit=100`, { headers: { Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)", ...(env.SPORTSCORE_KEY ? { "X-Api-Key": env.SPORTSCORE_KEY } : {}) } });
           if (!res.ok) continue;
           const j = await res.json();
-          const ms = (j?.matches || []).filter((x) => lg.sc || new RegExp(lg.name.split(" ").pop(), "i").test(String(x.competition || "").normalize("NFD").replace(/[̀-ͯ]/g, "")) || /super lig/i.test(String(x.competition || "").normalize("NFD").replace(/[̀-ͯ]/g, "")));
+          const ms = (j?.matches || []).filter((x) => lg.sc || new RegExp(lg.name.split(" ").pop(), "i").test(String(x.competition || "").normalize("NFD").replace(/[̀-ͯ]/g, "")) || /super lig|(turk|trendyol).*super/i.test(String(x.competition || "").normalize("NFD").replace(/[̀-ͯ]/g, "")));
           for (const x of ms) {
             if (x.home && /^https?:\/\//.test(x.home_logo || "")) rec.m[x.home] = x.home_logo;
             if (x.away && /^https?:\/\//.test(x.away_logo || "")) rec.m[x.away] = x.away_logo;

@@ -64,6 +64,7 @@ export const resetEspnBudget = () => { espnBudget.left = ESPN_BUDGET; };
 export const espnBudgetLeft = () => espnBudget.left;
 // Prend un appel sur le budget ESPN du passage (cartons, fautes… des face-à-face : h2hstats.js). false = budget épuisé
 export const takeEspnCall = () => (espnBudget.left > 0 ? (espnBudget.left--, true) : false);
+export const giveBackEspnCalls = (n) => { espnBudget.left += n; };
 
 async function espnDay(league, ts) {
   if (espnBudget.left-- <= 0) throw new Error("ESPN : budget d'appels du passage épuisé");

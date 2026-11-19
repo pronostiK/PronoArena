@@ -61,7 +61,9 @@ export async function buildQueue(env, st, season) {
   const memo = new Map(), pools = new Map(), queued = new Set(), q = [];
   const compos = await kvGet(env, COMPOS_KEY);
   const idmap = compos?.idmap || {};
-  for (const m of up?.matchs || []) {
+  // Les matchs les plus proches d'abord : chaque face-à-face se complète d'un bloc et s'affiche dès que ses anciens matchs sont là
+  const ups = [...(up?.matchs || [])].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  for (const m of ups) {
     const pk = `${m.leagueId}|${m.source}`;
     if (!pools.has(pk)) pools.set(pk, await h2hPool(env, { source: m.source, leagueId: m.leagueId }, season, memo));
     const { all, names } = pools.get(pk);
@@ -77,8 +79,7 @@ export async function buildQueue(env, st, season) {
         f.src.startsWith("fd:") ? [idmap[f.homeId] || null, idmap[f.awayId] || null] : null]);
     }
   }
-  q.sort((a, b) => b[4] - a[4]); // les plus récents d'abord
-  return q;
+  return q; // ordre : match à venir le plus proche, puis ses anciens face-à-face
 }
 
 // Retrouve le match chez ESPN à partir du calendrier du jour (même équipes, même score)

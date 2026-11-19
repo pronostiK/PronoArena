@@ -206,10 +206,14 @@ console.log("\n— Face-à-face : cartons, fautes, hors-jeu, corners —");
   check("Moyenne par match pour l'équipe à domicile du match affiché", Math.abs(mdS.h2hResume.domicile.fautes - Math.round(avgD * 10) / 10) < 1e-9 && mdS.h2hResume.matchs === mdS.h2h.length, `fautes ${mdS.h2hResume.domicile.fautes}`);
   check("Aucune donnée interne envoyée au site", mdS.h2h.every((m) => !("cle" in m)));
   // Tous les matchs à venir de Ligue 1 et de Premier League ont leurs chiffres (rattrapage fini en 24 h)
-  let tot = 0, full = 0;
-  for (const lid of [61, 39]) for (const q of (await get(`/league-predictions?leagueId=${lid}`)).predictions.filter((x) => Date.parse(x.date) < SIM.now + 7 * 86400000)) {
+  let tot = 0, full = 0; const qAt = JSON.parse(env.store.get("h2hs:all")).qAt;
+  for (const lid of [61, 39]) for (const q of (await get(`/league-predictions?leagueId=${lid}`)).predictions.filter((x) => Date.parse(x.date) < qAt + 7 * 86400000)) { // matchs déjà dans la fenêtre de 7 jours lors de la dernière liste du robot
     const m2 = await get(`/match-details?matchId=${encodeURIComponent(q.matchId)}&source=football-data&teamDomId=${q.teams.domicile.id}&teamExtId=${q.teams.exterieur.id}&leagueId=${lid}`);
-    if (!m2.h2h.length) continue; tot++; if (m2.h2hResume && m2.h2h.every((m) => m.stats)) full++;
+    if (!m2.h2h.length) continue;
+    // Monde simulé : un match de Ligue 1 a été déplacé « en cours » après la copie ESPN (sim.mjs), ESPN ne peut donc pas le retrouver : on l'écarte
+    const moved = m2.h2h.some((m) => { const x = fdRows.concat(WORLD["fd:PL@2026"], WORLD["fd:PL@2025"]).find((y) => new Date(y.ts).toISOString().slice(0, 10) === m.date && y.hg === m.butsDomicile && y.ag === m.butsExterieur); return !x || Object.values(WORLD).flat().every((y) => y.id !== "E" + x.id || y.ts !== x.ts); });
+    if (moved) continue;
+    tot++; if (m2.h2hResume && m2.h2h.every((m) => m.stats)) full++;
   }
   check("Tous les face-à-face des 7 prochains jours complétés (Ligue 1, Premier League)", tot > 0 && full === tot, `${full}/${tot} matchs`);
   // Belgique (SportAPI) : dans le monde simulé, ESPN n'a pas ces matchs → tout ou rien, aucun chiffre
@@ -432,6 +436,9 @@ console.log("\n— Scores en direct —");
   // Coup d'envoi retardé (fréquent en CAN) : au relevé, SportAPI ne le donne pas encore « en direct » → nouvel essai après 5 min, pas 15
   const S = SIM.now, be2 = WORLD["sp:5@2026"].filter((m) => m !== be && m.ts > S + 3 * 3600000).sort((a, b) => a.ts - b.ts)[0];
   Object.assign(be2, { ts: S + 20 * 60000, lateUntil: S + 24 * 60000, lh: 0, la: 1 });
+  // Le robot doit relire SportAPI avant le coup d'envoi : on fait comme s'il ne l'avait pas relu depuis 4 h et savait qu'un match approche
+  // (sinon le test dépend du hasard des passages précédents, constaté le 19/11/2026 en déplaçant la collecte des cartons)
+  { const ix = JSON.parse(env.store.get("robot:index")); for (const k of Object.keys(ix)) if (k.startsWith("sp:") && k.endsWith("@2026")) { ix[k].updatedAt = S - 4 * 3600000; ix[k].nextTs = be2.ts; } env.store.set("robot:index", JSON.stringify(ix)); }
   for (const dt of [0, 10, 20]) await tick(env, S + dt * 60000);
   resetLive(); SIM.now = S + 21 * 60000;
   const r0 = (await get("/live")).matchs, sp0 = calls.sp;

@@ -4,7 +4,7 @@
 // puis recalcule les pronostics des compétitions concernées.
 // ============================================================
 import { currentSeason, robotSources, leaguesUsing } from "./config.js";
-import { kvGet, srcKey, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS, refreshSportapi, resetSpBudget, spBudgetLeft } from "./sources.js";
+import { kvGet, srcKey, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, takeEspnCall, giveBackEspnCalls, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS, refreshSportapi, resetSpBudget, spBudgetLeft } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcoming, allKey } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
@@ -146,6 +146,15 @@ export async function runRobot(env, now = Date.now()) {
     report.push(`${s.k}: ERREUR ${e.message}`);
   };
 
+  // Cartons, fautes, hors-jeu et corners des anciens face-à-face (ESPN, h2hstats.js). D'habitude : avec ce qui reste du budget ESPN
+  // après les sources. Mais pendant le remplissage d'une compétition ESPN, celui-ci prend tout le budget et la collecte n'avançait plus
+  // (vu le 19/11/2026 : 6 matchs en 2 h) ; dans ce cas, 4 appels sont mis de côté avant les sources. Jamais pendant une pause ESPN
+  // ni quand un match ESPN se joue. Le total d'appels ESPN par passage ne change pas (30 au plus).
+  const h2hOk = !espnPaused && !due.some((x) => x.urgent && x.src.startsWith("espn:"));
+  const espnFilling = due.some((x) => x.src.startsWith("espn:") && (!index[x.k] || index[x.k].complete === false));
+  let h2hReserve = 0;
+  if (h2hOk && espnFilling) while (h2hReserve < 4 && takeEspnCall()) h2hReserve++;
+
   for (const s of due) {
     if (s.src.startsWith("sp:")) {
       // SportAPI : toutes les sources "sp:" de cette saison sont mises à jour ensemble
@@ -176,9 +185,10 @@ export async function runRobot(env, now = Date.now()) {
     }
   }
 
-  // Cartons, fautes, hors-jeu et corners des anciens face-à-face (ESPN) : avec ce qui reste du budget ESPN du passage, 4 appels au plus
-  if (!espnPaused && espnBudgetLeft() >= 6) {
-    try { const r = await refreshH2HStats(env, season, now, Math.min(4, espnBudgetLeft() - 2)); if (r) report.push(r); }
+  giveBackEspnCalls(h2hReserve);
+  const h2hCalls = h2hReserve ? Math.min(4, espnBudgetLeft()) : espnBudgetLeft() >= 6 ? Math.min(4, espnBudgetLeft() - 2) : 0;
+  if (h2hOk && !espnPaused && h2hCalls > 0) {
+    try { const r = await refreshH2HStats(env, season, now, h2hCalls); if (r) report.push(r); }
     catch (e) { report.push(`face-à-face (cartons, fautes…) : ERREUR ${e.message}`); if (refused(e)) pauseEspn(String(e.message)); }
   }
 

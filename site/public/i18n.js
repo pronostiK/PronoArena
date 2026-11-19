@@ -114,7 +114,6 @@
     "Au moins un but": "At least one goal", "Buts attendus pour chaque équipe.": "Expected goals for each team.", "Profil des équipes": "Team profiles",
     "Attaque": "Attack", "Défense": "Defence", "Forme": "Form", "Victoires": "Wins", "Points": "Points",
     "Plus la forme est grande, meilleure est l'équipe sur ce point (saison en cours).": "The bigger the shape, the better the team on that point (current season).",
-    "Plus la colonne est haute, plus l'écart de buts est grand.": "The taller the column, the bigger the goal difference.",
     "Buts par match": "Goals per match", "Marqués": "Scored", "Encaissés": "Conceded", "À domicile": "At home", "À l'extérieur": "Away",
     "Barre pleine : buts marqués. Barre hachurée : buts encaissés.": "Solid bar: goals scored. Hatched bar: goals conceded.",
     "Créés": "Created", "Concédés": "Conceded",

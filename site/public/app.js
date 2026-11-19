@@ -486,12 +486,9 @@
   function aForm(t, RL) {
     const s = t.stats;
     if (!s) return "";
-    const cols = [...s.formeDetail].reverse().map((f) => {
-      // Écart de buts plafonné à 4 : 10 px + 9 px par but (46 px au plus de chaque côté de la ligne)
-      const [gf, ga] = f.score.split("-").map(Number), h = 10 + Math.min(4, Math.abs(gf - ga)) * 9;
-      return `<div class="a-fc ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}"><div class="a-fc-zone"><span class="a-fb ${f.r}"${f.r === "N" ? "" : ` style="height:${h}px"`}><i>${RL[f.r]}</i></span></div>${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xxs")}<em>${esc(f.score.replace("-", "–"))}</em></div>`;
-    }).join("");
-    return `<div class="a-form"><div class="a-form-h">${mini(t)}<b>${esc(t.name)}</b></div><div class="a-form-row"><div class="a-fcs">${cols}</div>${aRing(s.pointsForme / 15, `${s.pointsForme}<small>/15</small>`, "Points")}</div></div>`;
+    // Cases comme dans l'onglet Stats : lettre V / N / D, logo de l'adversaire, score (du plus récent au plus ancien)
+    const cols = s.formeDetail.map((f) => `<span class="fpill ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}"><i class="fl" aria-hidden="true">${RL[f.r] || ""}</i>${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xs")}<em>${esc(f.score.replace("-", "–"))}</em></span>`).join("");
+    return `<div class="a-form"><div class="a-form-h">${mini(t)}<b>${esc(t.name)}</b></div><div class="a-form-row"><div class="pills">${cols}</div>${aRing(s.pointsForme / 15, `${s.pointsForme}<small>/15</small>`, "Points")}</div></div>`;
   }
   // Profil des deux équipes : radar à 5 axes (0 au centre, 100 au bord). Domicile = trait plein, extérieur = pointillés.
   const A_AXES = [
@@ -561,7 +558,7 @@
       </section>` : ""}
       ${SD || SE ? `<section class="panel"><h2>${ico("bolt")}Forme · 5 derniers matchs</h2>${aForm(D, RL)}${aForm(E, RL)}
         <div class="legend"><span class="lg V" aria-hidden="true">${RL.V}</span>Victoire<span class="lg N" aria-hidden="true">${RL.N}</span>Nul<span class="lg D" aria-hidden="true">${RL.D}</span>Défaite</div>
-        <p class="note">Plus la colonne est haute, plus l'écart de buts est grand.</p></section>` : ""}
+</section>` : ""}
       ${SD && SE ? `<section class="panel"><h2>${ico("ball")}Buts par match</h2><div class="a-goals2">${aGoals(D, SD, "var(--orange)", "D")}${aGoals(E, SE, "var(--blue)", "E")}</div>
         <p class="note">Barre pleine : buts marqués. Barre hachurée : buts encaissés.</p><div id="a-xg-note"></div></section>` : ""}
       ${aTable(D, E, size)}

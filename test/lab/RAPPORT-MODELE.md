@@ -50,7 +50,8 @@ Script : `recalibration-favoris.py <baseline.json>` (baseline produit par `dump-
 - Brier C avec 7 408 matchs : moteur 0,6046 (0,6061 avec 7 360), bookmakers 0,5904 (0,5929).
 - **Conclusion (confirmée par l'audit Perplexity) : aucune recalibration, production inchangée.**
 
-## Prochaine étape — test xG (non lancé)
+## Piste 6 — test xG (lancé le 19/11/2026, résultat plus bas)
+*(Protocole écrit à l'avance ; ancien titre « Prochaine étape — test xG (non lancé) ».)*
 Une seule variante fixée à l'avance : 50 % buts / 50 % xG (buts marqués et encaissés dans les forces, moyennes de championnat recalculées avec le même mélange), autres réglages inchangés, mêmes matchs, uniquement des xG de matchs antérieurs. Poids = choix de test, pas un optimum. C reste exploratoire : une nouvelle période intacte devra confirmer. Bloquant : fichier xG historique des 5 grands championnats (Understat à vérifier : accès, couverture, conditions d'utilisation).
 
 ## Piste 5 — comparaison du moteur au marché (18/11/2026)
@@ -59,3 +60,15 @@ Scripts : `dump-baseline-cotes.mjs` puis `marche.py` (retrait de la marge : prop
 - Précisions sur les données : dans cet export, avgH/avgD/avgA contenaient les cotes de clôture.
 - Le Brier avant clôture de 0,58571 provient d'un recalcul indépendant sur les mêmes 7 437 matchs, à partir des colonnes AvgH/AvgD/AvgA des CSV Football-Data, après retrait de la marge par Shin. marche.py utilise les cotes de clôture de l'export PronostiK.
 - Précisions sur le calcul : l'Elo des clubs était exporté (champ `elo` de `dump-baseline-cotes.mjs`), mais il n'entrait pas dans le calcul 1/N/2 testé. Le test compare les probabilités du moteur seul (proba1, probaN, proba2) aux cotes.
+
+## Piste 6 — résultat du test xG (19/11/2026)
+Script : `test/lab/run-xg.mjs <xg_bzzoiro.csv>` (source : export Bzzoiro, 5 grands championnats 2023-24 → 2025-26, fichier non versé dans le dépôt public : licence non lue). Une seule variante, aucun réglage, un seul lancement.
+- Règles fixées avant le calcul (en-tête du script) : xG utilisé seulement si statut « mesure » (sinon buts réels) ; 18 matchs de barrage retirés (5 273 → 5 255) ; Elo calculé sur les buts réels ; périodes A ≤ 30/06/2025, B → 28/02/2026, C ≥ 01/03/2026 ; IC 95 % regroupé par date (3 000 tirages) ; 3 503 matchs de test (5 championnats, du 01/08/2024 au 29/05/2026).
+- Écart de Brier (variante 50/50 − moteur), négatif = mieux :
+  - Tous : −0,0040 [−0,0057 ; −0,0024] (0,5949 → 0,5909)
+  - A : −0,0049 [−0,0070 ; −0,0026] · B : −0,0045 [−0,0073 ; −0,0016] · **C : −0,0001 [−0,0040 ; +0,0044]** (533 matchs seulement, mars → mai 2026)
+  - Par championnat : Bundesliga −0,0072 [−0,0108 ; −0,0036], Premier League −0,0039 [−0,0072 ; −0,0006], La Liga −0,0043 [−0,0078 ; −0,0009], Ligue 1 −0,0037 [−0,0079 ; +0,0006], Serie A −0,0013 [−0,0053 ; +0,0028].
+- Nuls : annoncés 0,2539 (moteur) / 0,2542 (xG), observés 0,2518.
+- **Favoris ≥ 60 % : le moteur annonce 68,5 % pour 68,9 % observé (770 matchs) ; la variante xG annonce 68,0 % pour 73,6 % observé (641 matchs) : elle sous-estime les gros favoris** (le mélange rapproche les forces de la moyenne). Point à auditer avant toute mise en production.
+- **Conclusion : gain d'environ 0,004 sur A et B, non retrouvé sur C (nul, intervalle large). Signal prometteur, pas confirmé. Moteur inchangé.** Vérification attendue sur des matchs réellement nouveaux (saison 2026-27, xG accumulés par l'export automatique).
+- Limites : C déjà consultée dans les pistes précédentes (autres variantes) et courte ; pas de cotes dans ce fichier, donc pas de comparaison directe aux bookmakers (matchs différents des pistes 1 à 5) ; poids 50/50 = choix de test, pas un optimum ; xG « mesuré » = estimé par tir par le fournisseur (modèle propre à Bzzoiro).

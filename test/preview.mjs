@@ -163,7 +163,7 @@ check("Analyse : mon prono affiché", (await page.locator(".pick[aria-pressed='t
   await page.click(".brand"); await page.waitForSelector(".lg-tag");
   check("Le logo du site ramène à l'accueil « Tout »", (await page.locator(".rail .chip-all").getAttribute("aria-pressed")) === "true");
   await page.goBack(); await page.waitForSelector(".duel"); await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300); }
-check("Analyse : cotes, « Remboursé si nul » et onglet Marchés présents", /cote \d/.test(await page.locator("[data-panel='m']").textContent()) && /Remboursé si nul/.test(await page.locator("[data-panel='m']").textContent()) && (await page.locator(".tabs button").first().textContent()) === "Marchés");
+check("Analyse : onglet Analyse en premier, cotes, « Remboursé si nul » et onglet Marchés présents", /cote \d/.test(await page.locator("[data-panel='m']").textContent()) && /Remboursé si nul/.test(await page.locator("[data-panel='m']").textContent()) && (await page.locator(".tabs button").first().textContent()) === "Analyse" && (await page.locator(".tabs button[data-pane='m']").textContent()) === "Marchés");
 await shot("5-analyse", false);
 // Arène et compte
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium"); await page.waitForSelector(".mp");

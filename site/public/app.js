@@ -487,8 +487,9 @@
     const s = t.stats;
     if (!s) return "";
     const cols = [...s.formeDetail].reverse().map((f) => {
-      const [gf, ga] = f.score.split("-").map(Number), gd = Math.min(3, Math.abs(gf - ga)), h = f.r === "N" ? 8 : 14 + gd * 12;
-      return `<div class="a-fc ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}"><div class="a-fc-up">${f.r === "V" ? `<span style="height:${h}px"><i>${RL.V}</i></span>` : ""}</div><div class="a-fc-mid">${f.r === "N" ? `<span><i>${RL.N}</i></span>` : ""}</div><div class="a-fc-dn">${f.r === "D" ? `<span style="height:${h}px"><i>${RL.D}</i></span>` : ""}</div>${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xxs")}<em>${esc(f.score.replace("-", "–"))}</em></div>`;
+      // Écart de buts plafonné à 4 : 10 px + 9 px par but (46 px au plus de chaque côté de la ligne)
+      const [gf, ga] = f.score.split("-").map(Number), h = 10 + Math.min(4, Math.abs(gf - ga)) * 9;
+      return `<div class="a-fc ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}"><div class="a-fc-zone"><span class="a-fb ${f.r}"${f.r === "N" ? "" : ` style="height:${h}px"`}><i>${RL[f.r]}</i></span></div>${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xxs")}<em>${esc(f.score.replace("-", "–"))}</em></div>`;
     }).join("");
     return `<div class="a-form"><div class="a-form-h">${mini(t)}<b>${esc(t.name)}</b></div><div class="a-form-row"><div class="a-fcs">${cols}</div>${aRing(s.pointsForme / 15, `${s.pointsForme}<small>/15</small>`, "Points")}</div></div>`;
   }

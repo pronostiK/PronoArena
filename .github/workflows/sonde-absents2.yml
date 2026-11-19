@@ -1,0 +1,15 @@
+name: Sonde absents 2 (temporaire)
+on:
+  push:
+    branches: [sonde-tmp]
+permissions:
+  contents: read
+jobs:
+  sonde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          BZZOIRO_TOKEN: ${{ secrets.BZZOIRO_TOKEN }}
+        run: python3 test/lab/sonde_absents2.py

@@ -6,6 +6,7 @@ import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
 import { buildModel, computeTeamRatings, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
+import { keyPoints } from "./keypoints.js";
 import { flagTeams, flagUrl } from "./flags.js";
 import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
 
@@ -138,6 +139,9 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       team.stats = st;
       team.classement = row ? { rang: row.rang, points: row.pts, joues: row.j, diff: row.diff, ...(row.groupe ? { groupe: true } : {}) } : null;
     }
+    // Points clés et Force / Faiblesse (faits vérifiables tirés des matchs déjà en mémoire)
+    const kp = keyPoints({ domId: p.teams.domicile.id, extId: p.teams.exterieur.id, all: formePool, cur: finishedCur, table, isLeague: !lg.cup && !lg.national, statsD: p.teams.domicile.stats, statsE: p.teams.exterieur.stats });
+    if (kp) p.analyse = kp;
     return p;
   });
 

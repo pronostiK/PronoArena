@@ -3,11 +3,12 @@ import { NOW, SIM, STRENGTH, installFetch, makeKV, makeD1, calls, DB as WORLD } 
 import worker from "../src/index.js";
 import { runRobot, pickDue } from "../src/robot.js";
 import { robotSources } from "../src/config.js";
-import { calculate_poisson_match, buildModel, calculate_match_prediction, teamStats, computeTeamRatings } from "../src/model.js";
+import { calculate_poisson_match, buildModel, calculate_match_prediction, teamStats, computeTeamRatings, leagueTable } from "../src/model.js";
 import { weekOf, pointsFor } from "../src/arena.js";
 import { nationName, nationsPredict, fitLambdas, applyResults } from "../src/nations.js";
 import SEED from "../src/nations-seed.js";
 import { dropBareLogos, applyClubLogos, clubLogo } from "../src/clublogos.js";
+import { keyPoints } from "../src/keypoints.js";
 
 let ok = 0, ko = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : ko++; console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
@@ -773,6 +774,38 @@ console.log("\n— xG (Soccer Data) —");
   const Z = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() }; calls.sd = 0;
   for (let i = 0; i < 5; i++, t2 += 600000) { SIM.now = t2; await runRobot(Z, t2); }
   check("xG : sans clé, aucun appel", calls.sd === 0);
+}
+
+// ---------- Points clés et Force / Faiblesse (faits vérifiables) ----------
+{
+  console.log("\n— Points clés —");
+  // Mini-championnat de 6 équipes, 10 journées (aller-retour). A gagne tout, F perd tout, les autres font nul entre elles.
+  const ids = ["A", "B", "C", "D", "E", "F"], ms = [];
+  let ts = Date.UTC(2026, 7, 1), id = 0;
+  for (let leg = 0; leg < 2; leg++) for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) {
+    const [h, a] = leg ? [ids[j], ids[i]] : [ids[i], ids[j]];
+    const sc = h === "A" ? [3, 0] : a === "A" ? [0, 2] : h === "F" ? [0, 1] : a === "F" ? [2, 0] : [1, 1];
+    ms.push({ id: ++id, homeId: h, awayId: a, hg: sc[0], ag: sc[1], ts: (ts += 86400000) });
+  }
+  const table = leagueTable(ms), stat = (x) => teamStats(x, ms);
+  const kp = keyPoints({ domId: "A", extId: "F", all: ms, cur: ms, table, isLeague: true, statsD: stat("A"), statsE: stat("F") });
+  const find = (k, s) => kp.points.find((f) => f.k === k && f.s === s);
+  check("Points clés : 4 au plus, 3 au plus par équipe", kp.points.length <= 4 && ["D", "E"].every((s) => kp.points.filter((f) => f.s === s).length <= 3), JSON.stringify(kp.points.map((f) => f.k + f.s)));
+  check("Points clés : série exacte du leader (10 victoires de suite)", find("s_win", "D")?.v.n === 10, JSON.stringify(kp.points));
+  const nw = find("rk_nowin", "E");
+  check("Points clés : seule équipe sans victoire, avec le bon nombre de matchs", nw && nw.v.j === 10, JSON.stringify(nw));
+  check("Points clés : pas de doublon « sans victoire depuis » quand « aucune victoire » est affiché", !find("s_winless", "E"));
+  const r = (x) => table.find((t) => t.id === x);
+  check("Force / Faiblesse : A = meilleure attaque (1re), F = pire attaque ou défense", kp.forces.D.f.v.r === 1 && kp.forces.E.w.v.r === 6, JSON.stringify(kp.forces));
+  check("Force / Faiblesse : moyenne exacte (buts / matchs)", kp.forces.D.f.v.m === Math.round((10 * (kp.forces.D.f.k === "att" ? r("A").bp : r("A").bc)) / r("A").j) / 10, JSON.stringify(kp.forces.D));
+  // Match entre deux équipes moyennes : rien de marquant sur le classement, mais séries de nuls → pas de fausse série de victoires
+  const mid = keyPoints({ domId: "B", extId: "C", all: ms, cur: ms, table, isLeague: true, statsD: stat("B"), statsE: stat("C") });
+  check("Points clés : aucune série de victoires inventée pour une équipe qui n'a pas gagné ses derniers matchs", !(mid?.points || []).some((f) => f.k === "s_win" || f.k === "l5_win"), JSON.stringify(mid));
+  check("Points clés : pas de « 2e meilleure attaque » quand 4 équipes sont à égalité", !(mid?.points || []).some((f) => /^(att|def)_/.test(f.k)) && !mid?.forces, JSON.stringify(mid));
+  // Coupe / sélections : ni classement ni domicile / extérieur
+  const cup = keyPoints({ domId: "A", extId: "F", all: ms, cur: ms, table, isLeague: false, statsD: stat("A"), statsE: stat("F") });
+  check("Points clés : en coupe, aucun fait de classement ni de domicile", !(cup?.points || []).some((f) => /^(rk_|att_|def_|h_|a_)/.test(f.k)), JSON.stringify(cup?.points));
+  check("Points clés : trop peu de matchs (2) → rien", keyPoints({ domId: "A", extId: "F", all: ms.slice(0, 2), cur: ms.slice(0, 2), table: leagueTable(ms.slice(0, 2)), isLeague: true, statsD: null, statsE: null }) === null);
 }
 
 console.log(`\n${ok} réussis, ${ko} échoués`);

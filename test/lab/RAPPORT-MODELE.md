@@ -74,3 +74,15 @@ Script : `test/lab/run-xg.mjs <xg_bzzoiro.csv>` (source : export Bzzoiro, 5 gran
 - Limites : C déjà consultée dans les pistes précédentes (autres variantes) et courte ; pas de cotes dans ce fichier, donc pas de comparaison directe aux bookmakers (matchs différents des pistes 1 à 5) ; poids 50/50 = choix de test, pas un optimum ; xG « mesuré » = estimé par tir par le fournisseur (modèle propre à Bzzoiro).
 - **Audit indépendant (ChatGPT, 19/11/2026)** : test reproduit, calcul principal validé. Verdict : valide comme comparaison historique exploratoire reproductible ; ne démontre pas que la variante xG améliore durablement le moteur. Recommandation : conserver la conclusion et le moteur actuel inchangés. Dossier fourni à l'auditeur : points 1 à 8, dont Elo sans effet sur ce test, bootstrap par dates (dépendance entre journées non prise en compte, contrôle par blocs de 28 jours donnant des intervalles proches sur A et B), mécanisme des favoris (écart-type des écarts de force −9 % ; buts/xG 1,073 pour les 4 premiers, 0,891 pour les 4 derniers).
 
+
+## Piste 7 — finition historique (buts − xG) : suspendue (19/11/2026)
+Opérations 7.1.1 à 7.1.4 faites (inventaire, identités, audit du statut xG, plan de vérification API), sans calcul prédictif. Constats utiles : les 282 matchs « xG estimés » contiennent tous un but contre son camp ; l'attribution des CSC à une équipe n'est pas dans les données ; Nantes – Toulouse 2025/26 absent (match abandonné selon ESPN). **Décision de l'auditeur : investigations API suspendues, phase 7.2 non commencée.**
+
+## Test de pondération des matchs récents (19/11/2026) — clôturé
+M0 (8 derniers ×1,5) Brier 0,59487 ; M1 (5 ×2) 0,59532 ; M2 (10 ×2) 0,59468 ; M3 (15 ×1,5) 0,59460, sur 3 503 matchs, buts réels seulement. Aucun intervalle favorable à 95 %. **Moteur inchangé.** Détail : `RESULTATS-PONDERATION.md`, script `TEST-PONDERATION.mjs`.
+
+## Test de calibration par température (19/11/2026) — clôturé
+Huit T de 0,85 à 1,20 ; sur la période A le meilleur est T = 1,00 (aucune correction). Le meilleur T change d'une période à l'autre. **Moteur inchangé.** Détail : `RESULTATS-CALIBRATION.md`, script `TEST-CALIBRATION.mjs`.
+
+## Décision de l'auditeur (19/11/2026)
+Moteur actuel maintenu, tous les tests de coefficients clôturés (décroissance, forces jointes, Elo, recalibration des favoris, xG, pondération, température). Ne pas les refaire sans justification nouvelle. Prochaine piste : absences de joueurs, sous réserve de données historiques fiables et horodatées (proposition : `PISTE8-ABSENCES-PROPOSITION.md`).

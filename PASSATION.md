@@ -210,3 +210,8 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - Licence BSD : aucune route ne renvoie les xG bruts, seulement la moyenne sur 5 matchs. Ne jamais publier le CSV Bzzoiro.
 - Cache site `dp27`. Tests : 221 OK.
 - À FAIRE : (1) l'utilisateur ajoute le secret `BZZOIRO_TOKEN` dans Cloudflare ; (2) vérifier dans /status → xgBzzoiro puis à l'écran (Stats d'un match de Premier League / Liga / Serie A / Bundesliga / Ligue 1) ; (3) après 2–3 semaines stables : phase 2, retirer Soccer Data.
+
+## 19/11/2026 — tests clôturés, moteur maintenu (décision de l'auditeur)
+- Tests faits et clôturés, résultats dans `test/lab/RAPPORT-MODELE.md` : décroissance, forces jointes, Elo, recalibration des favoris, marché (le marché fait mieux : 0,5838 contre 0,6006), xG 50/50 (gain 0,004 non confirmé), pondération des récents (M1/M2/M3, rien), température (T = 1 retenu). **Ne pas les refaire** sans information nouvelle.
+- Piste 7 (finition) suspendue après 7.1.4. Prochaine piste : absences de joueurs, **aucun développement ni abonnement sans validation** (voir `test/lab/PISTE8-ABSENCES-PROPOSITION.md`).
+- Bzzoiro : collecte plus rapide (10 appels par passage, 2 500 par jour), commit 0388429 ; affichage à vérifier à l'écran dans les heures qui suivent.

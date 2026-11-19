@@ -643,7 +643,7 @@ console.log("\n— xG (Bzzoiro, en parallèle de Soccer Data) —");
   check("xG Bzzoiro : xG estimés écartés (mesurés seulement)", s3 && Object.values(s3.competitions).every((c) => c.avecXg === 0) && Object.values(s3.competitions).some((c) => c.matchs > 0), JSON.stringify(s3?.competitions?.[39]));
   SIM.bzEstimated = false;
   // Quota du jour et 429
-  check("xG Bzzoiro : jamais plus de 1000 appels par jour", s1.xgBzzoiro.appelsAujourdhui <= 1000);
+  check("xG Bzzoiro : jamais plus de 2500 appels par jour", s1.xgBzzoiro.appelsAujourdhui <= 2500);
   const B4 = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
   SIM.bz429 = true; calls.bz = 0; let t5 = Date.UTC(2026, 10, 12, 8, 0);
   for (let i = 0; i < 3; i++, t5 += 600000) { SIM.now = t5; await runRobot(B4, t5); }

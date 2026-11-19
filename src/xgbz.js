@@ -13,8 +13,8 @@ import { currentSeason } from "./config.js";
 export const XGB_KEY = "xgb:all";
 const BASE = "https://sports.bzzoiro.com/api/v2";
 const HOUR = 3600000, DAY = 24 * HOUR;
-export const XGB_DAILY = 1000;       // appels par jour (quota gratuit : 7 500, partagé avec l'export GitHub)
-const PER_TICK = 2;                  // appels max par passage du robot (les appels sortants d'un passage sont plafonnés à 50, tous fournisseurs confondus)
+export const XGB_DAILY = 2500;       // appels par jour (quota gratuit : 7 500, partagé avec l'export GitHub)
+const PER_TICK = 10;                 // appels max par passage du robot (le plafond de sous-requêtes d'un passage est de 50, tous fournisseurs confondus)
 const LIST_MS = 3 * HOUR;            // liste des matchs terminés d'une compétition : toutes les 3 h
 const COMP_MS = 7 * DAY;
 const KEEP_MS = 90 * DAY;

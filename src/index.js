@@ -14,6 +14,7 @@
 //   POST /account/forgot | /account/reset                         mot de passe oublié (lien par e-mail)
 //   GET  /me            mon bilan de la semaine + mes pronostics
 //   POST /picks         enregistrer mon pronostic (refusé après le coup d'envoi)
+//   POST /picks/cancel  annuler mon pronostic (refusé après le coup d'envoi)
 //   GET  /arena[?semaine=precedente]                classement hebdomadaire
 // ============================================================
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
@@ -24,7 +25,7 @@ import { COMPOS_KEY, composFor } from "./compos.js";
 import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
 import { XGB_KEY } from "./xgbz.js";
 import { buildLive } from "./live.js";
-import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
+import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, cancelPick, leaderboard, arenaStatus } from "./arena.js";
 
 const CORS = {
   "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*",
@@ -186,6 +187,7 @@ export default {
       if (path === "/account/password" && post) return json(await changePassword(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
       if (path === "/me") return json(await me(env, await auth(env, request)), 200, PRIVATE);
       if (path === "/picks" && post) return json(await savePick(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
+      if (path === "/picks/cancel" && post) return json(await cancelPick(env, await auth(env, request), await readBody(request)), 200, PRIVATE);
       if (path === "/arena") {
         const which = q("semaine") === "precedente" ? "precedente" : "courante";
         const board = await remember(`arena:${which}`, 60000, () => leaderboard(env, which));

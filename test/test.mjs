@@ -502,11 +502,23 @@ console.log("\n— Arène —");
   const me0 = await call("/me", { token: s1.token });
   check("Mes pronostics : en attente, sans points", me0.pronos.length === 4 && me0.pronos.every((x) => x.points === null && x.domicile.nom && x.exterieur.nom) && me0.semaine.attente === 4);
 
+  // Annulation (2e appui) : avant le coup d'envoi seulement
+  { const c = upcoming[1];
+    await call("/picks", { token: s2.token, body: { leagueId: 61, matchId: c.matchId, choix: "1" } });
+    const n0 = d1.raw.prepare("SELECT COUNT(*) n FROM pronos WHERE joueur_id = 2").get().n;
+    const ok = await call("/picks/cancel", { token: s2.token, body: { leagueId: 61, matchId: c.matchId } });
+    check("Annulation avant le match : prono supprimé", ok.status === 200 && d1.raw.prepare("SELECT COUNT(*) n FROM pronos WHERE joueur_id = 2").get().n === n0 - 1 && !d1.raw.prepare("SELECT 1 FROM pronos WHERE joueur_id = 2 AND match_id = ?").get(String(c.matchId)));
+    check("Annulation : sans connexion refusée, rien à annuler accepté", (await call("/picks/cancel", { body: { leagueId: 61, matchId: c.matchId } })).status === 401 && (await call("/picks/cancel", { token: s2.token, body: { leagueId: 61, matchId: c.matchId } })).status === 200 && (await call("/picks/cancel", { token: s2.token, body: { leagueId: 9999, matchId: "x" } })).status === 400);
+    const again = await call("/picks", { token: s2.token, body: { leagueId: 61, matchId: c.matchId, choix: out(c) } });
+    check("Après annulation, on peut repronostiquer", again.status === 200 && d1.raw.prepare("SELECT choix FROM pronos WHERE joueur_id = 2 AND match_id = ?").get(String(c.matchId)).choix === out(c));
+  }
   // Coup d'envoi : verrouillage
   const last = upcoming[upcoming.length - 1];
   await run(Date.parse(m0.date) + 20 * 60000);
   const late = await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: out(m0) } });
   check("Pronostic refusé après le coup d'envoi", late.status === 409, late.error);
+  const lateCancel = await call("/picks/cancel", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId } });
+  check("Annulation refusée après le coup d'envoi", lateCancel.status === 409 && d1.raw.prepare("SELECT COUNT(*) n FROM pronos WHERE joueur_id = 1 AND match_id = ?").get(String(m0.matchId)).n === 1, lateCancel.error);
   check("Pronostic inchangé après la tentative tardive", d1.raw.prepare("SELECT choix FROM pronos WHERE joueur_id = 1 AND match_id = ?").get(String(m0.matchId)).choix === fav(m0));
 
   // Fin des matchs : notation par le robot
@@ -518,6 +530,7 @@ console.log("\n— Arène —");
   check("Notation exacte : points en jeu si juste, 0 sinon", rows.every((r) => r.resultat === truth(r.match_id) && r.points === (r.choix === truth(r.match_id) ? r.mise_pts : 0)));
   const gradedLate = await call("/picks", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId, choix: "N" } });
   check("Pronostic noté intouchable", gradedLate.status !== 200);
+  check("Pronostic noté impossible à annuler", (await call("/picks/cancel", { token: s1.token, body: { leagueId: 61, matchId: m0.matchId } })).status === 409 && d1.raw.prepare("SELECT COUNT(*) n FROM pronos WHERE joueur_id = 1 AND match_id = ?").get(String(m0.matchId)).n === 1);
 
   // Classement
   const board = await call("/arena");

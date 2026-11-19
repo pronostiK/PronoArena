@@ -306,6 +306,23 @@ export async function savePick(env, user, body, now = Date.now()) {
   return { success: true, prono: { leagueId, matchId, choix, mise, coupEnvoi: ts } };
 }
 
+// Annuler mon pronostic (2e appui sur le même bouton) : permis seulement avant le coup d'envoi et tant qu'il n'est pas noté.
+// Le moteur vérifie l'heure lui-même (affiche du robot, sinon l'heure gardée avec le prono) : le site ne fait pas foi.
+export async function cancelPick(env, user, body, now = Date.now()) {
+  const db = need(env);
+  const leagueId = parseInt(body.leagueId), matchId = String(body.matchId ?? "").slice(0, 64);
+  if (!LEAGUES[leagueId] || !matchId) throw new HttpError(400, "Pronostic invalide.");
+  const row = await db.prepare("SELECT coup_envoi, points FROM pronos WHERE joueur_id = ?1 AND ligue_id = ?2 AND match_id = ?3").bind(user.id, leagueId, matchId).first();
+  if (!row) return { success: true, annule: { leagueId, matchId } };
+  const raw = await env.PRONO_CACHE.get(predsKey(leagueId, currentSeason(new Date(now))));
+  const p = raw ? JSON.parse(raw).predictions.find((x) => String(x.matchId) === matchId) : null;
+  const ts = p ? Date.parse(p.date) : row.coup_envoi;
+  if (row.points !== null || !(ts > now) || LIVE.test(p?.status || "")) throw new HttpError(409, "Trop tard : le coup d'envoi a été donné.");
+  // Garde dans la base : jamais un prono déjà noté
+  await db.prepare("DELETE FROM pronos WHERE joueur_id = ?1 AND ligue_id = ?2 AND match_id = ?3 AND points IS NULL").bind(user.id, leagueId, matchId).run();
+  return { success: true, annule: { leagueId, matchId } };
+}
+
 const pickRow = (r) => ({
   leagueId: r.ligue_id, matchId: r.match_id, competition: LEAGUES[r.ligue_id]?.name || "", choix: r.choix, mise: r.mise_pts, coupEnvoi: r.coup_envoi, semaine: r.semaine,
   domicile: { nom: r.dom, logo: r.dom_logo || flagUrl(r.dom) }, exterieur: { nom: r.ext, logo: r.ext_logo || flagUrl(r.ext) },

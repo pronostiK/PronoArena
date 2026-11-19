@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(PUB, f);
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   let body = fs.readFileSync(file);
-  if (f === "/index.html") body = String(body).replace('<script src="app.js?v=dp24">', '<script>window.PRONO_API="/api"</script><script src="app.js?v=dp24">');
+  if (f === "/index.html") body = String(body).replace(/<script src="app\.js\?v=[^"]*">/, '<script>window.PRONO_API="/api"</script>$&');
   res.writeHead(200, { "content-type": { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json" }[path.extname(f)] || "text/plain" });
   res.end(body);
 }).listen(8787);
@@ -144,6 +144,14 @@ await open.nth(1).locator(".pick[data-pick='1']").click(); await page.waitForSel
 await page.waitForTimeout(400);
 await open.nth(0).locator(".pick[data-pick='N']").click(); await page.waitForTimeout(600);
 check("Changer d'avis : un seul choix actif par duel", (await open.nth(0).locator(".pick[aria-pressed='true']").count()) === 1 && (await open.nth(0).locator(".pick[data-pick='N']").getAttribute("aria-pressed")) === "true");
+// 2e appui sur le même bouton : le prono est annulé (toast « Prono annulé »), puis on le remet
+await page.waitForTimeout(3000);
+await open.nth(0).locator(".pick[data-pick='N']").click(); await page.waitForSelector("#toast.show"); await page.waitForTimeout(500);
+check("Rappuyer sur mon prono l'annule (téléphone)", (await open.nth(0).locator(".pick[aria-pressed='true']").count()) === 0 && /Prono annulé/.test(await page.textContent("#toast")) && d1.raw.prepare("SELECT COUNT(*) n FROM pronos p JOIN joueurs j ON j.id = p.joueur_id WHERE j.pseudo = 'Hitch'").get().n === 1, await page.textContent("#toast"));
+await shot("4b-prono-annule", false);
+await page.waitForTimeout(3000);
+await open.nth(0).locator(".pick[data-pick='N']").click(); await open.nth(0).locator(".pick[data-pick='N'][aria-pressed='true']").waitFor();
+check("Après annulation, on peut repronostiquer", (await open.nth(0).locator(".pick[data-pick='N']").getAttribute("aria-pressed")) === "true");
 await page.waitForTimeout(3000);
 await shot("4-duels-connecte");
 check("Base : 2 pronos pour Hitch", d1.raw.prepare("SELECT COUNT(*) n FROM pronos p JOIN joueurs j ON j.id = p.joueur_id WHERE j.pseudo = 'Hitch'").get().n === 2);
@@ -244,7 +252,7 @@ for (const [h, t] of [["a-propos", "À propos"], ["conditions", "Conditions d'ut
   await page.setViewportSize({ width: 320, height: 640 }); const w = await page.evaluate(() => document.documentElement.scrollWidth); await page.setViewportSize({ width: 390, height: 844 });
   if (w > 320) check(`Pas de débordement à 320 px (#/${h})`, false, `${w} px`);
 }
-check("Liens d'information en bas de chaque page", (await page.locator(".legal-links a").count()) === 4);
+check("Liens d'information en bas de chaque page", (await page.locator(".legal-links a").count()) === 5);
 check("Polices hébergées sur le site (aucun appel à Google)", !outside.some((h) => /google|gstatic/.test(h)) && await page.evaluate(() => document.fonts.check("900 20px Archivo") && document.fonts.check("400 14px 'Space Grotesk'")), `serveurs extérieurs contactés : ${outside.join(", ") || "aucun"}`);
 // ---- Version ordinateur ----
 await page.unroute("**/api/leagues");
@@ -260,6 +268,10 @@ await page.reload(); await page.waitForSelector(".duel");
   check("Ordinateur : pas de barre de défilement visible dans la colonne, qui défile quand même", await page.locator(".rail").evaluate((e) => e.offsetWidth === e.clientWidth && e.scrollHeight > e.clientHeight && (e.scrollTop = 200, e.scrollTop > 0)));
   check("Ordinateur : noms des compétitions à côté des logos", await page.locator(".rail .chip-logo").first().evaluate((e) => getComputedStyle(e, "::after").content.includes(e.getAttribute("aria-label")))); }
 await wide("duels");
+{ const c = page.locator(".picks:has(.pick[aria-pressed='true'])").last(), id = await c.getAttribute("data-match");
+  await c.locator(".pick[aria-pressed='true']").click(); await page.waitForSelector("#toast.show"); await page.waitForTimeout(500);
+  check("Rappuyer sur mon prono l'annule (ordinateur)", (await page.locator(`.picks[data-match='${id}'] .pick[aria-pressed='true']`).count()) === 0 && d1.raw.prepare("SELECT COUNT(*) n FROM pronos p JOIN joueurs j ON j.id = p.joueur_id WHERE j.pseudo = 'Hitch'").get().n === 3);
+  await page.screenshot({ path: `${OUT}/pc-prono-annule.png` }); }
 await page.locator(".duel .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400); await wide("analyse");
 await page.click(".tabs button[data-pane='c']"); await page.waitForTimeout(400); await wide("compos");
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await wide("verdict");

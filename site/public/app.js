@@ -112,6 +112,26 @@
       return false;
     }
   }
+  // 2e appui sur mon prono : il est annulé (permis jusqu'au coup d'envoi, le moteur vérifie aussi)
+  async function cancelPick(pick) {
+    const box = [...view.querySelectorAll(".picks")].find((x) => x.dataset.league === String(pick.leagueId) && x.dataset.match === String(pick.matchId));
+    if (box) box.classList.add("busy");
+    try {
+      await call("/picks/cancel", pick);
+      if (meCache) meCache.data.pronos = meCache.data.pronos.filter((x) => !(x.leagueId === pick.leagueId && String(x.matchId) === String(pick.matchId)));
+      meDirty = true; cache.delete("/arena");
+      const p = duelIndex.get(`${pick.leagueId}/${pick.matchId}`);
+      if (box && p) box.outerHTML = picks(p, pick.leagueId, null);
+      toast("Prono annulé");
+      return true;
+    } catch (e) {
+      if (box) box.classList.remove("busy");
+      if (e.status === 401) { setSession(null); location.hash = "#/compte"; return false; }
+      toast(e.message, true);
+      if (e.status === 409 || e.status === 404) { cache.clear(); route(); }
+      return false;
+    }
+  }
   view.addEventListener("click", (e) => {
     // Invitation à s'inscrire depuis un match réservé : après l'inscription, on revient sur ce match
     const after = e.target.closest("[data-after]");
@@ -119,8 +139,9 @@
     const b = e.target.closest(".pick");
     if (!b || b.disabled) return;
     const box = b.closest(".picks");
-    if (box.classList.contains("busy") || b.getAttribute("aria-pressed") === "true") return;
+    if (box.classList.contains("busy")) return;
     const pick = { leagueId: Number(box.dataset.league), matchId: box.dataset.match, choix: b.dataset.pick };
+    if (b.getAttribute("aria-pressed") === "true") { if (session.token) cancelPick({ leagueId: pick.leagueId, matchId: pick.matchId }); return; }
     if (!session.token) { pendingPick = pick; location.hash = "#/compte"; return; }
     sendPick(pick);
   });

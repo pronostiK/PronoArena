@@ -195,7 +195,7 @@
     "Identifiant et mot de passe requis.": "Username and password required.", "Identifiant ou mot de passe incorrect.": "Incorrect username or password.",
     "Connecte-toi pour continuer.": "Log in to continue.", "Session expirée : reconnecte-toi.": "Session expired: log in again.", "Mot de passe incorrect.": "Incorrect password.",
     "Mot de passe actuel incorrect.": "Current password is incorrect.", "Nouveau mot de passe : 8 caractères minimum.": "New password: at least 8 characters.",
-    "Club introuvable.": "Club not found.", "Pronostic invalide.": "Invalid pick.", "Ce duel n'est plus à l'affiche.": "This duel is no longer listed.",
+    "Club introuvable.": "Club not found.", "Pronostic invalide.": "Invalid pick.", "Prono annulé": "Pick cancelled", "Ce duel n'est plus à l'affiche.": "This duel is no longer listed.",
     "Trop tard : le coup d'envoi a été donné.": "Too late: the match has kicked off.", "Inscris-toi gratuitement pour voir cette analyse.": "Sign up for free to see this analysis.",
     "LeagueId manquant.": "Missing leagueId.", "Paramètres manquants": "Missing parameters", "Route inconnue": "Unknown route",
     // Étiquettes pour les lecteurs d'écran

@@ -233,3 +233,11 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - Site : bloc « Moyenne par match » (5 barres neutres) + une ligne sous chaque score (chiffre de l'équipe à domicile à gauche, libellé, chiffre de l'équipe à l'extérieur). Lisible sans couleurs. Pas de formulations de type « Moins de 4.5 cartons » (vocabulaire de paris).
 - `/status` → `faceAFace` (matchsAvecChiffres, introuvables, enAttente, appelsAujourdhui). Si beaucoup d'« introuvables » sur Belgique/Écosse/Turquie : noms SportAPI ≠ ESPN.
 - Coût simulé en croisière : +45 appels ESPN/jour, +23 écritures KV/jour. Rattrapage initial ≈ 1 à 2 jours. Tests : 240 OK ; preview : vérification « cartons, fautes, hors-jeu et corners affichés ». Cache `?v=dp31`.
+
+## 19/11/2026 — Onglet « Analyse » en graphiques (demande de l'utilisateur, publié avec son accord)
+- Demande : un onglet d'analyse visuel (graphiques et couleurs, peu de texte), inspiré d'une vidéo d'un autre site, sans le recopier.
+- 1er onglet de la fiche d'un match (avant Marchés, Stats, Compos, Face-à-face), dessiné par le site (SVG) avec les données déjà reçues : **aucun appel ni quota en plus**. Code : `analyseTab` / `analyseFill` dans `site/public/app.js`, styles « ONGLET ANALYSE » à la fin de `app.css`.
+- Contenu : anneau 1/N/2 (favori au centre) + 3 scores les plus probables ; 4 jauges (plus de 2,5 buts, les deux marquent, total attendu, au moins un but) + buts attendus par équipe ; toile à 5 branches (attaque, défense, forme, victoires, sans encaisser ; domicile trait plein, extérieur pointillés) ; forme en colonnes (haut = victoire, bas = défaite, hauteur = écart, lettre V/N/D) ; barres buts marqués (pleines) / encaissés (hachurées), dom./ext., xG ; règle du classement ; bilan du face-à-face + cartons/fautes/hors-jeu/corners.
+- Daltonisme : orange = domicile, bleu = extérieur, jaune = nul, toujours avec logo, lettre ou motif.
+- En anglais, l'onglet « Face-à-face » s'appelle « H2H » (5 onglets trop larges sur téléphone sinon).
+- Aperçu : `node test/analyse-preview.mjs <dossier>` (téléphone + ordinateur, fr + en). Cache `?v=dp32`. Tests : 240 OK.

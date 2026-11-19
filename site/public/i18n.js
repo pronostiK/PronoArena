@@ -213,6 +213,8 @@
     "Match nul": "Draw",
     // Absents connus (onglet Compos)
     "Absents connus": "Known absentees", "Blessé": "Injured", "Incertain": "Doubtful", "Suspendu": "Suspended", "Aucun absent signalé": "No absentees reported",
+    "Gardien": "Goalkeeper", "Milieu": "Midfield", "Défenseur": "Defender", "Attaquant": "Forward",
+    "★ Titulaire au dernier match": "★ Started last match", "aucun titulaire du dernier match": "no starter from the last match",
     "épaule": "shoulder", "ligaments croisés": "cruciate ligaments", "tête": "head", "cumul de cartons": "accumulated cards",
   };
 
@@ -224,6 +226,9 @@
   const R = [
     [/^Score à (\d{1,2}:\d{2})$/, (m) => `Score at ${m[1]}`],
     [/^retour prévu le (.+)$/, (m) => `expected back ${m[1]}`],
+    [/^(\d+) absents?$/, (m) => `${m[1]} absent${m[1] === "1" ? "ee" : "ees"}`],
+    [/^dont (\d+) titulaires? au dernier match$/, (m) => `incl. ${m[1]} who started the last match`],
+    [/^(Gardien|Défense|Milieu|Attaque) (\d+)$/, (m) => `${{ Gardien: "Goalkeeper", Défense: "Defence", Milieu: "Midfield", Attaque: "Attack" }[m[1]]} ${m[2]}`],
     [/^Blessés, incertains et suspendus annoncés · Bzzoiro · mis à jour le (.+)\. À titre indicatif : les absents n'entrent pas dans le calcul des probabilités\.$/, (m) => `Announced injuries, doubts and suspensions · Bzzoiro · updated ${m[1]}. For information only: absentees are not used to compute the probabilities.`],
     [/^xG : moyenne sur les (\d+) derniers matchs · (Soccer Data|Bzzoiro)$/, (m) => `xG: average over the last ${m[1]} matches · ${m[2]}`],
     [/^(\d+) matchs?$/, (m) => pl(m[1], "match", "matches")],

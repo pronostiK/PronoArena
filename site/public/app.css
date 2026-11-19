@@ -714,3 +714,9 @@ a.more { color: var(--orange); }
 .kp-s { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: var(--text); }
 .kp-fw.f .kp-s { border-color: var(--win); color: var(--win); }
 .kp-fw.w .kp-s { border-color: var(--loss); color: var(--loss); }
+.abs-sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 13px; color: var(--text-2); }
+.abs-sum > span::before { content: "· "; }
+.abs-lines { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+.abs-line { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--line-soft); color: var(--text-2); }
+.abs li.tit { border-width: 2px; }
+.abs-tit { font-weight: 800; }

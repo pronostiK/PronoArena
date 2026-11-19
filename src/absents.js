@@ -54,12 +54,38 @@ const arr = (d, key) => (Array.isArray(d) ? d : Array.isArray(d?.[key]) ? d[key]
 const day = (ts) => new Date(ts).toISOString().slice(0, 10);
 const emptyState = () => ({ comps: {}, ev: {}, teams: {}, day: "", used: 0, at: 0 });
 
-// Joueurs non disponibles d'un effectif Bzzoiro : [nom, B|I|S, motif, retour prévu AAAA-MM-JJ]
+// Ligne du joueur : G (gardien), D (défense), M (milieu), A (attaque), "" si inconnue
+export function line(pos) {
+  const k = low(pos);
+  if (!k) return "";
+  if (/^(g|gk)$|goal|gard/.test(k)) return "G";
+  if (/^d|def|back/.test(k)) return "D";
+  if (/^m|mid/.test(k)) return "M";
+  if (/^(f|a|s|w)|forw|att|strik|wing/.test(k)) return "A";
+  return "";
+}
+
+// Même joueur ? Noms ESPN (« K. Mbappé ») et Bzzoiro (« K. Mbappé » ou « Kylian Mbappé ») : même nom de famille et même initiale
+const parts = (n) => low(n).replace(/[^a-z\s.'-]/g, " ").split(/[\s.]+/).filter(Boolean);
+export function samePlayer(a, b) {
+  const A = parts(a), B = parts(b);
+  if (!A.length || !B.length || A[A.length - 1] !== B[B.length - 1]) return false;
+  if (A.length === 1 || B.length === 1) return true;
+  return A[0][0] === B[0][0];
+}
+
+// Ajoute à chaque absent 1 s'il était titulaire au dernier match (onze ESPN : [[n°, nom, poste]]), sinon 0. Sans onze connu : rien.
+export function markStarters(abs, xi) {
+  if (!abs || !Array.isArray(xi) || !xi.length) return abs;
+  return { ...abs, xi: true, l: abs.l.map((p) => [...p.slice(0, 5), xi.some((x) => samePlayer(x[1], p[0])) ? 1 : 0]) };
+}
+
+// Joueurs non disponibles d'un effectif Bzzoiro : [nom, B|I|S, motif, retour prévu AAAA-MM-JJ, ligne G|D|M|A]
 export function squadAbsents(squad) {
   // Vraie réponse Bzzoiro (vérifiée le 19/11/2026 sur 24 matchs) : { count, players: [...], team_id }
   return arr(squad, "players")
     .filter((p) => STATUS[p?.availability])
-    .map((p) => [String(p.short_name || p.name || "").slice(0, 40), STATUS[p.availability], String(p.injury_type || "").slice(0, 40), p.injury_expected_return ? String(p.injury_expected_return).slice(0, 10) : ""])
+    .map((p) => [String(p.short_name || p.name || "").slice(0, 40), STATUS[p.availability], String(p.injury_type || "").slice(0, 40), p.injury_expected_return ? String(p.injury_expected_return).slice(0, 10) : "", line(p.position)])
     .filter((p) => p[0]);
 }
 

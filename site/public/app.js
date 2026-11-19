@@ -841,14 +841,24 @@
     const k = t.toLowerCase(), hit = INJ_FR.find(([en]) => k.includes(en));
     return hit ? hit[1] : t;
   };
+  const ABS_LINE = { G: "Gardien", D: "Défense", M: "Milieu", A: "Attaque" }, ABS_POS = { G: "Gardien", D: "Défenseur", M: "Milieu", A: "Attaquant" };
   function absentsBlock(a, D, E) {
     if (!a?.domicile || !a?.exterieur) return "";
     const day = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString(I18N.locale, { day: "numeric", month: "short" });
-    const team = (t, x) => `<div class="abs-team"><div class="xi-h">${mini(t)}<b>${esc(t.name)}</b></div>` + (x.l.length
-      ? `<ul class="abs">${x.l.map(([n, st, inj, ret]) => {
+    // Résumé : nombre d'absents, titulaires du dernier match parmi eux, répartition par ligne
+    const summary = (x) => {
+      if (!x.l.length) return "";
+      const n = x.l.length, tit = x.l.filter((p) => p[5] === 1).length;
+      const bits = [`<b>${n} absent${n > 1 ? "s" : ""}</b>`];
+      if (x.xi) bits.push(`<span>${tit ? `dont ${tit} titulaire${tit > 1 ? "s" : ""} au dernier match` : "aucun titulaire du dernier match"}</span>`);
+      const byLine = ["G", "D", "M", "A"].map((k) => [k, x.l.filter((p) => p[4] === k).length]).filter(([, c]) => c);
+      return `<div class="abs-sum">${bits.join("")}${byLine.length ? `<div class="abs-lines">${byLine.map(([k, c]) => `<span class="abs-line">${ABS_LINE[k]} ${c}</span>`).join("")}</div>` : ""}</div>`;
+    };
+    const team = (t, x) => `<div class="abs-team"><div class="xi-h">${mini(t)}<b>${esc(t.name)}</b></div>${summary(x)}` + (x.l.length
+      ? `<ul class="abs">${[...x.l].sort((p, q) => (q[5] || 0) - (p[5] || 0)).map(([n, st, inj, ret, pos, tit]) => {
           const why = injLabel(inj);
-          const more = (why ? `<span>${esc(why)}</span>` : "") + (ret ? `<span>retour prévu le ${esc(day(ret))}</span>` : "");
-          return `<li><b>${esc(n)}</b><span class="abs-st">${esc(ABS_ST[st] || st)}</span>${more ? `<small>${more}</small>` : ""}</li>`;
+          const more = (pos && ABS_POS[pos] ? `<span>${ABS_POS[pos]}</span>` : "") + (why ? `<span>${esc(why)}</span>` : "") + (ret ? `<span>retour prévu le ${esc(day(ret))}</span>` : "");
+          return `<li${tit ? ' class="tit"' : ""}><b>${esc(n)}</b><span class="abs-st">${esc(ABS_ST[st] || st)}</span>${tit ? `<span class="abs-st abs-tit">★ Titulaire au dernier match</span>` : ""}${more ? `<small>${more}</small>` : ""}</li>`;
         }).join("")}</ul>`
       : `<p class="note">Aucun absent signalé</p>`) + `</div>`;
     const at = new Date(Math.min(a.domicile.at, a.exterieur.at));

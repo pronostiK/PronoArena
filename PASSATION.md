@@ -250,3 +250,4 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - En anglais, l'onglet « Face-à-face » s'appelle « H2H » (5 onglets trop larges sur téléphone sinon).
 - Aperçu : `node test/analyse-preview.mjs <dossier>` (téléphone + ordinateur, fr + en). Cache `?v=dp32`. Tests : 240 OK.
 - **Confirmé à l'écran par l'utilisateur le 19/11/2026 à 14 h 46** (sur PC, après Ctrl + F5 : l'ancienne page était gardée en mémoire par le navigateur).
+- **Graphique Forme corrigé (19/11/2026, 14 h 57, accord de l'utilisateur)** : une seule ligne de base, victoire au-dessus, défaite en dessous, nul posé sur la ligne ; hauteur = 10 px + 9 px par but d'écart (plafond 4). Avant : 3 zones séparées par des espaces, écart plafonné à 3 (5-1 aussi haut que 0-3). `test/preview.mjs` attend maintenant « Analyse » comme 1er onglet. Cache `?v=dp34`. Tests 242 OK.

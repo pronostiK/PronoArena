@@ -606,13 +606,13 @@
     const top = (P.scoresExacts || []).slice(0, 3), tmax = Math.max(...top.map((x) => x.proba), 0.01);
     const leg = (t, k, x) => `<div class="a-leg"><i style="background:${A_COL[k]}" aria-hidden="true"></i>${t ? mini(t) : `<span class="nul-ico" aria-hidden="true">=</span>`}<span class="a-leg-n">${t ? esc(t.name) : "Nul"}</span><b>${pct(x)}%</b></div>`;
     return `${kpPanel(p, D, E)}
-      <section class="panel"><h2>${ico("trophy")}Qui gagne ?</h2>
+      <section class="panel"><h2>${ico("trophy")}Probabilités de victoire</h2>
         <div class="a-who">${aDonut(P, D, E)}<div class="a-legs">${leg(D, "D", P.proba1)}${leg(null, "N", P.probaN)}${leg(E, "E", P.proba2)}</div></div>
         ${top.length ? `<h3>${ico("grid")}Scores les plus probables</h3><div class="a-scores">${top.map((x, i) => `<div class="a-sc${i === 0 ? " best" : ""}"><small>${pct(x.proba)}%</small><span style="height:${Math.round(18 + 52 * (x.proba / tmax))}px"></span><b>${x.dom} – ${x.ext}</b></div>`).join("")}</div>` : ""}
       </section>
       <section class="panel"><h2>${ico("ball")}Les buts du match</h2>
         <div class="a-rings">
-          ${aRing(P.probaOver25, `${pct(P.probaOver25)}%`, "Plus de 2,5 buts")}
+          ${aRing(P.probaOver25, `${pct(P.probaOver25)}%`, "3 buts ou plus")}
           ${aRing(P.probaBTTS, `${pct(P.probaBTTS)}%`, "Les deux marquent")}
           ${aRing((L.lambdaDom + L.lambdaExt) / 5, dec(L.lambdaDom + L.lambdaExt), "Total attendu")}
           ${aRing(1 - (P.matrix?.[0]?.[0] || 0), `${pct(1 - (P.matrix?.[0]?.[0] || 0))}%`, "Au moins un but")}

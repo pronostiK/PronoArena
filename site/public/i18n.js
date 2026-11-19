@@ -110,7 +110,7 @@
     // Analyse
     "Ton prono": "Your pick", "Modifiable jusqu'au coup d'envoi. Ton prono compte pour le classement de l'Arène.": "You can change it until kick-off. Your pick counts in the Arena ranking.",
     "Coup d'envoi donné : les pronos sont bloqués.": "The match has kicked off: picks are locked.",
-    "Analyse": "Analysis", "Qui gagne ?": "Who wins?", "Scores les plus probables": "Most likely scores", "Les buts du match": "Goals in this match",
+    "Analyse": "Analysis", "Probabilités de victoire": "Win probabilities", "3 buts ou plus": "3 goals or more", "Scores les plus probables": "Most likely scores", "Les buts du match": "Goals in this match",
     "Au moins un but": "At least one goal", "Buts attendus pour chaque équipe.": "Expected goals for each team.", "Profil des équipes": "Team profiles",
     "Attaque": "Attack", "Défense": "Defence", "Forme": "Form", "Victoires": "Wins", "Points": "Points",
     "Plus la forme est grande, meilleure est l'équipe sur ce point (saison en cours).": "The bigger the shape, the better the team on that point (current season).",

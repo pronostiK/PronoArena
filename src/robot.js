@@ -9,6 +9,7 @@ import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcomi
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
 import { refreshXg } from "./xg.js";
+import { refreshXgBz } from "./xgbz.js";
 import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
 import { LEAGUES } from "./config.js";
@@ -93,6 +94,8 @@ export async function runRobot(env, now = Date.now()) {
   catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; if (refused(e)) pauseEspn("compositions refusées"); }
   // xG (Soccer Data, affichage seulement) : quelques appels par passage, plafonnés par jour
   { const r = await refreshXg(env, now); if (r) report.push(r); }
+  // xG (Bzzoiro, affichage seulement, en parallèle de Soccer Data) : 2 appels par passage au plus
+  { const r = await refreshXgBz(env, now); if (r) report.push(r); }
   { const r = await refreshClubLogos(env, now); if (r) report.push(r); }
   // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
   // SportAPI : un seul appel alimente toutes ses compétitions d'une saison, donc une seule place par saison

@@ -609,6 +609,52 @@ console.log("\n— Arène —");
   check("Base absente : réponse propre, le reste du site continue", noDb.status === 503 && (await get("/league-predictions?leagueId=61")).success);
 }
 
+console.log("\n— xG (Bzzoiro, en parallèle de Soccer Data) —");
+{
+  const B = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", SOCCERDATA_KEY: "sd_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
+  const getB = async (path) => (await worker.fetch(new Request("https://w" + path), B, { waitUntil: () => {} })).json();
+  let t = Date.UTC(2026, 10, 9, 8, 0);
+  const run = async (n) => { for (let i = 0; i < n; i++, t += 600000) { SIM.now = t; await runRobot(B, t); } };
+  calls.bz = 0; SIM.bzAuth = null; SIM.bz429 = false; SIM.bzDown = false; SIM.bzEstimated = false;
+  await run(700);
+  const s1 = await getB("/status");
+  check("xG Bzzoiro : jeton envoyé (Authorization: Token …)", SIM.bzAuth === "Token bz_test", String(SIM.bzAuth));
+  check("xG Bzzoiro : championnats retrouvés (ligue féminine ignorée) et xG récupérés", Object.values(s1.xgBzzoiro.competitions).every((c) => c.avecXg > 0), JSON.stringify(s1.xgBzzoiro.competitions[39]));
+  check("xG Bzzoiro : noms d'équipes tous rapprochés", Object.values(s1.xgBzzoiro.competitions).every((c) => !c.sansCorrespondance?.length), JSON.stringify(s1.xgBzzoiro.competitions[61].sansCorrespondance));
+  check("xG Bzzoiro : Soccer Data continue en parallèle", s1.xg.competitions[39].avecXg > 0);
+  const lp = await getB("/league-predictions?leagueId=39");
+  let md = null;
+  for (const c of lp.predictions) { const d = await getB(`/match-details?matchId=${encodeURIComponent(c.matchId)}&source=football-data&leagueId=39&teamDomId=${c.teams.domicile.id}&teamExtId=${c.teams.exterieur.id}`); if (d.stats?.domicile?.xg && d.stats?.exterieur?.xg) { md = d; break; } }
+  check("xG Bzzoiro : affiché en priorité, source indiquée pour les deux équipes", md && md.stats.domicile.xg.src === "Bzzoiro" && md.stats.exterieur.xg.src === "Bzzoiro", md ? JSON.stringify(md.stats.domicile.xg) : "aucun xG");
+  // Secours : Bzzoiro en panne et sans données → Soccer Data affiché
+  const B2 = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", SOCCERDATA_KEY: "sd_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
+  SIM.bzDown = true; let t3 = Date.UTC(2026, 10, 9, 8, 0);
+  for (let i = 0; i < 700; i++, t3 += 600000) { SIM.now = t3; await runRobot(B2, t3); }
+  const lp3 = await (await worker.fetch(new Request("https://w/league-predictions?leagueId=39"), B2, { waitUntil: () => {} })).json();
+  let md3 = null;
+  for (const c of lp3.predictions) { const d = await (await worker.fetch(new Request(`https://w/match-details?matchId=${encodeURIComponent(c.matchId)}&source=football-data&leagueId=39&teamDomId=${c.teams.domicile.id}&teamExtId=${c.teams.exterieur.id}`), B2, { waitUntil: () => {} })).json(); if (d.stats?.domicile?.xg) { md3 = d; break; } }
+  check("xG Bzzoiro : en panne → Soccer Data prend le relais", md3 && md3.stats.domicile.xg.src === "Soccer Data" && md3.stats.exterieur.xg.src === "Soccer Data", md3 ? JSON.stringify(md3.stats.domicile.xg) : "aucun xG");
+  SIM.bzDown = false;
+  // xG estimés : jamais gardés
+  const B3 = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
+  SIM.bzEstimated = true; let t4 = Date.UTC(2026, 10, 9, 8, 0);
+  for (let i = 0; i < 300; i++, t4 += 600000) { SIM.now = t4; await runRobot(B3, t4); }
+  const s3 = (await (await worker.fetch(new Request("https://w/status"), B3, { waitUntil: () => {} })).json()).xgBzzoiro;
+  check("xG Bzzoiro : xG estimés écartés (mesurés seulement)", s3 && Object.values(s3.competitions).every((c) => c.avecXg === 0) && Object.values(s3.competitions).some((c) => c.matchs > 0), JSON.stringify(s3?.competitions?.[39]));
+  SIM.bzEstimated = false;
+  // Quota du jour et 429
+  check("xG Bzzoiro : jamais plus de 1000 appels par jour", s1.xgBzzoiro.appelsAujourdhui <= 1000);
+  const B4 = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
+  SIM.bz429 = true; calls.bz = 0; let t5 = Date.UTC(2026, 10, 12, 8, 0);
+  for (let i = 0; i < 3; i++, t5 += 600000) { SIM.now = t5; await runRobot(B4, t5); }
+  check("xG Bzzoiro : un refus 429 met en pause", calls.bz === 1, `${calls.bz} appel(s)`);
+  SIM.bz429 = false;
+  // Sans jeton : aucun appel
+  const B5 = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() }; calls.bz = 0;
+  for (let i = 0; i < 5; i++, t5 += 600000) { SIM.now = t5; await runRobot(B5, t5); }
+  check("xG Bzzoiro : sans jeton, aucun appel", calls.bz === 0);
+}
+
 console.log("\n— xG (Soccer Data) —");
 {
   const X = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", SOCCERDATA_KEY: "sd_test", ...makeKV() };

@@ -570,7 +570,7 @@
       const xd = md.stats?.domicile?.xg, xe = md.stats?.exterieur?.xg, xbox = document.getElementById("xg-box");
       if (xd && xe && xbox) {
         xbox.innerHTML = cmp("xG créés / match", xd.pour, xe.pour, dec2) + cmp("xG concédés / match", xd.contre, xe.contre, dec2, true);
-        document.getElementById("xg-note").innerHTML = `<p class="note">xG : moyenne sur les ${Math.min(xd.n, xe.n)} derniers matchs · Soccer Data</p>`;
+        document.getElementById("xg-note").innerHTML = `<p class="note">xG : moyenne sur les ${Math.min(xd.n, xe.n)} derniers matchs · ${esc(xd.src || "Soccer Data")}</p>`;
       }
       const h = md.h2h || [];
       document.getElementById("h2h").innerHTML = h.length

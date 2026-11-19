@@ -212,7 +212,7 @@
   const AFTER = "Every forecast is frozen before kick-off: nothing is changed afterwards.";
   const R = [
     [/^Score à (\d{1,2}:\d{2})$/, (m) => `Score at ${m[1]}`],
-    [/^xG : moyenne sur les (\d+) derniers matchs · Soccer Data$/, (m) => `xG: average over the last ${m[1]} matches · Soccer Data`],
+    [/^xG : moyenne sur les (\d+) derniers matchs · (Soccer Data|Bzzoiro)$/, (m) => `xG: average over the last ${m[1]} matches · ${m[2]}`],
     [/^(\d+) matchs?$/, (m) => pl(m[1], "match", "matches")],
     [/^(\d+) matchs offerts chaque jour\.$/, (m) => `${m[1]} free matches every day.`],
     [/^Fiabilité (élevée|moyenne|faible|—)$/, (m) => (m[1] === "—" ? "Reliability —" : `${REL[m[1]]} reliability`)],

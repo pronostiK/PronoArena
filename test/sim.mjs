@@ -146,6 +146,34 @@ export function installFetch() {
       }
       return { ok: false, status: 404 };
     }
+    if (u.hostname === "sports.bzzoiro.com") {
+      // Bzzoiro (xG) : ligues, saisons, matchs terminés, stats par match
+      calls.bz = (calls.bz || 0) + 1; SIM.bzAuth = opts?.headers?.Authorization ?? null;
+      if (SIM.bz429) return { ok: false, status: 429 };
+      if (SIM.bzDown) return { ok: false, status: 503 };
+      const BZ = { PL: [1, "Premier League", "England"], PD: [2, "La Liga", "Spain"], SA: [3, "Serie A", "Italy"], BL1: [4, "Bundesliga", "Germany"], FL1: [5, "Ligue 1", "France"] };
+      const bzName = (id) => `Équipe ${id} FC`;
+      if (u.pathname === "/api/v2/leagues/") {
+        const rows = Object.values(BZ).filter(([, , c]) => c === u.searchParams.get("country")).map(([id, n]) => ({ id, name: n, is_women: false }));
+        rows.push({ id: 99, name: "Premier League", is_women: true });
+        return { ok: true, json: async () => ({ results: rows }) };
+      }
+      if ((m = u.pathname.match(/^\/api\/v2\/leagues\/(\d+)\/seasons\/$/))) return { ok: true, json: async () => ({ results: [{ id: 100 + Number(m[1]), year: 2025 }, { id: 200 + Number(m[1]), year: 2026 }] }) };
+      if (u.pathname === "/api/v2/events/") {
+        const code = Object.entries(BZ).find(([, v]) => v[0] === Number(u.searchParams.get("league_id")))?.[0];
+        const off = Number(u.searchParams.get("offset") || 0), lim = Number(u.searchParams.get("limit") || 200);
+        const all = (DB[`fd:${code}@2026`] || []).filter(isDone).sort((a, b) => b.ts - a.ts);
+        const page = all.slice(off, off + lim);
+        return { ok: true, json: async () => ({ results: page.map((x) => ({ id: x.id, event_date: new Date(x.ts).toISOString(), home_team: bzName(x.h), away_team: bzName(x.a), home_score: x.hg, away_score: x.ag, has_xg: true })), next: off + lim < all.length ? "more" : null }) };
+      }
+      if ((m = u.pathname.match(/^\/api\/v2\/events\/(.+)\/stats\/$/))) {
+        const x = Object.entries(DB).filter(([k]) => k.startsWith("fd:")).flatMap(([, v]) => v).find((y) => String(y.id) === m[1]);
+        if (!x) return { ok: false, status: 404 };
+        const est = SIM.bzEstimated;
+        return { ok: true, json: async () => ({ stats: { home: { xg: { actual: Math.round((0.9 + 0.4 * x.hg) * 100) / 100, estimated: est } }, away: { xg: { actual: Math.round((0.6 + 0.4 * x.ag) * 100) / 100, estimated: est } } }, shotmap: [] }) };
+      }
+      return { ok: false, status: 404 };
+    }
     if (u.hostname === "api.resend.com") { const b = JSON.parse(opts?.body || "{}"); SIM.mails.push({ ...b, auth: opts?.headers?.Authorization }); return { ok: !SIM.mailDown, status: SIM.mailDown ? 500 : 200, json: async () => ({ id: "m" + SIM.mails.length }) }; }
     if (u.hostname === "raw.githubusercontent.com") { calls.seed = (calls.seed || 0) + 1; return { ok: false, status: 404 }; }
     if (SIM.espnBlocked && u.hostname.includes("espn")) { calls.espnRefus = (calls.espnRefus || 0) + 1; return { ok: false, status: 403 }; }

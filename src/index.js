@@ -22,6 +22,7 @@ import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeK
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
 import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
+import { XGB_KEY } from "./xgbz.js";
 import { buildLive } from "./live.js";
 import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, leaderboard, arenaStatus } from "./arena.js";
 
@@ -136,8 +137,12 @@ export default {
           ? { domicile: { ...(pred.teams.domicile.stats || {}), classement: pred.teams.domicile.classement }, exterieur: { ...(pred.teams.exterieur.stats || {}), classement: pred.teams.exterieur.classement } }
           : { domicile: {}, exterieur: {} };
         if (pred && leagueId && XG_LEAGUES[leagueId]) { // xG des 5 derniers matchs (affichage seulement)
-          const xs = await kvGet(env, XG_KEY);
-          for (const side of ["domicile", "exterieur"]) { const x = xgTeam(xs, leagueId, pred.teams[side].name); if (x) stats[side].xg = x; }
+          // Bzzoiro en priorité, Soccer Data en secours : une seule source par match (jamais une équipe de chaque), source indiquée pour l'affichage
+          const [xb, xs] = await Promise.all([kvGet(env, XGB_KEY), kvGet(env, XG_KEY)]);
+          for (const [st, label] of [[xb, "Bzzoiro"], [xs, "Soccer Data"]]) {
+            const xd = xgTeam(st, leagueId, pred.teams.domicile.name), xe = xgTeam(st, leagueId, pred.teams.exterieur.name);
+            if (xd && xe) { stats.domicile.xg = { ...xd, src: label }; stats.exterieur.xg = { ...xe, src: label }; break; }
+          }
         }
         const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
         return json({ success: true, stats, h2h: h.h2h, compositions: lineups }, 200, cacheFor(who, env, 1800));
@@ -163,9 +168,9 @@ export default {
       if (path === "/live") return json(await buildLive(env), 200, { "Cache-Control": "public, max-age=30" });
 
       if (path === "/status") {
-        const xs = await kvGet(env, XG_KEY), names = {};
-        if (xs) for (const id of Object.keys(XG_LEAGUES)) { const pr = await kvGet(env, predsKey(Number(id), currentSeason())); names[id] = (pr?.classement || []).map((r) => r.nom); }
-        return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env), xg: xgStatus(xs, names) });
+        const xs = await kvGet(env, XG_KEY), xb = await kvGet(env, XGB_KEY), names = {};
+        if (xs || xb) for (const id of Object.keys(XG_LEAGUES)) { const pr = await kvGet(env, predsKey(Number(id), currentSeason())); names[id] = (pr?.classement || []).map((r) => r.nom); }
+        return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env), xg: xgStatus(xs, names), xgBzzoiro: xgStatus(xb, names) });
       }
 
       // ---------- Arène ----------

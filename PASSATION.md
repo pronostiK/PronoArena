@@ -49,6 +49,7 @@ Une « arène » : chaque match est un duel. Jeu **gratuit, pour le fun, sans lo
 ## Arène (bloc 2, `src/arena.js`)
 - Compte : pseudo + e-mail + mot de passe. Mot de passe haché (PBKDF2, 100 000 tours), jeton de connexion haché, valable 90 jours, rangé dans le navigateur (pas de cookie : site et moteur sont sur deux adresses différentes).
 - Prono 1-N-2 modifiable jusqu'au coup d'envoi, refusé ensuite par le moteur (pas seulement par le site).
+- **Annulation (19/11/2026, demande de l'utilisateur)** : rappuyer sur son prono l'annule (message « Prono annulé »). Route POST /picks/cancel (`cancelPick` dans `src/arena.js`), refusée après le coup d'envoi ou si le prono est noté. Un prono annulé est supprimé de la base, donc ne comptera pas dans la future limite « 2 pronos par jour » (bloc 3, pas encore codée).
 - Points selon le risque : 10 ÷ probabilité du moteur, entre 10 et 100, figés au moment du choix. Mauvais prono = 0.
 - Le robot note les pronos dès que le score final est connu (1 appel base par passage s'il n'y a rien à noter).
 - Classement : points, puis pronos justes, puis moins de pronos joués, puis pseudo. 50 premiers affichés.

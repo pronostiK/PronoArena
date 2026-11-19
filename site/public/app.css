@@ -259,7 +259,7 @@ a.more { color: var(--orange); }
 .pick b { font-family: var(--display); font-size: 20px; line-height: 1.1; }
 .pick small { font-size: 11px; color: var(--muted); }
 .pick .pts { margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: #2e2a26; color: var(--text-2); font-size: 12px; font-weight: 700; white-space: nowrap; }
-.pick:hover:not(:disabled) { border-color: rgba(255,107,0,.6); }
+@media (hover: hover) { .pick:hover:not(:disabled) { border-color: rgba(255,107,0,.6); } } /* pas de survol collant après un appui au doigt */
 .pick:active:not(:disabled) { transform: scale(.97); }
 .pick[aria-pressed="true"] { border-color: var(--orange); background: #3a2312; }
 .pick[aria-pressed="true"] .pts { background: var(--orange); color: var(--bg); }

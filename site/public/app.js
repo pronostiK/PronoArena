@@ -1567,6 +1567,23 @@
     return renderDuels("all");
   }
   window.addEventListener("hashchange", route);
+  // Nouvelle version publiée : la page se recharge d'elle-même (19/11/2026 : l'utilisateur voyait encore l'ancienne version dans Safari).
+  // Vérifié seulement quand on revient sur la page ou qu'on change d'écran (jamais pendant une saisie), au plus une fois toutes les 5 min.
+  {
+    const mine = ((document.querySelector('script[src*="app.js?v="]') || {}).getAttribute?.("src") || "").split("v=")[1];
+    let last = Date.now();
+    const checkVersion = async () => {
+      if (!mine || Date.now() - last < 300000) return;
+      last = Date.now();
+      try {
+        const html = await (await fetch("/?nv=" + Date.now(), { cache: "no-store" })).text();
+        const v = (html.match(/app\.js\?v=([\w.-]+)/) || [])[1];
+        if (v && v !== mine) location.reload();
+      } catch { /* hors ligne : on réessaiera */ }
+    };
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
+    window.addEventListener("hashchange", checkVersion);
+  }
   paintAccount();
   route();
 })();

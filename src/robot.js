@@ -13,7 +13,7 @@ import { refreshXgBz } from "./xgbz.js";
 import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
 import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
-import { LEAGUES } from "./config.js";
+import { LEAGUES, BACKUP_AFTER_MS } from "./config.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const MAX_PER_RUN = 3;
@@ -182,6 +182,14 @@ export async function runRobot(env, now = Date.now()) {
     index._nationsAt = now;
     try { if (await refreshSeed(env)) { report.push("sélections : notes Elo mises à jour"); for (const [id, lg] of Object.entries(LEAGUES)) if (lg.national && lg.robot !== false) toRebuild.add(Number(id)); } }
     catch (e) { report.push(`sélections : ERREUR ${e.message}`); }
+  }
+
+  // Bascule sur la source de secours dès les 12 h de panne passées (et retour à la normale), sans attendre
+  // que la source en panne soit réessayée : les jours chargés, la file d'attente peut la repousser de plusieurs heures
+  for (const [id, lg] of Object.entries(LEAGUES)) {
+    if (!lg.backup || lg.robot === false) continue;
+    const m = index[`${lg.src}@${season}`], broken = !!(m?.error && now - (m.lastOk || 0) > BACKUP_AFTER_MS);
+    if (broken !== !!index[`bk:${id}`]) { if (broken) index[`bk:${id}`] = 1; else delete index[`bk:${id}`]; toRebuild.add(Number(id)); }
   }
 
   for (const id of toRebuild) {

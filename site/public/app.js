@@ -14,7 +14,7 @@
   const I18N = window.DP_I18N || { lang: "fr", locale: I18N.locale, t: (x) => x };
 
   // Ordre d'affichage des compétitions
-  const ORDER = [61, 2, 39, 140, 135, 78, 3, 848, 62, 94, 88, 40, 71, 307, 5, 15, 4];
+  const ORDER = [61, 2, 39, 140, 135, 78, 3, 848, 62, 94, 88, 40, 71, 307, 136, 5, 15, 4];
 
   // ---------- Outils ----------
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

@@ -280,11 +280,14 @@ const UP = await get("/upcoming");
 check("Accueil : tous les matchs des 7 prochains jours, de plusieurs compétitions, triés par date", UP.success && UP.matchs.length >= 20 && new Set(UP.matchs.map((m) => m.leagueId)).size >= 6 && UP.matchs.every((m, i) => (i === 0 || Date.parse(m.date) >= Date.parse(UP.matchs[i - 1].date)) && Date.parse(m.date) < SIM.now + 7 * 86400000 && Math.abs(m.poisson.proba1 + m.poisson.probaN + m.poisson.proba2 - 1) < 0.01 && m.teams.domicile.name), `${UP.matchs.length} matchs, ${new Set(UP.matchs.map((m) => m.leagueId)).size} compétitions`);
 { const l1 = (await get("/league-predictions?leagueId=61")).predictions, next = LG.competitions.find((c) => c.id === 61).prochain;
   check("Compétitions : date du prochain match fournie pour le tri", LG.competitions.filter((c) => c.matchsAVenir > 0).every((c) => c.prochain) && Date.parse(next) === Math.min(...l1.map((p) => Date.parse(p.date)).filter((t) => t > SIM.now - 3 * 3600000)), next); }
-check("Chaque compétition a son logo", LG.competitions.every((c) => /^https:\/\/a\.espncdn\.com\/i\/leaguelogos\/soccer\/500\/\d+\.png$/.test(c.logo)) && new Set(LG.competitions.map((c) => c.logo)).size === 21);
-check("Liste des compétitions avec matchs à venir", LG.competitions.length === 21 && LG.competitions.find((c) => c.id === 71)?.matchsAVenir > 0, "Brésil inclus");
+check("Chaque compétition a son logo", LG.competitions.every((c) => /^https:\/\/a\.espncdn\.com\/i\/leaguelogos\/soccer\/500\/\d+\.png$/.test(c.logo)) && new Set(LG.competitions.map((c) => c.logo)).size === 22);
+check("Liste des compétitions avec matchs à venir", LG.competitions.length === 22 && LG.competitions.find((c) => c.id === 71)?.matchsAVenir > 0, "Brésil inclus");
 {
   const ksa = LG.competitions.find((c) => c.id === 307), P = (await get("/league-predictions?leagueId=307")).predictions || [];
   check("Arabie saoudite : compétition listée avec logo et matchs à venir", ksa?.matchsAVenir > 0 && /^https:\/\/.+2488\.png$/.test(ksa?.logo || ""), JSON.stringify(ksa));
+  const sb = LG.competitions.find((c) => c.id === 136), PB = (await get("/league-predictions?leagueId=136")).predictions || [];
+  check("Serie B : compétition listée avec logo et matchs à venir", sb?.matchsAVenir > 0 && /^https:\/\/.+\/99\.png$/.test(sb?.logo || ""), JSON.stringify(sb));
+  check("Serie B : pronostics calculés avec logos des clubs (adresses)", PB.length > 0 && PB.every((p) => /^https?:\/\//.test(p.teams?.domicile?.logo || "") && /^https?:\/\//.test(p.teams?.exterieur?.logo || "")), `${PB.length} matchs`);
   check("Arabie saoudite : pronostics calculés avec logos des clubs (adresses)", P.length > 0 && P.every((p) => /^https?:\/\//.test(p.teams?.domicile?.logo || "") && /^https?:\/\//.test(p.teams?.exterieur?.logo || "")), `${P.length} matchs`);
 }
 

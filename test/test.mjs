@@ -189,6 +189,47 @@ const e = L2.predictions[0];
 const md2 = await get(`/match-details?matchId=${e.matchId}&source=espn&teamDomId=${e.teams.domicile.id}&teamExtId=${e.teams.exterieur.id}`);
 check("Face-à-face ESPN (Ligue 2, saison précédente)", md2.h2h.length >= 1, `${md2.h2h.length} matchs`);
 
+// ---- 4 ter. Cartons, fautes, hors-jeu et corners des face-à-face (ESPN) ----
+console.log("\n— Face-à-face : cartons, fautes, hors-jeu, corners —");
+{
+  const { simBox } = await import("./sim.mjs");
+  const { extractBox, attachH2HStats, espnSlugFor } = await import("../src/h2hstats.js");
+  const fdRows = WORLD["fd:FL1@2026"].concat(WORLD["fd:FL1@2025"]);
+  const want = (m, i) => { const x = fdRows.find((y) => new Date(y.ts).toISOString().slice(0, 10) === m.date && y.hg === m.butsDomicile && y.ag === m.butsExterieur); return x && [...simBox("E" + x.id, "home"), ...simBox("E" + x.id, "away")]; };
+  const mdS = await get(`/match-details?matchId=${encodeURIComponent(p.matchId)}&source=football-data&teamDomId=${d.id}&teamExtId=${p.teams.exterieur.id}&leagueId=61`);
+  const allHave = mdS.h2h.length > 0 && mdS.h2h.every((m) => m.stats);
+  check("Ligue 1 (football-data) : chiffres ESPN sur chaque face-à-face", allHave && !!mdS.h2hResume, `${mdS.h2h.length} match(s)`);
+  const exact = mdS.h2h.every((m) => { const w = want(m); const s2 = m.stats; return w && [s2.domicile.jaunes, s2.domicile.rouges, s2.domicile.fautes, s2.domicile.horsJeu, s2.domicile.corners, s2.exterieur.jaunes, s2.exterieur.rouges, s2.exterieur.fautes, s2.exterieur.horsJeu, s2.exterieur.corners].join() === w.join(); });
+  check("Chiffres exacts et du bon côté (équipe à domicile du match passé)", exact);
+  const avgD = mdS.h2h.reduce((t, m) => t + (m.lieu === "domicile" ? m.stats.domicile.fautes : m.stats.exterieur.fautes), 0) / mdS.h2h.length;
+  check("Moyenne par match pour l'équipe à domicile du match affiché", Math.abs(mdS.h2hResume.domicile.fautes - Math.round(avgD * 10) / 10) < 1e-9 && mdS.h2hResume.matchs === mdS.h2h.length, `fautes ${mdS.h2hResume.domicile.fautes}`);
+  check("Aucune donnée interne envoyée au site", mdS.h2h.every((m) => !("cle" in m)));
+  // Tous les matchs à venir de Ligue 1 et de Premier League ont leurs chiffres (rattrapage fini en 24 h)
+  let tot = 0, full = 0;
+  for (const lid of [61, 39]) for (const q of (await get(`/league-predictions?leagueId=${lid}`)).predictions.filter((x) => Date.parse(x.date) < SIM.now + 7 * 86400000)) {
+    const m2 = await get(`/match-details?matchId=${encodeURIComponent(q.matchId)}&source=football-data&teamDomId=${q.teams.domicile.id}&teamExtId=${q.teams.exterieur.id}&leagueId=${lid}`);
+    if (!m2.h2h.length) continue; tot++; if (m2.h2hResume && m2.h2h.every((m) => m.stats)) full++;
+  }
+  check("Tous les face-à-face des 7 prochains jours complétés (Ligue 1, Premier League)", tot > 0 && full === tot, `${full}/${tot} matchs`);
+  // Belgique (SportAPI) : dans le monde simulé, ESPN n'a pas ces matchs → tout ou rien, aucun chiffre
+  let bel = null;
+  for (const q of (await get("/league-predictions?leagueId=144")).predictions) { const m2 = await get(`/match-details?matchId=${encodeURIComponent(q.matchId)}&source=sportapi&teamDomId=${q.teams.domicile.id}&teamExtId=${q.teams.exterieur.id}&leagueId=144`); if (m2.h2h.length) { bel = m2; break; } }
+  check("Match introuvable chez ESPN : aucun chiffre (tout ou rien)", bel && bel.h2hResume === null && bel.h2h.every((m) => !m.stats));
+  check("CAN : pas de compétition ESPN équivalente", espnSlugFor("sp:72+123") === null && espnSlugFor("sp:5") === "bel.1" && espnSlugFor("fd:CL") === "uefa.champions" && espnSlugFor("fd:PL") === "eng.1");
+  const st = (await get("/status")).faceAFace;
+  check("/status : suivi des chiffres de face-à-face", st && st.matchsAvecChiffres > 0 && typeof st.enAttente === "number", JSON.stringify(st));
+  // Fiche ESPN réelle : chiffres en texte, équipe à domicile retrouvée par son identifiant
+  const real = { boxscore: { teams: [
+    { team: { id: "360" }, statistics: [["foulsCommitted", "14"], ["yellowCards", "2"], ["redCards", "0"], ["offsides", "0"], ["wonCorners", "4"]].map(([name, displayValue]) => ({ name, displayValue })) },
+    { team: { id: "384" }, statistics: [["foulsCommitted", "14"], ["yellowCards", "3"], ["redCards", "0"], ["offsides", "3"], ["wonCorners", "4"]].map(([name, displayValue]) => ({ name, displayValue })) }] } };
+  check("Lecture d'une vraie fiche ESPN (Crystal Palace – Man United, 30/11/2025)", extractBox(real, "384").join() === "3,0,14,3,4,2,0,14,0,4");
+  check("Fiche sans hors-jeu : rien (jamais un chiffre inventé)", extractBox({ boxscore: { teams: [{ team: { id: "1" }, statistics: [{ name: "yellowCards", displayValue: "1" }] }, { team: { id: "2" }, statistics: [] }] } }, "1") === null);
+  const rows = () => [{ cle: "a", lieu: "domicile" }, { cle: "b", lieu: "exterieur" }];
+  const okAll = attachH2HStats(rows(), { m: { a: [1, 1, 0, 10, 2, 5, 2, 0, 12, 1, 3], b: [1, 0, 1, 9, 0, 4, 3, 0, 11, 2, 6] } });
+  check("Un match sans chiffres sur deux : aucun chiffre affiché", attachH2HStats(rows(), { m: { a: [1, 1, 0, 10, 2, 5, 2, 0, 12, 1, 3], b: [1] } }).resume === null);
+  check("Moyenne correcte (lieu inversé pris en compte)", okAll.resume.domicile.fautes === 10.5 && okAll.resume.exterieur.fautes === 10.5 && okAll.resume.domicile.jaunes === 2 && okAll.resume.domicile.rouges === 0 && okAll.resume.exterieur.rouges === 0.5, JSON.stringify(okAll.resume.domicile));
+}
+
 // ---- 4 bis. Nouveaux marchés et compositions ----
 console.log("\n— Marchés et compositions —");
 const P0 = L1.predictions[0].poisson;

@@ -74,6 +74,11 @@ DB["sp:72@2026"] = [["c0", "c2", "c4", "c6"], ["c1", "c3", "c5", "c7"]].flatMap(
 DB["fd:FL1@2026"].find((m) => m.ts > NOW).ts = NOW - 30 * 60000;
 
 export const calls = { fd: 0, espn: 0, h2h: 0, sp: 0 };
+// Cartons jaunes, rouges, fautes, hors-jeu, corners d'une équipe dans un match (déterministe, pour vérifier l'affichage)
+export function simBox(id, side) {
+  let h = side === "home" ? 7 : 13; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) % 100003;
+  return [h % 5, h % 11 === 0 ? 1 : 0, 8 + (h % 10), h % 4, 2 + (h % 7)];
+}
 // Ligue des Nations simulée : de vraies sélections (les notes Elo se retrouvent par le nom)
 export const NATIONS = ["Spain", "France", "England", "Portugal", "Netherlands", "Belgium", "Italy", "Germany", "Croatia", "Denmark", "Turkey", "Switzerland", "Czechia", "Bosnia-Herzegovina", "Norway", "San Marino"];
 const AFRICA_NAMES = AFRICA;
@@ -183,7 +188,9 @@ export function installFetch() {
       if (!ev) return { ok: false, status: 404 };
       const POS = ["G", "RB", "CD-R", "CD-L", "LB", "DM", "CM-R", "CM-L", "RW", "LW", "F"];
       const roster = (id, side) => ({ homeAway: side, formation: "4-3-3", team: { id }, roster: POS.map((q, i) => ({ starter: true, jersey: String(i + 1), formationPlace: i + 1, position: { abbreviation: q }, athlete: { shortName: `J. Joueur${i + 1}`, displayName: `Jean Joueur${i + 1}` } })).concat([{ starter: false, jersey: "12", athlete: { shortName: "Remplaçant" } }]) });
-      return { ok: true, json: async () => ({ rosters: [roster(ev.h, "home"), roster(ev.a, "away")] }) };
+      // Chiffres du match (cartons, fautes, hors-jeu, corners), comme la vraie fiche ESPN : chaînes de caractères, équipe à domicile pas toujours en premier
+      const box = (id, side) => ({ homeAway: side, team: { id }, statistics: SIM.noBox ? [] : simBox(ev.id, side).map((v, i) => ({ name: ["yellowCards", "redCards", "foulsCommitted", "offsides", "wonCorners"][i], displayValue: String(v) })).concat([{ name: "possessionPct", displayValue: "50" }]) });
+      return { ok: true, json: async () => ({ rosters: [roster(ev.h, "home"), roster(ev.a, "away")], boxscore: { teams: [box(ev.a, "away"), box(ev.h, "home")] } }) };
     }
     if ((m = u.pathname.match(/\/soccer\/([\w.]+)\/scoreboard/))) {
       calls.espn++;

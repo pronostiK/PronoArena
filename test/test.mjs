@@ -739,8 +739,8 @@ console.log("\n— Absents connus (Bzzoiro, affichage seulement) —");
   A.PRONO_CACHE.put = async (k, v, o) => { if (k === ABS_KEY) absWrites++; return put0(k, v, o); };
   for (let i = 0; i < 144; i++, t += 600000) { SIM.now = t; await runRobot(A, t); }
   A.PRONO_CACHE.put = put0;
-  check("Absents : au plus 24 écritures par jour (une par heure au plus)", absWrites > 0 && absWrites <= 24, `${absWrites} écritures/jour`);
-  check("Absents : appels par jour plafonnés", calls.bzAbs - a0 <= ABS_DAILY && calls.bzAbs - a0 <= 24 * 12, `${calls.bzAbs - a0} appels/jour`);
+  check("Absents : au plus 72 écritures par jour (une toutes les 20 min au plus)", absWrites > 0 && absWrites <= 72, `${absWrites} écritures/jour`);
+  check("Absents : appels par jour plafonnés", calls.bzAbs - a0 <= ABS_DAILY && calls.bzAbs - a0 <= 72 * 12, `${calls.bzAbs - a0} appels/jour`);
   const st = JSON.parse(await A.PRONO_CACHE.get(ABS_KEY));
   check("Absents : seuls les joueurs non disponibles sont gardés (pas l'effectif complet)", Object.values(st.teams).every((x) => x.l.every((p) => ["B", "I", "S"].includes(p[1]))) && Object.values(st.teams).some((x) => x.l.length === 3));
   // Affichage : un match des 48 h

@@ -5,7 +5,7 @@
 // pas d'historique : on ne garde que les joueurs non disponibles des équipes qui jouent dans les 48 h.
 // Licence BSD (lue le 19/11/2026) : affichage autorisé, jamais de données brutes republiées (aucune route ne renvoie l'effectif).
 // Économie (le robot est à sa limite sur l'offre gratuite Cloudflare) :
-//   - une seule « rafale » par heure au plus : 12 appels, puis UNE écriture KV (≤ 24 écritures/jour) ;
+//   - une « rafale » toutes les 20 min au plus : 12 appels, puis UNE écriture KV (≤ 72 écritures/jour) ;
 //   - pendant ce passage-là, la collecte des xG Bzzoiro est sautée (le nombre d'appels sortants du passage ne bouge pas) ;
 //   - aucun appel quand un visiteur ouvre un match (le site lit seulement la clé KV).
 // Secret Cloudflare requis : BZZOIRO_TOKEN (sans lui, rien ne s'exécute et l'onglet Compos reste comme avant).
@@ -16,9 +16,9 @@ import { sameTeam } from "./xg.js";
 export const ABS_KEY = "abs:all";
 const BASE = "https://sports.bzzoiro.com/api/v2";
 const HOUR = 3600000, DAY = 24 * HOUR;
-export const ABS_EVERY = HOUR;       // une rafale par heure au plus
+export const ABS_EVERY = 20 * 60000; // une rafale toutes les 20 min au plus (19/11 : 1 h était trop lent pour couvrir un week-end)
 export const ABS_PER_RUN = 12;       // appels par rafale (≈ xG Bzzoiro sautés pendant ce passage : 10)
-export const ABS_DAILY = 300;        // plafond d'appels par jour (quota gratuit Bzzoiro : 7 500, partagé avec les xG)
+export const ABS_DAILY = 600;        // plafond d'appels par jour (quota gratuit Bzzoiro : 7 500, partagé avec les xG)
 export const ABS_AHEAD = 48 * HOUR;  // matchs des 48 prochaines heures
 export const ABS_TEAM_MS = 6 * HOUR; // effectif d'une équipe revu toutes les 6 h
 export const ABS_LIST_MS = 6 * HOUR; // liste des matchs d'une compétition revue toutes les 6 h

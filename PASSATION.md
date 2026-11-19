@@ -241,3 +241,4 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - Daltonisme : orange = domicile, bleu = extérieur, jaune = nul, toujours avec logo, lettre ou motif.
 - En anglais, l'onglet « Face-à-face » s'appelle « H2H » (5 onglets trop larges sur téléphone sinon).
 - Aperçu : `node test/analyse-preview.mjs <dossier>` (téléphone + ordinateur, fr + en). Cache `?v=dp32`. Tests : 240 OK.
+- **Confirmé à l'écran par l'utilisateur le 19/11/2026 à 14 h 46** (sur PC, après Ctrl + F5 : l'ancienne page était gardée en mémoire par le navigateur).

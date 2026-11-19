@@ -462,6 +462,132 @@
   }
 
   // Sous le nom de l'équipe : sa place au classement (dans son groupe pour les sélections)
+  // ---------- Onglet « Analyse » : tout en graphiques (aucun appel en plus, données déjà reçues) ----------
+  // Couleurs : orange = équipe à domicile, bleu = équipe à l'extérieur, jaune = nul. Chaque chiffre a aussi son logo,
+  // sa lettre ou un trait différent (plein / pointillé) : lisible sans distinguer les couleurs.
+  const A_COL = { D: "var(--orange)", N: "var(--gold)", E: "var(--blue)" };
+  const clamp01 = (x) => Math.max(0, Math.min(1, Number(x) || 0));
+  // Anneau 1 / N / 2 : trois arcs proportionnels aux probabilités, le favori au centre
+  function aDonut(P, D, E) {
+    const v = [["D", P.proba1], ["N", P.probaN], ["E", P.proba2]], r = 46, C = 2 * Math.PI * r;
+    let off = 0;
+    const arcs = v.map(([k, x]) => { const len = Math.max(0, C * (x || 0) - 3); const s = `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${A_COL[k]}" stroke-width="16" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}" transform="rotate(-90 60 60)"/>`; off += C * (x || 0); return s; }).join("");
+    const fav = v.reduce((a, b) => ((b[1] || 0) > (a[1] || 0) ? b : a));
+    const center = fav[0] === "N" ? `<span class="nul-ico" aria-hidden="true">=</span>` : crest(fav[0] === "D" ? D : E, "crest crest-sm");
+    return `<div class="a-donut"><svg viewBox="0 0 120 120" aria-hidden="true">${arcs}</svg><div class="a-donut-c">${center}<b>${pct(fav[1])}%</b></div></div>`;
+  }
+  // Petite jauge circulaire (pourcentage ou valeur rapportée à un maximum)
+  const aRing = (frac, big, label, col = "var(--gold)") => {
+    const r = 26, C = 2 * Math.PI * r, f = clamp01(frac);
+    return `<div class="a-ring"><div class="a-ring-g"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C * f).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/></svg><b>${big}</b></div><small>${esc(label)}</small></div>`;
+  };
+  // Forme : une colonne par match (du plus ancien au plus récent), vers le haut = victoire, vers le bas = défaite,
+  // hauteur = écart de buts. Lettre V / N / D sur chaque colonne.
+  function aForm(t, RL) {
+    const s = t.stats;
+    if (!s) return "";
+    const cols = [...s.formeDetail].reverse().map((f) => {
+      const [gf, ga] = f.score.split("-").map(Number), gd = Math.min(3, Math.abs(gf - ga)), h = f.r === "N" ? 8 : 14 + gd * 12;
+      return `<div class="a-fc ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}"><div class="a-fc-up">${f.r === "V" ? `<span style="height:${h}px"><i>${RL.V}</i></span>` : ""}</div><div class="a-fc-mid">${f.r === "N" ? `<span><i>${RL.N}</i></span>` : ""}</div><div class="a-fc-dn">${f.r === "D" ? `<span style="height:${h}px"><i>${RL.D}</i></span>` : ""}</div>${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xxs")}<em>${esc(f.score.replace("-", "–"))}</em></div>`;
+    }).join("");
+    return `<div class="a-form"><div class="a-form-h">${mini(t)}<b>${esc(t.name)}</b></div><div class="a-form-row"><div class="a-fcs">${cols}</div>${aRing(s.pointsForme / 15, `${s.pointsForme}<small>/15</small>`, "Points")}</div></div>`;
+  }
+  // Profil des deux équipes : radar à 5 axes (0 au centre, 100 au bord). Domicile = trait plein, extérieur = pointillés.
+  const A_AXES = [
+    ["Attaque", (s) => s.butsMarquesParMatch / 2.5],
+    ["Défense", (s) => 1 - s.butsEncaissesParMatch / 2.5],
+    ["Forme", (s) => s.pointsForme / 15],
+    ["Victoires", (s) => s.victoires / s.matchs],
+    ["Sans encaisser", (s) => s.pctCleanSheet / 100],
+  ];
+  function aRadar(SD, SE) {
+    const cx = 170, cy = 116, R = 80, n = A_AXES.length;
+    const pt = (i, f) => { const a = -Math.PI / 2 + (2 * Math.PI * i) / n; return [cx + R * f * Math.cos(a), cy + R * f * Math.sin(a)]; };
+    const poly = (f) => A_AXES.map((_, i) => pt(i, f).map((x) => x.toFixed(1)).join(",")).join(" ");
+    const grid = [0.25, 0.5, 0.75, 1].map((f) => `<polygon points="${poly(f)}" fill="none" stroke="var(--line)" stroke-width="1"/>`).join("")
+      + A_AXES.map((_, i) => { const [x, y] = pt(i, 1); return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`; }).join("");
+    const team = (s, col, dash) => {
+      const ps = A_AXES.map(([, fn], i) => pt(i, Math.max(0.06, clamp01(fn(s)))));
+      return `<polygon points="${ps.map((p) => p.map((x) => x.toFixed(1)).join(",")).join(" ")}" fill="${col}" fill-opacity=".18" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"${dash ? ' stroke-dasharray="6 4"' : ""}/>` + ps.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${col}"/>`).join("");
+    };
+    const labels = A_AXES.map(([l], i) => { const [x, y] = pt(i, 1.2); return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${Math.abs(x - cx) < 5 ? "middle" : x > cx ? "start" : "end"}">${esc(l)}</text>`; }).join("");
+    return `<svg class="a-radar" viewBox="0 0 340 228" aria-hidden="true">${grid}${team(SE, "var(--blue)", true)}${team(SD, "var(--orange)", false)}${labels}</svg>`;
+  }
+  // Barres horizontales sur une même échelle (buts, xG)
+  const aBar = (label, v, max, col, ghost) => `<div class="a-hb"><small>${esc(label)}</small><div class="a-hb-t"><span class="${ghost ? "ghost" : ""}" style="width:${Math.round(100 * clamp01(v / max))}%;--c:${col}"></span></div><b>${esc(dec(v))}</b></div>`;
+  function aGoals(t, s, col, venue) {
+    const vs = venue === "D" ? s.domicile : s.exterieur, max = 3;
+    return `<div class="a-goals"><div class="a-form-h">${mini(t)}<b>${esc(t.name)}</b></div>
+      ${aBar("Marqués", s.butsMarquesParMatch, max, col)}${aBar("Encaissés", s.butsEncaissesParMatch, max, col, true)}
+      ${vs ? `<div class="a-sub">${esc(venue === "D" ? "À domicile" : "À l'extérieur")}</div>${aBar("Marqués", vs.butsMarques, max, col)}${aBar("Encaissés", vs.butsEncaisses, max, col, true)}` : ""}
+      <div class="a-xg" data-xg="${venue}"></div></div>`;
+  }
+  // Classement : les deux équipes placées sur la même règle (1er à gauche, dernier à droite)
+  function aTable(D, E, size) {
+    const cD = D.classement, cE = E.classement;
+    if (!cD || !cE || cD.groupe || cE.groupe || !(size >= 4)) return "";
+    const x = (r) => (100 * (r - 1)) / (size - 1);
+    const mark = (t, c, cls) => `<div class="a-tk ${cls}" style="left:${x(c.rang).toFixed(1)}%">${mini(t)}<b>${c.rang}<sup>${c.rang === 1 ? "er" : "e"}</sup></b><small>${c.points} pts</small></div>`;
+    return `<section class="panel"><h2>${ico("trophy")}Classement</h2>
+      <div class="a-track">${mark(D, cD, "top")}<div class="a-line"><span class="a-zone"></span></div>${mark(E, cE, "bot")}</div>
+      <div class="a-track-l"><span>1<sup>er</sup></span><span>${size}<sup>e</sup></span></div>
+</section>`;
+  }
+  function analyseTab(p, D, E, P, size) {
+    const RL = I18N.lang === "en" ? { V: "W", N: "D", D: "L" } : { V: "V", N: "N", D: "D" };
+    const SD = D.stats, SE = E.stats, L = p.lambdas || {};
+    const top = (P.scoresExacts || []).slice(0, 3), tmax = Math.max(...top.map((x) => x.proba), 0.01);
+    const leg = (t, k, x) => `<div class="a-leg"><i style="background:${A_COL[k]}" aria-hidden="true"></i>${t ? mini(t) : `<span class="nul-ico" aria-hidden="true">=</span>`}<span class="a-leg-n">${t ? esc(t.name) : "Nul"}</span><b>${pct(x)}%</b></div>`;
+    return `
+      <section class="panel"><h2>${ico("trophy")}Qui gagne ?</h2>
+        <div class="a-who">${aDonut(P, D, E)}<div class="a-legs">${leg(D, "D", P.proba1)}${leg(null, "N", P.probaN)}${leg(E, "E", P.proba2)}</div></div>
+        ${top.length ? `<h3>${ico("grid")}Scores les plus probables</h3><div class="a-scores">${top.map((x, i) => `<div class="a-sc${i === 0 ? " best" : ""}"><small>${pct(x.proba)}%</small><span style="height:${Math.round(18 + 52 * (x.proba / tmax))}px"></span><b>${x.dom} – ${x.ext}</b></div>`).join("")}</div>` : ""}
+      </section>
+      <section class="panel"><h2>${ico("ball")}Les buts du match</h2>
+        <div class="a-rings">
+          ${aRing(P.probaOver25, `${pct(P.probaOver25)}%`, "Plus de 2,5 buts")}
+          ${aRing(P.probaBTTS, `${pct(P.probaBTTS)}%`, "Les deux marquent")}
+          ${aRing((L.lambdaDom + L.lambdaExt) / 5, dec(L.lambdaDom + L.lambdaExt), "Total attendu")}
+          ${aRing(1 - (P.matrix?.[0]?.[0] || 0), `${pct(1 - (P.matrix?.[0]?.[0] || 0))}%`, "Au moins un but")}
+        </div>
+        <div class="a-split"><span>${mini(D)}<b class="c1">${dec(L.lambdaDom)}</b></span><div class="pair-bar" aria-hidden="true"><span style="width:${Math.round((100 * L.lambdaDom) / (L.lambdaDom + L.lambdaExt || 1))}%"></span><span style="width:${100 - Math.round((100 * L.lambdaDom) / (L.lambdaDom + L.lambdaExt || 1))}%"></span></div><span><b class="c2">${dec(L.lambdaExt)}</b>${mini(E)}</span></div>
+        <p class="note">Buts attendus pour chaque équipe.</p>
+      </section>
+      ${SD && SE ? `<section class="panel"><h2>${ico("target")}Profil des équipes</h2>
+        ${aRadar(SD, SE)}
+        <div class="a-key"><span><i class="solid" aria-hidden="true"></i>${mini(D)}${esc(D.name)}</span><span><i class="dash" aria-hidden="true"></i>${mini(E)}${esc(E.name)}</span></div>
+        <p class="note">Plus la forme est grande, meilleure est l'équipe sur ce point (saison en cours).</p>
+      </section>` : ""}
+      ${SD || SE ? `<section class="panel"><h2>${ico("bolt")}Forme · 5 derniers matchs</h2>${aForm(D, RL)}${aForm(E, RL)}
+        <div class="legend"><span class="lg V" aria-hidden="true">${RL.V}</span>Victoire<span class="lg N" aria-hidden="true">${RL.N}</span>Nul<span class="lg D" aria-hidden="true">${RL.D}</span>Défaite</div>
+        <p class="note">Plus la colonne est haute, plus l'écart de buts est grand.</p></section>` : ""}
+      ${SD && SE ? `<section class="panel"><h2>${ico("ball")}Buts par match</h2><div class="a-goals2">${aGoals(D, SD, "var(--orange)", "D")}${aGoals(E, SE, "var(--blue)", "E")}</div>
+        <p class="note">Barre pleine : buts marqués. Barre hachurée : buts encaissés.</p><div id="a-xg-note"></div></section>` : ""}
+      ${aTable(D, E, size)}
+      <section class="panel" id="a-h2h-panel" hidden><h2>${ico("split")}Face-à-face</h2><div id="a-h2h"></div></section>`;
+  }
+  // Remplit les parties qui arrivent avec les détails du match (xG, face-à-face)
+  function analyseFill(md, D, E) {
+    const xd = md.stats?.domicile?.xg, xe = md.stats?.exterieur?.xg;
+    if (xd && xe) {
+      const put = (k, x, col) => { const el = document.querySelector(`.a-xg[data-xg="${k}"]`); if (el) el.innerHTML = `<div class="a-sub">xG</div>${aBar("Créés", x.pour, 3, col)}${aBar("Concédés", x.contre, 3, col, true)}`; };
+      put("D", xd, "var(--orange)"); put("E", xe, "var(--blue)");
+      const n = document.getElementById("a-xg-note"); if (n) n.innerHTML = `<p class="note">xG : moyenne sur les ${Math.min(xd.n, xe.n)} derniers matchs · ${esc(xd.src || "Soccer Data")}</p>`;
+    }
+    const h = md.h2h || [], box = document.getElementById("a-h2h");
+    if (!h.length || !box) return;
+    const w = { domicile: 0, nul: 0, exterieur: 0 };
+    let buts = 0;
+    for (const m of h) { w[m.vainqueur] = (w[m.vainqueur] || 0) + 1; buts += (Number(m.butsDomicile) || 0) + (Number(m.butsExterieur) || 0); }
+    const seg = (n, k) => (n ? `<span style="flex:${n};background:${A_COL[k]}"><b>${n}</b></span>` : "");
+    box.innerHTML = `<div class="a-h2h-h">${mini(D)}<span>${h.length}</span>${mini(E)}</div>
+      <div class="a-stack" aria-hidden="true">${seg(w.domicile, "D")}${seg(w.nul, "N")}${seg(w.exterieur, "E")}</div>
+      <div class="a-h2h-l"><span><b class="c1">${w.domicile}</b> ${mini(D)}</span><span><span class="nul-ico" aria-hidden="true">=</span> <b class="cN">${w.nul}</b></span><span>${mini(E)} <b class="c2">${w.exterieur}</b></span></div>
+      <div class="a-rings a-rings-1">${aRing(buts / h.length / 5, dec(buts / h.length), "Buts par match")}</div>
+      ${h2hSummary(md.h2hResume, D, E)}`;
+    document.getElementById("a-h2h-panel").hidden = false;
+  }
+
   const rankLabel = (t) => (t.classement ? `${t.classement.rang}${t.classement.rang === 1 ? "er" : "e"} ${t.classement.groupe ? "du groupe" : "au classement"}` : "");
   async function renderDuel(leagueId, matchId) {
     setTab("duels");
@@ -572,7 +698,7 @@
         <div id="xg-note"></div>
       </section>` : ""}`;
 
-    const tabsDef = [["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
+    const tabsDef = [["a", "Analyse"], ["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
     view.innerHTML = `
       <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels de ${esc(lg?.nom || "la compétition")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
       <section class="match-hero" ${liveAttr(leagueId, p)}>
@@ -585,10 +711,11 @@
         ${picks(p, Number(leagueId), myPick(mine, leagueId, p.matchId))}
         <p class="note">${isLive(p.status) || Date.parse(p.date) <= Date.now() ? "Coup d'envoi donné : les pronos sont bloqués." : "Modifiable jusqu'au coup d'envoi. Ton prono compte pour le classement de l'Arène."}</p>
       </section>
-      <div class="tabs" role="tablist" aria-label="Sections de l'analyse" style="grid-template-columns:repeat(${tabsDef.length},minmax(0,1fr))">
+      <div class="tabs${tabsDef.length > 4 ? " t5" : ""}" role="tablist" aria-label="Sections de l'analyse" style="grid-template-columns:repeat(${tabsDef.length},minmax(0,1fr))">
         ${tabsDef.map(([k, l], i) => `<button type="button" role="tab" aria-selected="${i === 0}" data-pane="${k}">${l}</button>`).join("")}
       </div>
-      <div data-panel="m">${marches}</div>
+      <div data-panel="a">${analyseTab(p, D, E, P, (data.classement || []).length)}</div>
+      <div data-panel="m" hidden>${marches}</div>
       <div data-panel="s" hidden>${stats}</div>
       <div data-panel="c" hidden><section class="panel"><h2>${ico("grid")}Compositions</h2><div id="compos"><p class="note">Chargement…</p></div></section></div>
       <div data-panel="h" hidden><section class="panel"><h2>${ico("trophy")}Derniers duels</h2><div id="h2h"><p class="note">Chargement…</p></div></section></div>`;
@@ -606,6 +733,7 @@
         xbox.innerHTML = cmp("xG créés / match", xd.pour, xe.pour, dec2) + cmp("xG concédés / match", xd.contre, xe.contre, dec2, true);
         document.getElementById("xg-note").innerHTML = `<p class="note">xG : moyenne sur les ${Math.min(xd.n, xe.n)} derniers matchs · ${esc(xd.src || "Soccer Data")}</p>`;
       }
+      analyseFill(md, D, E);
       const h = md.h2h || [];
       document.getElementById("h2h").innerHTML = h.length
         ? h2hSummary(md.h2hResume, D, E) + h.map((m) => {

@@ -238,6 +238,14 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - Proposés à l'utilisateur, classés par intérêt du public francophone : 1 Arabie saoudite (retenue), 2 Maroc, 3 MLS (à la reprise fin février), 4 Coupe de France (bloquée : logos des clubs amateurs), 5 Suisse, 6 Serie B / Liga 2 / 2. Bundesliga (matchs et logos ESPN vérifiés OK).
 - football-data gratuit : ses 12 compétitions sont toutes utilisées ; tout nouveau championnat passe par ESPN (budget 30 appels/passage partagé, en ajouter 1 ou 2 au plus à la fois) ou SportAPI.
 - Saudi Pro League : identifiant site 307, `src: "espn:ksa.1"`, logo ESPN 2488, pays « Arabie saoudite » (traduit « Saudi Arabia »). Ajouté à `FREE_PRIORITY` (build.js) et `ORDER` (app.js). Vérifié chez ESPN le 19/11 : saisons 2025-26 et 2026-27, matchs à venir (28/11, 5/12), logos de tous les clubs. Le direct passe par ESPN comme la Ligue 2 (non vérifié en réel : premier match le 28/11).
-- Le simulateur ESPN (`test/sim.mjs`) donne maintenant des adresses de logos complètes (comme le vrai ESPN). 2 tests ajoutés. Cache `?v=dp32`.
+- Le simulateur ESPN (`test/sim.mjs`) donne maintenant des adresses de logos complètes (comme le vrai ESPN). 2 tests ajoutés. Cache `?v=dp33`.
 - **À vérifier** : remplissage de l'historique (~1 jour) dans /status, puis vrais logos à l'écran (capture de l'utilisateur) quand le championnat apparaît (matchs dans les 7 jours, donc vers le 21/11).
 - Maroc (Botola) : ESPN n'a pas `mar.1` (refus). Piste restante : SportAPI (à vérifier avec la clé, via le robot).
+
+## 19/11/2026 — Onglet « Analyse » en graphiques (demande de l'utilisateur, publié avec son accord)
+- Demande : un onglet d'analyse visuel (graphiques et couleurs, peu de texte), inspiré d'une vidéo d'un autre site, sans le recopier.
+- 1er onglet de la fiche d'un match (avant Marchés, Stats, Compos, Face-à-face), dessiné par le site (SVG) avec les données déjà reçues : **aucun appel ni quota en plus**. Code : `analyseTab` / `analyseFill` dans `site/public/app.js`, styles « ONGLET ANALYSE » à la fin de `app.css`.
+- Contenu : anneau 1/N/2 (favori au centre) + 3 scores les plus probables ; 4 jauges (plus de 2,5 buts, les deux marquent, total attendu, au moins un but) + buts attendus par équipe ; toile à 5 branches (attaque, défense, forme, victoires, sans encaisser ; domicile trait plein, extérieur pointillés) ; forme en colonnes (haut = victoire, bas = défaite, hauteur = écart, lettre V/N/D) ; barres buts marqués (pleines) / encaissés (hachurées), dom./ext., xG ; règle du classement ; bilan du face-à-face + cartons/fautes/hors-jeu/corners.
+- Daltonisme : orange = domicile, bleu = extérieur, jaune = nul, toujours avec logo, lettre ou motif.
+- En anglais, l'onglet « Face-à-face » s'appelle « H2H » (5 onglets trop larges sur téléphone sinon).
+- Aperçu : `node test/analyse-preview.mjs <dossier>` (téléphone + ordinateur, fr + en). Cache `?v=dp32`. Tests : 240 OK.

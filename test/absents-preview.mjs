@@ -17,7 +17,7 @@ const L = await api("/league-predictions?leagueId=39");
 let pick = null;
 for (const m of L.predictions) {
   const d = await api(`/match-details?matchId=${encodeURIComponent(m.matchId)}&source=football-data&leagueId=39&teamDomId=${m.teams.domicile.id}&teamExtId=${m.teams.exterieur.id}`);
-  if (d.absents?.domicile?.l.length && d.absents?.exterieur) { pick = m; break; }
+  if (d.absents?.domicile?.l.length && d.absents?.exterieur && d.compositions?.domicile && [d.absents.domicile, d.absents.exterieur].some((x) => x.l.some((p) => p[5] === 1))) { pick = m; break; }
 }
 console.log("match :", pick?.matchId);
 
@@ -51,6 +51,7 @@ for (const [lang, w, h, file] of [["fr", 390, 844, "telephone"], ["fr", 1280, 90
   await page.waitForTimeout(500);
   const txt = await page.$eval("#compos", (el) => el.innerText).catch(() => "");
   expect(`${lang} ${file} : bloc des absents affiché`, lang === "fr" ? /Absents connus/.test(txt) && /Blessé/.test(txt) && /retour prévu le/.test(txt) && /genou/.test(txt) : /Known absentees/.test(txt) && /Injured/.test(txt) && /expected back/.test(txt));
+  expect(`${lang} ${file} : titulaire du dernier match et lignes`, lang === "fr" ? /Titulaire au dernier match/.test(txt) && /dont \d+ titulaire/.test(txt) && /(Défense|Milieu|Attaque|Gardien) \d/.test(txt) : /Started last match/.test(txt) && /who started the last match/.test(txt) && /(Defence|Midfield|Attack|Goalkeeper) \d/.test(txt));
   expect(`${lang} ${file} : mention « à titre indicatif »`, lang === "fr" ? /À titre indicatif/.test(txt) : /For information only/.test(txt));
   const el = await page.$(".abs-title");
   if (el) await el.scrollIntoViewIfNeeded();

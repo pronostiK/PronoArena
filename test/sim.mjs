@@ -176,7 +176,10 @@ export function installFetch() {
         calls.bzAbs = (calls.bzAbs || 0) + 1; calls.bzSquad = (calls.bzSquad || 0) + 1;
         const id = Number(m[1]);
         const PRE = ["Lucas", "Hugo", "Théo", "Nathan", "Enzo", "Louis", "Jules"], NOM = ["Martin", "Bernard", "Petit", "Durand", "Moreau", "Laurent", "Garnier"];
-        const p = (i, availability, injury_type = "", ret = null) => ({ id: id * 100 + i, name: `${PRE[(id + i) % 7]} ${NOM[(id * 3 + i) % 7]}`, short_name: `${PRE[(id + i) % 7][0]}. ${NOM[(id * 3 + i) % 7]}`, availability, injury_type, injury_expected_return: ret, position: "M", jersey_number: i });
+        const POSB = ["G", "G", "D", "D", "M", "F"];
+        // Le n° 3 est le titulaire n° 9 du dernier match (onze simulé « J. Joueur1…11 ») pour une équipe sur deux
+        const nm = (i) => (i === 3 && id % 2 === 0 ? ["Jean Joueur9", "J. Joueur9"] : [`${PRE[(id + i) % 7]} ${NOM[(id * 3 + i) % 7]}`, `${PRE[(id + i) % 7][0]}. ${NOM[(id * 3 + i) % 7]}`]);
+        const p = (i, availability, injury_type = "", ret = null) => ({ id: id * 100 + i, name: nm(i)[0], short_name: nm(i)[1], availability, injury_type, injury_expected_return: ret, position: POSB[i], jersey_number: i });
         const squad = [p(1, "available"), p(2, "available"), ...(id % 3 === 0 ? [p(3, "injured", "Ankle Injury")] : [p(3, "injured", "Knee Injury", "2026-12-01"), p(4, "doubtful", "Hamstring"), p(5, "suspended", "Red card")])];
         return { ok: true, json: async () => ({ count: squad.length, players: squad, team_id: id }) }; // forme réelle de Bzzoiro
       }

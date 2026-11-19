@@ -767,7 +767,18 @@ console.log("\n— Absents connus (Bzzoiro, affichage seulement) —");
   const { absentsPair } = await import("../src/absents.js");
   const vide = { teams: { 1: { n: "Équipe 1 FC", lg: 62, at: 0, l: [] }, 2: { n: "Équipe 2 FC", lg: 62, at: 0, l: [] } } };
   check("Absents : deux listes vides (championnat non suivi) → rien d'affiché", absentsPair(vide, 62, "Équipe 1 FC", "Équipe 2 FC", 1).domicile === null);
-  check("Absents : lecture d'un effectif Bzzoiro (forme réelle { count, players, team_id })", JSON.stringify(squadAbsents({ count: 2, team_id: 7, players: [{ name: "A B", short_name: "A. B", availability: "injured", injury_type: "Ankle", injury_expected_return: "2026-12-03" }, { name: "C", availability: "available" }] })) === JSON.stringify([["A. B", "B", "Ankle", "2026-12-03"]]));
+  check("Absents : lecture d'un effectif Bzzoiro (forme réelle { count, players, team_id })", JSON.stringify(squadAbsents({ count: 2, team_id: 7, players: [{ name: "A B", short_name: "A. B", availability: "injured", injury_type: "Ankle", injury_expected_return: "2026-12-03" }, { name: "C", availability: "available" }] })) === JSON.stringify([["A. B", "B", "Ankle", "2026-12-03", ""]]));
+  // Titulaires du dernier match et lignes
+  const { samePlayer, line, markStarters } = await import("../src/absents.js");
+  check("Absents : même joueur ESPN / Bzzoiro (initiale + nom, accents)", samePlayer("K. Mbappé", "Kylian Mbappe") && samePlayer("M. Salah", "M. Salah") && !samePlayer("L. Hernández", "T. Hernández") && !samePlayer("J. Martin", "J. Martins"));
+  check("Absents : ligne du joueur (G/D/M/A)", line("G") === "G" && line("Goalkeeper") === "G" && line("D") === "D" && line("Midfielder") === "M" && line("F") === "A" && line("Forward") === "A" && line("") === "");
+  const mk = markStarters({ at: 1, l: [["J. Joueur9", "B", "", "", "A"], ["L. Autre", "I", "", "", "M"]] }, [["9", "J. Joueur9", "F"], ["1", "J. Joueur1", "G"]]);
+  check("Absents : titulaire du dernier match repéré", mk.xi && mk.l[0][5] === 1 && mk.l[1][5] === 0);
+  if (md) {
+    const both = [md.absents.domicile, md.absents.exterieur];
+    check("Absents : ligne transmise pour chaque absent", both.every((x) => x.l.every((p) => ["G", "D", "M", "A"].includes(p[4]))), JSON.stringify(both[0].l[0]));
+  }
+  // (titulaires sur un match complet : vérifié par test/absents-preview.mjs, où les compositions sont chargées)
   // Refus 429 : pause commune absents + xG
   const P = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
   SIM.bz429 = true; calls.bz = 0; let tp = Date.UTC(2026, 10, 12, 8, 0);

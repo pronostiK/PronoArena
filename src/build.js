@@ -223,13 +223,18 @@ export async function buildVerdict(env, leagueIds, season, now = Date.now(), day
 }
 
 // ---------- Face-à-face (depuis les données stockées, aucun appel API) ----------
-function orient(list, teamDomId, teamExtId, names) {
+// Les 5 derniers matchs entre les deux équipes (bruts : identifiant, source, équipes, score, date)
+export function meetings(list, teamDomId, teamExtId) {
   const seen = new Set();
   return list
     .filter((f) => (f.homeId === teamDomId && f.awayId === teamExtId) || (f.homeId === teamExtId && f.awayId === teamDomId))
     .sort((a, b) => b.ts - a.ts)
     .filter((f) => { const k = `${f.ts}-${f.hg}-${f.ag}`; if (seen.has(k)) return false; seen.add(k); return true; })
-    .slice(0, 5)
+    .slice(0, 5);
+}
+
+function orient(list, teamDomId, teamExtId, names) {
+  return meetings(list, teamDomId, teamExtId)
     .map((f) => {
       const domAtHome = f.homeId === teamDomId;
       const sd = domAtHome ? f.hg : f.ag, se = domAtHome ? f.ag : f.hg;
@@ -241,11 +246,16 @@ function orient(list, teamDomId, teamExtId, names) {
         equipeDomicile: names?.[f.homeId]?.[0] || null,
         equipeExterieur: names?.[f.awayId]?.[0] || null,
         butsDomicile: f.hg, butsExterieur: f.ag,
+        cle: h2hMatchKey(f), // pour retrouver cartons, fautes, hors-jeu et corners (h2hstats.js) ; retiré avant l'envoi au site
       };
     });
 }
 
-export async function getH2H(env, { source, teamDomId, teamExtId, leagueId }, season) {
+// Identifiant d'un match passé, unique tous fournisseurs confondus (« fd:123 », « espn:740725 », « sp:9 »)
+export const h2hMatchKey = (f) => `${String(f.src || "").split(":")[0]}:${f.id}`;
+
+// Tous les matchs terminés utiles au face-à-face d'une compétition (memo : lectures partagées entre plusieurs matchs)
+export async function h2hPool(env, { source, leagueId }, season, memo = null) {
   const provider = source === "football-data" ? "fd:" : source === "sportapi" ? "sp:" : "espn:";
   const keys = new Set();
   // Économie de quota : seulement les données de la compétition du match (2 à 11 lectures au lieu de 40)
@@ -256,8 +266,14 @@ export async function getH2H(env, { source, teamDomId, teamExtId, leagueId }, se
     }
     for (const d of (lg.domestic || []).filter((x) => x.startsWith(provider))) keys.add(srcKey(d, season));
   }
-  const srcs = (await Promise.all([...keys].map((k) => kvGet(env, k)))).filter(Boolean);
+  const read = (k) => { if (!memo) return kvGet(env, k); if (!memo.has(k)) memo.set(k, kvGet(env, k)); return memo.get(k); };
+  const srcs = (await Promise.all([...keys].map(read))).filter(Boolean);
   const all = [], names = {};
-  for (const s of srcs) { all.push(...toFinished(s)); Object.assign(names, s.teams); }
+  for (const s of srcs) { for (const f of toFinished(s)) all.push({ ...f, src: s.src }); Object.assign(names, s.teams); }
+  return { all, names };
+}
+
+export async function getH2H(env, { source, teamDomId, teamExtId, leagueId }, season) {
+  const { all, names } = await h2hPool(env, { source, leagueId }, season);
   return { h2h: orient(all, String(teamDomId), String(teamExtId), names) };
 }

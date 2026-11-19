@@ -287,6 +287,10 @@ await page.click(".tabs button[data-pane='c']"); await page.waitForTimeout(400);
     const rows = await page.locator("#h2h .h2h").evaluateAll((els) => els.map((e) => ({ h: e.querySelector(".h2h-tm.h .nm").textContent, a: e.querySelector(".h2h-tm.a .nm").textContent, s: e.querySelector(".h2h-s").textContent, win: e.querySelector(".h2h-tm.win .nm")?.textContent || null })));
     const ok = rows.every((r, i) => { const x = hit.md.h2h[i], [hg, ag] = [x.butsDomicile, x.butsExterieur]; return r.s === `${hg} – ${ag}` && r.win === (hg > ag ? r.h : hg < ag ? r.a : null); });
     check("Face-à-face : chaque nom à côté de son logo, vainqueur mis en valeur", ok, rows.map((r) => `${r.h} ${r.s} ${r.a} → ${r.win || "nul"}`).join(" | "));
+    // Cartons, fautes, hors-jeu, corners : moyenne en haut + une ligne sous chaque match (chiffre de l'équipe à domicile à gauche)
+    const sx = await page.evaluate(() => ({ sum: [...document.querySelectorAll("#h2h .h2h-sum .cmp-h")].map((e) => e.textContent), lines: [...document.querySelectorAll("#h2h .h2h .h2h-x")].map((e) => e.textContent) }));
+    const st = (i) => hit.md.h2h[i].stats;
+    check("Face-à-face : cartons, fautes, hors-jeu et corners affichés (moyenne + chaque match)", !!hit.md.h2hResume && sx.sum.length === 5 && sx.lines.length === hit.md.h2h.length && sx.lines.every((t, i) => t.includes(`${st(i).domicile.fautes}Fautes${st(i).exterieur.fautes}`) && t.includes(`${st(i).domicile.horsJeu}Hors-jeu${st(i).exterieur.horsJeu}`)), sx.lines.join(" | "));
     await page.waitForFunction(() => !document.querySelector("#toast.show")); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(200); await wide("face-a-face");
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300); await page.locator("#h2h").scrollIntoViewIfNeeded();
     check("Face-à-face (téléphone) : pas de débordement", (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390); await shot("face-a-face-telephone", false); await page.setViewportSize({ width: 1440, height: 900 }); } }

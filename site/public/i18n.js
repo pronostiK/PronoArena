@@ -120,6 +120,7 @@
     "xG créés / match": "xG for / match", "xG concédés / match": "xG against / match", "Buts marqués / match": "Goals scored / match", "Buts encaissés / match": "Goals conceded / match", "Plus de 2,5 buts": "Over 2.5 goals",
     "Les deux marquent": "Both teams score", "Sans encaisser": "Clean sheets", "Buts marqués (dom. / ext.)": "Goals scored (home / away)",
     "Compositions": "Line-ups", "Chargement…": "Loading…", "Derniers duels": "Recent meetings",
+    "Moyenne par match": "Average per match", "Cartons jaunes": "Yellow cards", "Cartons rouges": "Red cards", "Fautes": "Fouls", "Hors-jeu": "Offsides",
     "Aucune confrontation récente entre ces deux équipes.": "No recent meeting between these two teams.",
     "Composition non disponible": "Line-up not available", "Compositions bientôt disponibles pour ce match.": "Line-ups will be available soon for this match.",
     "Onze aligné au dernier match. La composition officielle est publiée environ 1 h avant le coup d'envoi.": "Starting eleven from the last match. The official line-up is published about 1 hour before kick-off.",

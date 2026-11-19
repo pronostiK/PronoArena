@@ -138,6 +138,10 @@ main { flex: 1; outline: none; }
 .h2h-tm.win { font-weight: 800; }
 .h2h-tm.win.c1 { color: var(--orange-txt); } .h2h-tm.win.c2 { color: var(--blue-txt); }
 .h2h-s.cN { color: var(--gold); }
+.h2h-x { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.h2h-x span { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.h2h-x b { color: var(--text-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+.h2h-sum { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line, #2a2724); }
 .h2h-s { font-family: var(--display); font-size: 17px; padding: 2px 10px; border-radius: 8px; background: #262320; white-space: nowrap; }
 
 /* Verdict */

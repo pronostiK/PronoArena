@@ -12,6 +12,7 @@ import { refreshXg } from "./xg.js";
 import { refreshXgBz } from "./xgbz.js";
 import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
+import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
 import { LEAGUES } from "./config.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -166,6 +167,12 @@ export async function runRobot(env, now = Date.now()) {
     }
   }
 
+  // Cartons, fautes, hors-jeu et corners des anciens face-à-face (ESPN) : avec ce qui reste du budget ESPN du passage, 4 appels au plus
+  if (!espnPaused && espnBudgetLeft() >= 6) {
+    try { const r = await refreshH2HStats(env, season, now, Math.min(4, espnBudgetLeft() - 2)); if (r) report.push(r); }
+    catch (e) { report.push(`face-à-face (cartons, fautes…) : ERREUR ${e.message}`); if (refused(e)) pauseEspn(String(e.message)); }
+  }
+
   // Changement de méthode pour les sélections : leurs pronostics sont recalculés une fois, sans attendre de nouvelles données
   // Nouveaux réglages du modèle (12/11/2026) puis rang dans le groupe pour les sélections (12/11/2026, rév. 3) : toutes les compétitions sont recalculées une fois
   if (index._modelRev !== 7) { index._modelRev = 7; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.robot !== false) toRebuild.add(Number(id)); }
@@ -229,5 +236,6 @@ export async function robotStatus(env, now = Date.now()) {
     const manquants = noms.filter((n) => !clubLogo(rec?.m, n));
     logos[lg.name] = { clubsConnus: noms.length, clubsSportScore: Object.keys(rec?.m || {}).length, jours: rec ? `${rec.n}/80${rec.done ? " (terminé)" : ""}` : "pas commencé", manquants, noms_sportscore: Object.keys(rec?.m || {}) };
   }
-  return { saison: season, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  const faceAFace = await h2hStatsStatus(env);
+  return { saison: season, faceAFace, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

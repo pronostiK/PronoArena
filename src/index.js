@@ -25,6 +25,7 @@ import { COMPOS_KEY, composFor } from "./compos.js";
 import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
 import { XGB_KEY } from "./xgbz.js";
 import { buildLive } from "./live.js";
+import { H2HS_KEY, attachH2HStats } from "./h2hstats.js";
 import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, cancelPick, leaderboard, arenaStatus } from "./arena.js";
 
 const CORS = {
@@ -146,7 +147,8 @@ export default {
           }
         }
         const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
-        return json({ success: true, stats, h2h: h.h2h, compositions: lineups }, 200, cacheFor(who, env, 1800));
+        const h2hs = attachH2HStats(h.h2h, await kvGet(env, H2HS_KEY)); // cartons, fautes, hors-jeu, corners : tout ou rien
+        return json({ success: true, stats, h2h: h2hs.h2h, h2hResume: h2hs.resume, compositions: lineups }, 200, cacheFor(who, env, 1800));
       }
 
       if (path === "/verdict") {

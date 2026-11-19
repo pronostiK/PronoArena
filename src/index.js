@@ -22,7 +22,7 @@ import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./s
 import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
-import { ABS_KEY, absentsFor, absentsStatus } from "./absents.js";
+import { ABS_KEY, absentsPair, absentsStatus } from "./absents.js";
 import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
 import { XGB_KEY } from "./xgbz.js";
 import { buildLive } from "./live.js";
@@ -151,7 +151,7 @@ export default {
         const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
         const h2hs = attachH2HStats(h.h2h, await kvGet(env, H2HS_KEY)); // cartons, fautes, hors-jeu, corners : tout ou rien
         // Absents connus (Bzzoiro, affichage seulement) : lus dans la clé du robot, jamais d'appel ici
-        const absents = pred ? { domicile: absentsFor(abs, leagueId, pred.teams.domicile.name), exterieur: absentsFor(abs, leagueId, pred.teams.exterieur.name) } : { domicile: null, exterieur: null };
+        const absents = pred ? absentsPair(abs, leagueId, pred.teams.domicile.name, pred.teams.exterieur.name) : { domicile: null, exterieur: null };
         return json({ success: true, stats, h2h: h2hs.h2h, h2hResume: h2hs.resume, compositions: lineups, absents }, 200, cacheFor(who, env, 1800));
       }
 

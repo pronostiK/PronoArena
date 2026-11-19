@@ -56,7 +56,8 @@ const emptyState = () => ({ comps: {}, ev: {}, teams: {}, day: "", used: 0, at: 
 
 // Joueurs non disponibles d'un effectif Bzzoiro : [nom, B|I|S, motif, retour prévu AAAA-MM-JJ]
 export function squadAbsents(squad) {
-  return arr(squad, "squad")
+  // Vraie réponse Bzzoiro (vérifiée le 19/11/2026 sur 24 matchs) : { count, players: [...], team_id }
+  return arr(squad, "players")
     .filter((p) => STATUS[p?.availability])
     .map((p) => [String(p.short_name || p.name || "").slice(0, 40), STATUS[p.availability], String(p.injury_type || "").slice(0, 40), p.injury_expected_return ? String(p.injury_expected_return).slice(0, 10) : ""])
     .filter((p) => p[0]);
@@ -176,6 +177,13 @@ export function absentsFor(st, leagueId, teamName, now = Date.now()) {
   const same = all.filter((x) => x.lg === Number(leagueId));
   const t = same.length ? pick(same) : pick(all);
   return t ? { at: t.at, l: t.l } : null;
+}
+
+// Les deux équipes, sinon rien. Deux listes vides : Bzzoiro ne suit sans doute pas ce championnat (vu en Ligue 2 le 19/11) → rien.
+export function absentsPair(st, leagueId, dom, ext, now = Date.now()) {
+  const d = absentsFor(st, leagueId, dom, now), e = absentsFor(st, leagueId, ext, now);
+  if (!d || !e || (!d.l.length && !e.l.length)) return { domicile: null, exterieur: null };
+  return { domicile: d, exterieur: e };
 }
 
 // Pour /status

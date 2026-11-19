@@ -764,7 +764,10 @@ console.log("\n— Absents connus (Bzzoiro, affichage seulement) —");
   check("Absents : info de plus de 36 h non affichée", absentsFor(fake, 39, "Équipe 1 FC", 37 * 3600000) === null && !!absentsFor(fake, 39, "Équipe 1 FC", 3600000));
   const amb = { teams: { 1: { n: "Sporting CP", lg: 94, at: 0, l: [] }, 2: { n: "Sporting Braga", lg: 94, at: 0, l: [] } } };
   check("Absents : deux équipes possibles → seulement le nom identique, sinon rien", absentsFor(amb, 94, "Sporting", 1) === null && !!absentsFor(amb, 94, "Sporting CP", 1));
-  check("Absents : lecture d'un effectif Bzzoiro", JSON.stringify(squadAbsents([{ name: "A B", short_name: "A. B", availability: "injured", injury_type: "Ankle", injury_expected_return: "2026-12-03" }, { name: "C", availability: "available" }])) === JSON.stringify([["A. B", "B", "Ankle", "2026-12-03"]]));
+  const { absentsPair } = await import("../src/absents.js");
+  const vide = { teams: { 1: { n: "Équipe 1 FC", lg: 62, at: 0, l: [] }, 2: { n: "Équipe 2 FC", lg: 62, at: 0, l: [] } } };
+  check("Absents : deux listes vides (championnat non suivi) → rien d'affiché", absentsPair(vide, 62, "Équipe 1 FC", "Équipe 2 FC", 1).domicile === null);
+  check("Absents : lecture d'un effectif Bzzoiro (forme réelle { count, players, team_id })", JSON.stringify(squadAbsents({ count: 2, team_id: 7, players: [{ name: "A B", short_name: "A. B", availability: "injured", injury_type: "Ankle", injury_expected_return: "2026-12-03" }, { name: "C", availability: "available" }] })) === JSON.stringify([["A. B", "B", "Ankle", "2026-12-03"]]));
   // Refus 429 : pause commune absents + xG
   const P = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
   SIM.bz429 = true; calls.bz = 0; let tp = Date.UTC(2026, 10, 12, 8, 0);

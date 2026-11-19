@@ -268,7 +268,8 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - `/match-details` → `absents: { domicile, exterieur }` = `{ at, l: [[nom, B|I|S, motif, retour AAAA-MM-JJ]] }` ; tout ou rien (les deux équipes, sinon rien) ; noms d'équipes rapprochés avec `sameTeam` (xg.js) ; deux équipes possibles → seulement le nom identique.
 - Affichage : sous les compositions, « Absents connus », statut écrit en toutes lettres (Blessé / Incertain / Suspendu, jamais de couleur), motif traduit en français (genou, ischio-jambiers…), « retour prévu le … », note « À titre indicatif ». 2 colonnes sur PC. Anglais dans i18n.js. Cache `?v=dp38`.
 - `/status` → `absents` (dernière rafale, appels du jour, équipes, par compétition : id Bzzoiro, matchs 48 h, équipes à jour).
-- Aperçu : `node test/absents-preview.mjs <dossier>`. Tests : 256 OK.
+- **Vérification sur 24 vrais matchs (19/11, demandée par l'utilisateur)** : effectif reçu pour les deux équipes 24/24. Elle a révélé un défaut corrigé avant publication : la vraie réponse est `{ count, players, team_id }` (la liste est sous `players`) ; le simulateur imite maintenant cette forme. Ligue 2 : 0 absent sur 6 équipes → probablement pas suivie ; règle : deux listes vides = rien d'affiché.
+- Aperçu : `node test/absents-preview.mjs <dossier>`. Tests : 267 OK.
 - À faire après mise en ligne : vérifier `/status` → absents (compétitions trouvées, surtout C1/C3/C4), puis à l'écran sur un match des 48 h ; noms d'équipes non rapprochés → `ALIAS` de `src/xg.js`.
 
 ## 19/11/2026 — Points clés et Force / Faiblesse (analyse écrite des équipes)

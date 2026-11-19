@@ -690,6 +690,10 @@ console.log("\n— xG (Soccer Data) —");
     const mm = Object.entries(stX.m).find(([, e]) => typeof e[4] === "number" && e[4] >= 0), fx = WORLD["fd:PL@2026"].concat(WORLD["fd:PD@2026"], WORLD["fd:SA@2026"], WORLD["fd:BL1@2026"], WORLD["fd:FL1@2026"]).find((x) => `match_${x.id}` === mm[0]);
     check("xG : valeurs enregistrées = celles de Soccer Data", fx && Math.abs(mm[1][4] - (0.7 + 0.5 * fx.hg)) < 0.011 && Math.abs(mm[1][5] - (0.5 + 0.5 * fx.ag)) < 0.011);
   }
+  // Noms Bzzoiro qui ne se rapprochaient pas seuls (vus dans /status → xgBzzoiro.sansCorrespondance, 19/11/2026)
+  const { sameTeam: sT } = await import("../src/xg.js");
+  check("xG : noms Bzzoiro Lille et La Corogne rapprochés", sT("Lille OSC", "LOSC Lille") && sT("RC Deportivo La Coruña", "Deportivo de A Coruña"));
+  check("xG : alias sans confusion (Alavés ≠ La Corogne, Lens ≠ Lille)", !sT("Deportivo Alavés", "Deportivo de A Coruña") && !sT("Racing Club de Lens", "LOSC Lille"));
   // Pas d'xG hors des 5 championnats
   const lp2 = await getX("/league-predictions?leagueId=94"), q0 = lp2.predictions?.[0];
   if (q0) { const m2 = await getX(`/match-details?matchId=${encodeURIComponent(q0.matchId)}&source=football-data&leagueId=94&teamDomId=${q0.teams.domicile.id}&teamExtId=${q0.teams.exterieur.id}`); check("xG : rien d'affiché pour un championnat non couvert", !m2.stats?.domicile?.xg); }

@@ -531,12 +531,81 @@
       <div class="a-track-l"><span>1<sup>er</sup></span><span>${size}<sup>e</sup></span></div>
 </section>`;
   }
+  // ---------- Points clés et Force / Faiblesse ----------
+  // Le moteur envoie des faits chiffrés (p.analyse) ; ici on écrit la phrase, en français ou en anglais.
+  // Forme « Équipe · fait » : pas d'accord à faire, et chaque phrase se vérifie dans les autres onglets.
+  const KP_EN = I18N.lang === "en";
+  const kpOrd = (n) => (I18N.ord ? I18N.ord(n) : `${n}th`);
+  const kpN = (n, fr1, frN, en1, enN) => `${n} ${KP_EN ? (n === 1 ? en1 : enN) : n === 1 ? fr1 : frN}`;
+  const kpRank = (r) => (KP_EN ? kpOrd(r) : `${r}${r === 1 ? "er" : "e"}`);
+  const kpMatches = (n) => kpN(n, "match", "matchs", "match", "matches");
+  const kpGoals = (n) => kpN(n, "but", "buts", "goal", "goals");
+  const kpWDL = (v) => (KP_EN ? [`${v.v} W`, `${v.n} D`, v.d != null ? `${v.d} L` : ""] : [`${v.v} V`, `${v.n} N`, v.d != null ? `${v.d} D` : ""]).filter(Boolean).join(", ");
+  const KP = {
+    s_unbeaten: ["🔥", (v) => (KP_EN ? `unbeaten in ${kpMatches(v.n)}` : `invaincu depuis ${kpMatches(v.n)}`)],
+    s_win: ["🔥", (v) => (KP_EN ? `${v.n} wins in a row` : `${v.n} victoires de suite`)],
+    s_winless: ["🧊", (v) => (KP_EN ? `no win in ${kpMatches(v.n)}` : `sans victoire depuis ${kpMatches(v.n)}`)],
+    s_loss: ["🧊", (v) => (KP_EN ? `${v.n} defeats in a row` : `${v.n} défaites de suite`)],
+    l5_win: ["🔥", (v) => (KP_EN ? `${v.n} wins in the last 5 matches` : `${v.n} victoires sur les 5 derniers matchs`)],
+    l5_loss: ["🧊", (v) => (KP_EN ? `${v.n} defeats in the last 5 matches` : `${v.n} défaites sur les 5 derniers matchs`)],
+    l5_noscore: ["🚫", (v) => (v.n === 5 ? (KP_EN ? `no goal scored in the last 5 matches` : `aucun but marqué lors des 5 derniers matchs`) : KP_EN ? `failed to score in ${v.n} of the last 5 matches` : `n'a pas marqué dans ${v.n} des 5 derniers matchs`)],
+    l5_cs: ["🛡️", (v) => (KP_EN ? `no goal conceded in ${v.n} of the last 5 matches` : `aucun but encaissé dans ${v.n} des 5 derniers matchs`)],
+    s_scored: ["⚽", (v) => (KP_EN ? `has scored in each of the last ${kpMatches(v.n)}` : `a marqué lors de chacun des ${kpMatches(v.n)} derniers`)],
+    rk_first: ["🏆", (v) => (KP_EN ? `top of the table (${v.pts} pts)` : `leader du championnat (${v.pts} pts)`)],
+    rk_last: ["⚠️", (v) => (KP_EN ? `bottom of the table (${v.pts} pts)` : `dernier du championnat (${v.pts} pts)`)],
+    rk_nowin: ["⚠️", (v) => (KP_EN ? `the only team still without a win (${kpMatches(v.j)})` : `seule équipe encore sans victoire (${kpMatches(v.j)})`)],
+    rk_unbeaten_only: ["🏆", (v) => (KP_EN ? `the only unbeaten team this season (${kpWDL(v)})` : `seule équipe invaincue cette saison (${kpWDL(v)})`)],
+    rk_unbeaten: ["🏆", (v) => (KP_EN ? `unbeaten this season (${kpWDL(v)})` : `invaincu cette saison (${kpWDL(v)})`)],
+    att_best: ["⚽", (v) => (KP_EN ? `${v.r === 1 ? "best" : `${kpOrd(v.r)} best`} attack in the league (${kpGoals(v.b)} in ${kpMatches(v.j)})` : `${v.r === 1 ? "meilleure" : `${v.r}e meilleure`} attaque du championnat (${kpGoals(v.b)} en ${kpMatches(v.j)})`)],
+    att_worst: ["🚫", (v) => (KP_EN ? `weakest attack in the league (${kpGoals(v.b)} in ${kpMatches(v.j)})` : `attaque la plus faible du championnat (${kpGoals(v.b)} en ${kpMatches(v.j)})`)],
+    def_best: ["🛡️", (v) => (KP_EN ? `${v.r === 1 ? "best" : `${kpOrd(v.r)} best`} defence in the league (${kpGoals(v.b)} conceded in ${kpMatches(v.j)})` : `${v.r === 1 ? "meilleure" : `${v.r}e meilleure`} défense du championnat (${kpGoals(v.b)} encaissé${v.b === 1 ? "" : "s"} en ${kpMatches(v.j)})`)],
+    def_worst: ["🥅", (v) => (KP_EN ? `leakiest defence in the league (${kpGoals(v.b)} conceded in ${kpMatches(v.j)})` : `défense la plus faible du championnat (${kpGoals(v.b)} encaissé${v.b === 1 ? "" : "s"} en ${kpMatches(v.j)})`)],
+    h_allwin: ["🏠", (v) => (KP_EN ? `won all ${v.j} home matches this season` : `${v.j} victoires en ${v.j} matchs à domicile cette saison`)],
+    h_unbeaten: ["🏠", (v) => (KP_EN ? `unbeaten at home this season (${kpWDL(v)})` : `invaincu à domicile cette saison (${kpWDL(v)})`)],
+    h_nowin: ["🏠", (v) => (KP_EN ? `no home win this season (${kpMatches(v.j)})` : `aucune victoire à domicile cette saison (${kpMatches(v.j)})`)],
+    a_allwin: ["✈️", (v) => (KP_EN ? `won all ${v.j} away matches this season` : `${v.j} victoires en ${v.j} matchs à l'extérieur cette saison`)],
+    a_unbeaten: ["✈️", (v) => (KP_EN ? `unbeaten away this season (${kpWDL(v)})` : `invaincu à l'extérieur cette saison (${kpWDL(v)})`)],
+    a_nowin: ["✈️", (v) => (KP_EN ? `no away win this season (${kpMatches(v.j)})` : `aucune victoire à l'extérieur cette saison (${kpMatches(v.j)})`)],
+    h2h_win: ["🤝", (v) => (KP_EN ? `won the last ${v.n} meetings` : `a gagné les ${v.n} derniers face-à-face`)],
+    h2h_unb: ["🤝", (v) => (KP_EN ? `unbeaten in the last ${v.n} meetings` : `n'a perdu aucun des ${v.n} derniers face-à-face`)],
+  };
+  const KP_ASPECT = {
+    att: (v) => (KP_EN ? `attack (${kpRank(v.r)}, ${dec(v.m)} goals per match)` : `l'attaque (${kpRank(v.r)}, ${dec(v.m)} but${v.m >= 2 ? "s" : ""} par match)`),
+    def: (v) => (KP_EN ? `defence (${kpRank(v.r)}, ${dec(v.m)} conceded per match)` : `la défense (${kpRank(v.r)}, ${dec(v.m)} but${v.m >= 2 ? "s" : ""} encaissé${v.m >= 2 ? "s" : ""} par match)`),
+    home: (v) => (KP_EN ? `at home (${kpWDL(v)})` : `à domicile (${kpWDL(v)})`),
+    away: (v) => (KP_EN ? `away (${kpWDL(v)})` : `à l'extérieur (${kpWDL(v)})`),
+    form: (v) => (KP_EN ? `form (${v.p} pts out of 15 in the last 5 matches)` : `la forme (${v.p} pts sur 15 lors des 5 derniers matchs)`),
+  };
+  const kpItem = (f, D, E) => { const d = KP[f.k], t = f.s === "D" ? D : E; return d ? `<li><span class="kp-i" aria-hidden="true">${d[0]}</span>${mini(t)}<span><b>${esc(t.name)}</b> · ${esc(d[1](f.v))}</span></li>` : ""; };
+  function kpPanel(p, D, E) {
+    const a = p.analyse || {}, pts = (a.points || []).filter((f) => KP[f.k]), fo = a.forces || {};
+    const row = (t, x) => {
+      if (!x) return "";
+      const line = (cls, sym, lab, z) => (z && KP_ASPECT[z.k] ? `<div class="kp-fw ${cls}"><span class="kp-s" aria-hidden="true">${sym}</span><span><em>${lab}</em> ${esc(KP_ASPECT[z.k](z.v))}</span></div>` : "");
+      return `<div class="kp-team"><div class="kp-th">${mini(t)}<b>${esc(t.name)}</b></div>${line("f", "+", KP_EN ? "Strength:" : "Force :", x.f)}${line("w", "−", KP_EN ? "Weakness:" : "Faiblesse :", x.w)}</div>`;
+    };
+    const fw = row(D, fo.D) + row(E, fo.E);
+    return `<section class="panel kp" id="kp-panel"${pts.length || fw ? "" : " hidden"}><h2>${ico("bolt")}Points clés</h2>
+      <ul class="kp-list" id="kp-list">${pts.map((f) => kpItem(f, D, E)).join("")}</ul>
+      ${fw ? `<div class="kp-fws">${fw}</div>` : ""}
+    </section>`;
+  }
+  // Face-à-face (arrivent avec les détails du match) : un point clé si une équipe a tout gagné ou n'a jamais perdu (3 duels ou plus)
+  function kpH2H(h, D, E) {
+    const list = document.getElementById("kp-list");
+    if (!list || h.length < 3 || list.children.length >= 5) return;
+    for (const [s, me, other] of [["D", "domicile", "exterieur"], ["E", "exterieur", "domicile"]]) {
+      const w = h.filter((m) => m.vainqueur === me).length, l = h.filter((m) => m.vainqueur === other).length;
+      const f = w === h.length ? { k: "h2h_win", s, v: { n: h.length } } : l === 0 && w > 0 ? { k: "h2h_unb", s, v: { n: h.length } } : null;
+      if (f) { list.insertAdjacentHTML("beforeend", kpItem(f, D, E)); document.getElementById("kp-panel").hidden = false; return; }
+    }
+  }
   function analyseTab(p, D, E, P, size) {
     const RL = I18N.lang === "en" ? { V: "W", N: "D", D: "L" } : { V: "V", N: "N", D: "D" };
     const SD = D.stats, SE = E.stats, L = p.lambdas || {};
     const top = (P.scoresExacts || []).slice(0, 3), tmax = Math.max(...top.map((x) => x.proba), 0.01);
     const leg = (t, k, x) => `<div class="a-leg"><i style="background:${A_COL[k]}" aria-hidden="true"></i>${t ? mini(t) : `<span class="nul-ico" aria-hidden="true">=</span>`}<span class="a-leg-n">${t ? esc(t.name) : "Nul"}</span><b>${pct(x)}%</b></div>`;
-    return `
+    return `${kpPanel(p, D, E)}
       <section class="panel"><h2>${ico("trophy")}Qui gagne ?</h2>
         <div class="a-who">${aDonut(P, D, E)}<div class="a-legs">${leg(D, "D", P.proba1)}${leg(null, "N", P.probaN)}${leg(E, "E", P.proba2)}</div></div>
         ${top.length ? `<h3>${ico("grid")}Scores les plus probables</h3><div class="a-scores">${top.map((x, i) => `<div class="a-sc${i === 0 ? " best" : ""}"><small>${pct(x.proba)}%</small><span style="height:${Math.round(18 + 52 * (x.proba / tmax))}px"></span><b>${x.dom} – ${x.ext}</b></div>`).join("")}</div>` : ""}
@@ -573,6 +642,7 @@
       const n = document.getElementById("a-xg-note"); if (n) n.innerHTML = `<p class="note">xG : moyenne sur les ${Math.min(xd.n, xe.n)} derniers matchs · ${esc(xd.src || "Soccer Data")}</p>`;
     }
     const h = md.h2h || [], box = document.getElementById("a-h2h");
+    kpH2H(h, D, E);
     if (!h.length || !box) return;
     const w = { domicile: 0, nul: 0, exterieur: 0 };
     let buts = 0;

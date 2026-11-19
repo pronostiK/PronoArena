@@ -60,9 +60,15 @@ for (const [dev, vp] of [["telephone", { width: 390, height: 844 }], ["pc", { wi
   const over = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(`${dev} ${lang} : pas de défilement de côté`, !over);
   if (lang === "en") { const fr = await page.$eval('[data-panel="a"]', (el) => el.innerText); expect("en : pas de français dans l'Analyse", !/Qui gagne|Profil des|Marqués|Encaissés|Victoires/.test(fr)); }
-  const el = await page.$('[data-panel="a"]');
+  const kpN = await page.$$eval("#kp-list li", (x) => x.length);
+  const kpTxt = await page.$eval("#kp-panel", (el) => el.innerText).catch(() => "");
+  expect(`${dev} ${lang} : points clés affichés`, kpN >= 1, kpN + " phrases");
+  if (lang === "en") expect("en : points clés en anglais", !/victoire|défaite|depuis|Force :|Faiblesse|championnat|Points clés/i.test(kpTxt), kpTxt.slice(0, 120));
+  else expect("fr : points clés en français", /Points clés/i.test(kpTxt) && !/Key points|Strength|Weakness/.test(kpTxt));
   await page.screenshot({ path: `${OUT}/analyse-${dev}-${lang}-haut.png` });
   await page.addStyleTag({ content: "nav, .bottom-nav, header { display: none !important; }" }).catch(() => {});
+  const kpEl = await page.$("#kp-panel"); if (kpEl) await kpEl.screenshot({ path: `${OUT}/points-cles-${dev}-${lang}.png` });
+  const el = await page.$('[data-panel="a"]');
   await el.screenshot({ path: `${OUT}/analyse-${dev}-${lang}.png` });
   await page.close();
 }

@@ -31,6 +31,7 @@ export const XG_LEAGUES = {
 const ALIAS = {
   psg: "paris saint germain", wolves: "wolverhampton wanderers", spurs: "tottenham hotspur", inter: "internazionale",
   "borussia m gladbach": "borussia monchengladbach", "man city": "manchester city", "man united": "manchester united", "man utd": "manchester united",
+  "losc lille": "lille osc", "deportivo de a coruna": "deportivo la coruna", // noms Bzzoiro (19/11/2026)
 };
 const canon = (n) => { const k = String(n || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); return ALIAS[k] || n; };
 export const sameTeam = (a, b) => nameSim(canon(a), canon(b)) >= 1;

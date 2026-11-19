@@ -59,6 +59,8 @@ export const LEAGUES = {
   40: { name: "Championship", logo: logo(24), country: "Angleterre", src: "fd:ELC", backup: "espn:eng.2" },
   71: { name: "Brasileirão", logo: logo(85), country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
   2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC },
+  // Arabie saoudite : ESPN (ksa.1) donne matchs, logos des clubs et direct ; 2 saisons d'historique vérifiées le 19/11/2026
+  307: { name: "Saudi Pro League", logo: logo(2488), country: "Arabie saoudite", src: "espn:ksa.1" },
   62: { name: "Ligue 2", logo: logo(96), country: "France", src: "espn:fra.2" },
   3: { name: "Europa League", logo: logo(2310), country: "Europe", src: "espn:uefa.europa", cup: true, domestic: ESPN_DOMESTIC },
   848: { name: "Conference League", logo: logo(20296), country: "Europe", src: "espn:uefa.europa.conf", cup: true, domestic: ESPN_DOMESTIC },

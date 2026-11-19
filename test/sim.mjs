@@ -20,7 +20,7 @@ export const LEAGUE_TEAMS = {
   "fd:FL1": teams("1", 18, 2.2, 0.88), "fd:PL": teams("2", 20, 2.0, 1.0), "fd:PD": teams("3", 20, 2.1, 0.96),
   "fd:SA": teams("4", 20, 1.9, 0.94), "fd:BL1": teams("5", 18, 2.1, 0.94), "fd:PPL": teams("6", 18, 2.0, 0.84),
   "fd:DED": teams("7", 18, 2.0, 0.82), "fd:ELC": teams("8", 24, 1.6, 0.7), "fd:BSA": teams("9", 20, 1.7, 0.75),
-  "espn:fra.2": teams("e1", 18, 1.6, 0.7),
+  "espn:fra.2": teams("e1", 18, 1.6, 0.7), "espn:ksa.1": teams("k1", 18, 1.7, 0.72),
 };
 // SportAPI : Turquie (16), Belgique (5), Écosse (88) — identifiants d'équipes propres à ce fournisseur
 for (const [id, n] of [[16, 18], [5, 16], [88, 12]]) LEAGUE_TEAMS[`sp:${id}`] = teams(`s${id}_`, n, 1.8, 0.75);
@@ -191,7 +191,7 @@ export function installFetch() {
       const [f, t] = [parts[0], parts[1] ?? parts[0]];
       if (parts.length > 1) return { ok: false, status: 400 }; // comme le vrai ESPN : un seul jour par appel
       const list = [...(DB[`espn:${m[1]}@2025`] || []), ...(DB[`espn:${m[1]}@2026`] || [])].filter((x) => x.ts >= f && x.ts < t + DAY);
-      return { ok: true, json: async () => ({ events: list.map((x) => ({ id: x.id, date: new Date(x.ts).toISOString(), status: { displayClock: isLive(x) ? x.clock || "30'" : "0'", type: { name: isDone(x) ? "STATUS_FULL_TIME" : isLive(x) ? (x.ht ? "STATUS_HALFTIME" : "STATUS_IN_PROGRESS") : "STATUS_SCHEDULED", state: isDone(x) ? "post" : isLive(x) ? "in" : "pre", completed: isDone(x) } }, competitions: [{ competitors: [{ id: x.h, homeAway: "home", score: isDone(x) ? String(x.hg) : String((isLive(x) && x.lh) || 0), team: { displayName: x.hn || teamName(x.h), logo: `${x.h}.png` } }, { id: x.a, homeAway: "away", score: isDone(x) ? String(x.ag) : String((isLive(x) && x.la) || 0), team: { displayName: x.an || teamName(x.a), logo: `${x.a}.png` } }] }] })) }) };
+      return { ok: true, json: async () => ({ events: list.map((x) => ({ id: x.id, date: new Date(x.ts).toISOString(), status: { displayClock: isLive(x) ? x.clock || "30'" : "0'", type: { name: isDone(x) ? "STATUS_FULL_TIME" : isLive(x) ? (x.ht ? "STATUS_HALFTIME" : "STATUS_IN_PROGRESS") : "STATUS_SCHEDULED", state: isDone(x) ? "post" : isLive(x) ? "in" : "pre", completed: isDone(x) } }, competitions: [{ competitors: [{ id: x.h, homeAway: "home", score: isDone(x) ? String(x.hg) : String((isLive(x) && x.lh) || 0), team: { displayName: x.hn || teamName(x.h), logo: `https://a.espncdn.com/i/teamlogos/soccer/500/${x.h}.png` } }, { id: x.a, homeAway: "away", score: isDone(x) ? String(x.ag) : String((isLive(x) && x.la) || 0), team: { displayName: x.an || teamName(x.a), logo: `https://a.espncdn.com/i/teamlogos/soccer/500/${x.a}.png` } }] }] })) }) };
     }
     throw new Error("URL inattendue " + url);
   };

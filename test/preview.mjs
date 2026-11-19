@@ -243,7 +243,7 @@ for (const h of ["#/", "#/verdict", "#/arene", "#/compte"]) { await page.goto("h
 await page.setViewportSize({ width: 390, height: 844 });
 await page.route("**/api/leagues", async (r) => { const j = await (await r.fetch()).json(); for (const c of j.competitions) if ([39, 62, 2].includes(c.id)) c.matchsAVenir = 0; await r.fulfill({ json: j }); });
 await page.goto("http://localhost:8787/#/verdict"); await page.reload(); await page.goto("http://localhost:8787/#/"); await page.waitForSelector(".duel");
-check("Championnats sans match retirés de la colonne", (await page.locator(".rail .chip-logo").count()) === 11 && (await page.locator(".rail .chip[data-league='39'], .rail .chip[data-league='62'], .rail .chip[data-league='2']").count()) === 0, `${await page.locator(".rail .chip-logo").count()} logos au lieu de 14`);
+check("Championnats sans match retirés de la colonne", (await page.locator(".rail .chip-logo").count()) === 12 && (await page.locator(".rail .chip[data-league='39'], .rail .chip[data-league='62'], .rail .chip[data-league='2']").count()) === 0, `${await page.locator(".rail .chip-logo").count()} logos au lieu de 12`);
 await page.setViewportSize({ width: 390, height: 844 });
 for (const [h, t] of [["a-propos", "À propos"], ["conditions", "Conditions d'utilisation"], ["confidentialite", "Confidentialité"], ["mentions-legales", "Mentions légales"]]) {
   await page.goto("http://localhost:8787/#/" + h); await page.waitForSelector(".doc");

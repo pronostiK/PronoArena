@@ -25,7 +25,7 @@ const UPCOMING_DAYS = 7, UPCOMING_MAX = 200;
 // Le choix est fait une fois par jour et ne bouge plus de la journée : les mêmes 2 matchs pour tous.
 export const FREE_PER_DAY = 2;
 export const freeKey = (leagueId, matchId) => `${leagueId}:${matchId}`;
-const FREE_PRIORITY = [2, 61, 39, 140, 135, 78, 3, 5, 848, 62, 94, 88, 40, 71, 15, 4, 203, 144, 179, 6]; // les affiches d'abord
+const FREE_PRIORITY = [2, 61, 39, 140, 135, 78, 3, 5, 848, 62, 94, 88, 40, 71, 15, 4, 203, 307, 144, 179, 6]; // les affiches d'abord
 const parisDay = (ts) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(ts));
 export function chooseFree(cands, now) {
   const rank = (a, b) => FREE_PRIORITY.indexOf(a.leagueId) - FREE_PRIORITY.indexOf(b.leagueId) || b.elo - a.elo || a.ts - b.ts;

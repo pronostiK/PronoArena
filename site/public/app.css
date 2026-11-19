@@ -128,10 +128,17 @@ main { flex: 1; outline: none; }
 .stats-table .h { font-size: 12px; color: var(--muted); font-weight: 700; text-align: right; }
 .stats-table b { text-align: right; }
 
-.h2h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
-.h2h small { font-size: 12px; color: var(--muted); flex: none; }
-.h2h b { text-align: center; flex: 1; }
-.h2h em { font-style: normal; font-size: 12px; font-weight: 700; flex: none; }
+.h2h { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
+.h2h-d { grid-column: 1 / -1; text-align: center; font-size: 12px; color: var(--muted); }
+.h2h-tm { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-2); font-weight: 600; }
+.h2h-tm.h { justify-content: flex-end; text-align: right; }
+.h2h-tm .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.h2h-tm .crest { flex: none; }
+.h2h-tm.h, .h2h-tm.a { color: var(--muted); }
+.h2h-tm.win { font-weight: 800; }
+.h2h-tm.win.c1 { color: var(--orange-txt); } .h2h-tm.win.c2 { color: var(--blue-txt); }
+.h2h-s.cN { color: var(--gold); }
+.h2h-s { font-family: var(--display); font-size: 17px; padding: 2px 10px; border-radius: 8px; background: #262320; white-space: nowrap; }
 
 /* Verdict */
 .score-big { font-family: var(--display); font-weight: 900; font-size: 22px; padding: 2px 12px; border-radius: 10px; background: #262320; }
@@ -222,8 +229,6 @@ main { flex: 1; outline: none; }
 .cmp-bar span { border-radius: 3px; }
 .cmp-bar span:first-child { background: var(--orange); } .cmp-bar span:last-child { background: var(--blue); }
 
-.h2h-t { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; }
-.h2h-t b { font-family: var(--display); font-size: 17px; }
 
 /* Compositions sur terrain */
 .xi-h { display: flex; align-items: center; gap: 8px; }
@@ -466,9 +471,11 @@ a.more { color: var(--orange); }
   .match-hero .team b { font-size: 20px; }
   .kickoff strong { font-size: 36px; }
   .tabs button { height: 46px; font-size: 15px; }
-  #view[data-page="duel"] > [data-panel]:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; padding: 0 24px; }
+  #view[data-page="duel"] > [data-panel]:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; max-width: 820px; margin: 0 auto; }
   #view[data-page="duel"] > [data-panel] > .panel { margin: 0; }
-  #view[data-page="duel"] > [data-panel] > .panel:only-child { grid-column: 1 / -1; width: 100%; max-width: 620px; justify-self: center; }
+  #view[data-page="duel"] > [data-panel] > .panel:only-child { grid-column: 1 / -1; width: 100%; }
+  .h2h { grid-template-columns: 90px minmax(0, 1fr) auto minmax(0, 1fr) 90px; padding: 12px 16px; }
+  .h2h-d { grid-column: auto; text-align: left; }
 
   /* Arène : classement à gauche, le reste à droite */
   #view[data-page="arene"] > .hero, #view[data-page="arene"] > .chips { margin-left: 24px; margin-right: 24px; }

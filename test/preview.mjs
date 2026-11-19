@@ -274,6 +274,22 @@ await wide("duels");
   await page.screenshot({ path: `${OUT}/pc-prono-annule.png` }); }
 await page.locator(".duel .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400); await wide("analyse");
 await page.click(".tabs button[data-pane='c']"); await page.waitForTimeout(400); await wide("compos");
+// Face-à-face : on ouvre un match de championnat dont les équipes se sont déjà affrontées
+{ const L = await ask("/league-predictions?leagueId=61", { token: pc.token }); let hit = null;
+  for (const m of L.predictions) { const D = m.teams.domicile, E = m.teams.exterieur;
+    const md = await ask(`/match-details?matchId=${m.matchId}&source=${m.source}&teamDomId=${D.id}&teamExtId=${E.id}&leagueId=61`, { token: pc.token });
+    if (md.h2h?.length) { hit = { m, md }; break; } }
+  check("Face-à-face : un match avec confrontations trouvé", !!hit);
+  if (hit) {
+    await page.goto(`http://localhost:8787/#/duel/61/${encodeURIComponent(hit.m.matchId)}`); await page.waitForSelector(".match-hero"); await page.click(".tabs button[data-pane='h']"); await page.waitForSelector("#h2h .h2h");
+    const g = await page.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); return { tabs: r(".tabs"), panel: r("[data-panel='h'] .panel") }; });
+    check("Face-à-face (ordinateur) : bloc aussi large que les onglets et aligné", Math.abs(g.tabs.left - g.panel.left) < 2 && Math.abs(g.tabs.width - g.panel.width) < 2, `onglets ${Math.round(g.tabs.left)}/${Math.round(g.tabs.width)} · bloc ${Math.round(g.panel.left)}/${Math.round(g.panel.width)}`);
+    const rows = await page.locator("#h2h .h2h").evaluateAll((els) => els.map((e) => ({ h: e.querySelector(".h2h-tm.h .nm").textContent, a: e.querySelector(".h2h-tm.a .nm").textContent, s: e.querySelector(".h2h-s").textContent, win: e.querySelector(".h2h-tm.win .nm")?.textContent || null })));
+    const ok = rows.every((r, i) => { const x = hit.md.h2h[i], [hg, ag] = [x.butsDomicile, x.butsExterieur]; return r.s === `${hg} – ${ag}` && r.win === (hg > ag ? r.h : hg < ag ? r.a : null); });
+    check("Face-à-face : chaque nom à côté de son logo, vainqueur mis en valeur", ok, rows.map((r) => `${r.h} ${r.s} ${r.a} → ${r.win || "nul"}`).join(" | "));
+    await page.waitForFunction(() => !document.querySelector("#toast.show")); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(200); await wide("face-a-face");
+    await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300); await page.locator("#h2h").scrollIntoViewIfNeeded();
+    check("Face-à-face (téléphone) : pas de débordement", (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390); await shot("face-a-face-telephone", false); await page.setViewportSize({ width: 1440, height: 900 }); } }
 await page.click(".tabbar a[data-tab='verdict']"); await page.waitForSelector(".res, .empty"); await wide("verdict");
 SIM.now += 61000; await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".board"); await page.waitForSelector(".mp"); await wide("arene");
 await page.click("#account"); await page.waitForSelector(".me-hero"); await wide("espace");

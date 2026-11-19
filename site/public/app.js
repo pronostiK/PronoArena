@@ -597,8 +597,10 @@
       document.getElementById("h2h").innerHTML = h.length
         ? h.map((m) => {
             const homeT = m.lieu === "domicile" ? D : E, awayT = m.lieu === "domicile" ? E : D;
-            const cls = m.vainqueur === "domicile" ? "c1" : m.vainqueur === "exterieur" ? "c2" : "cN";
-            return `<div class="h2h"><small>${esc(fmtShort(m.date))}</small><span class="h2h-t">${mini(homeT)}<b class="${cls}">${esc(m.butsDomicile)} – ${esc(m.butsExterieur)}</b>${mini(awayT)}</span><em class="${cls}">${m.vainqueur === "nul" ? "Nul" : esc((m.vainqueur === "domicile" ? D : E).name)}</em></div>`;
+            // Vainqueur du match passé : "domicile"/"exterieur" se rapportent à D/E (équipes du match affiché)
+            const winT = m.vainqueur === "nul" ? null : m.vainqueur === "domicile" ? D : E;
+            const side = (t, cote) => `<span class="h2h-tm ${cote}${t === winT ? " win " + (t === D ? "c1" : "c2") : ""}">${cote === "a" ? mini(t) : ""}<span class="nm">${esc(t.name)}</span>${cote === "h" ? mini(t) : ""}</span>`;
+            return `<div class="h2h"><small class="h2h-d">${esc(fmtShort(m.date))}</small>${side(homeT, "h")}<b class="h2h-s${winT ? "" : " cN"}">${esc(m.butsDomicile)} – ${esc(m.butsExterieur)}</b>${side(awayT, "a")}</div>`;
           }).join("")
         : `<p class="note">Aucune confrontation récente entre ces deux équipes.</p>`;
       const cp = md.compositions || {};

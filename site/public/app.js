@@ -404,14 +404,17 @@
   // Cartons, fautes, hors-jeu et corners des face-à-face (source ESPN). Tout ou rien : le moteur ne les envoie que si chaque match les a.
   // Lisible sans les couleurs : chaque chiffre est écrit à côté de son libellé, du côté de son équipe.
   const H2HX = [["jaunes", "Cartons jaunes"], ["rouges", "Cartons rouges"], ["fautes", "Fautes"], ["horsJeu", "Hors-jeu"], ["corners", "Corners"]];
-  // Sous le score d'un match passé : chiffre de l'équipe à domicile (à gauche) · libellé · chiffre de l'équipe à l'extérieur (à droite)
-  const h2hLine = (s) => (s ? `<div class="h2h-x">${H2HX.filter(([k]) => k !== "rouges" || s.domicile.rouges + s.exterieur.rouges > 0)
-    .map(([k, l]) => `<span><b>${esc(s.domicile[k])}</b>${esc(l)}<b>${esc(s.exterieur[k])}</b></span>`).join("")}</div>` : "");
+  // Barre neutre : chiffre de gauche · libellé · chiffre de droite. sw = l'équipe de gauche est celle du match affiché à l'extérieur
+  // (chaque équipe garde sa couleur : orange pour l'équipe à domicile du match affiché, bleu pour l'autre ; les chiffres restent écrits)
+  const h2hBar = (l, a, b, fmt, sw = false) => {
+    const x = Number(a) || 0, y = Number(b) || 0, wa = x + y ? Math.round((100 * x) / (x + y)) : 50;
+    return `<div class="cmp"><div class="cmp-h"><b>${esc(fmt(a))}</b><span>${esc(l)}</span><b>${esc(fmt(b))}</b></div><div class="cmp-bar${sw ? " sw" : ""}" aria-hidden="true"><span style="width:${wa}%"></span><span style="width:${100 - wa}%"></span></div></div>`;
+  };
+  // Sous le score d'un match passé : les mêmes barres, chiffres de l'équipe à domicile de ce match à gauche (comme son nom au-dessus)
+  const h2hLine = (s, sw) => (s ? `<div class="h2h-x">${H2HX.filter(([k]) => k !== "rouges" || s.domicile.rouges + s.exterieur.rouges > 0)
+    .map(([k, l]) => h2hBar(l, s.domicile[k], s.exterieur[k], (v) => v, sw)).join("")}</div>` : "");
   // Au-dessus des matchs : moyenne par match des deux équipes du match affiché (barres neutres : ni « meilleur » ni « pire »)
-  const h2hSummary = (R, D, E) => (R ? `<div class="h2h-sum"><div class="cmp-teams">${mini(D)}<span>Moyenne par match</span>${mini(E)}</div>${H2HX.map(([k, l]) => {
-    const a = Number(R.domicile[k]) || 0, b = Number(R.exterieur[k]) || 0, wa = a + b ? Math.round((100 * a) / (a + b)) : 50;
-    return `<div class="cmp"><div class="cmp-h"><b>${esc(dec(a))}</b><span>${esc(l)}</span><b>${esc(dec(b))}</b></div><div class="cmp-bar" aria-hidden="true"><span style="width:${wa}%"></span><span style="width:${100 - wa}%"></span></div></div>`;
-  }).join("")}</div>` : "");
+  const h2hSummary = (R, D, E) => (R ? `<div class="h2h-sum"><div class="cmp-teams">${mini(D)}<span>Moyenne par match</span>${mini(E)}</div>${H2HX.map(([k, l]) => h2hBar(l, R.domicile[k], R.exterieur[k], dec)).join("")}</div>` : "");
   // Barre de comparaison de statistiques
   const cmp = (label, a, b, fmt = (x) => x, lowerIsBetter = false) => {
     // Barre : la plus longue revient toujours à la meilleure équipe (pour le classement, le plus petit chiffre)
@@ -804,13 +807,13 @@
       analyseFill(md, D, E);
       const h = md.h2h || [];
       document.getElementById("h2h").innerHTML = h.length
-        ? h2hSummary(md.h2hResume, D, E) + h.map((m) => {
+        ? h.map((m) => {
             const homeT = m.lieu === "domicile" ? D : E, awayT = m.lieu === "domicile" ? E : D;
             // Vainqueur du match passé : "domicile"/"exterieur" se rapportent à D/E (équipes du match affiché)
             const winT = m.vainqueur === "nul" ? null : m.vainqueur === "domicile" ? D : E;
             const side = (t, cote) => `<span class="h2h-tm ${cote}${t === winT ? " win " + (t === D ? "c1" : "c2") : ""}">${cote === "a" ? mini(t) : ""}<span class="nm">${esc(t.name)}</span>${cote === "h" ? mini(t) : ""}</span>`;
-            return `<div class="h2h"><small class="h2h-d">${esc(fmtShort(m.date))}</small>${side(homeT, "h")}<b class="h2h-s${winT ? "" : " cN"}">${esc(m.butsDomicile)} – ${esc(m.butsExterieur)}</b>${side(awayT, "a")}${h2hLine(m.stats)}</div>`;
-          }).join("")
+            return `<div class="h2h"><small class="h2h-d">${esc(fmtShort(m.date))}</small>${side(homeT, "h")}<b class="h2h-s${winT ? "" : " cN"}">${esc(m.butsDomicile)} – ${esc(m.butsExterieur)}</b>${side(awayT, "a")}${h2hLine(m.stats, homeT === E)}</div>`;
+          }).join("") + (md.h2hResume ? `<div class="h2h-after">${h2hSummary(md.h2hResume, D, E)}</div>` : "")
         : `<p class="note">Aucune confrontation récente entre ces deux équipes.</p>`;
       const cp = md.compositions || {};
       const fmtLast = (c) => (c ? `${esc(new Date(c.ts).toLocaleDateString(I18N.locale, { day: "numeric", month: "short" }))} · ${c.side === "D" ? "contre" : "à"} ${esc(c.opp || "—")} · ${esc(String(c.score).replace("-", " – "))}` : "Composition non disponible");

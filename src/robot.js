@@ -10,6 +10,7 @@ import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
 import { refreshXg } from "./xg.js";
 import { refreshXgBz } from "./xgbz.js";
+import { refreshAbsents, bzPaused } from "./absents.js";
 import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
 import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
@@ -95,8 +96,16 @@ export async function runRobot(env, now = Date.now()) {
   catch (e) { report.push(`compositions : ERREUR ${e.message}`); compoDone = true; if (refused(e)) pauseEspn("compositions refusées"); }
   // xG (Soccer Data, affichage seulement) : quelques appels par passage, plafonnés par jour
   { const r = await refreshXg(env, now); if (r) report.push(r); }
-  // xG (Bzzoiro, affichage seulement, en parallèle de Soccer Data) : 10 appels par passage au plus
-  { const r = await refreshXgBz(env, now); if (r) report.push(r); }
+  // Absents connus (Bzzoiro, affichage seulement) : une rafale de 12 appels par heure au plus ;
+  // pendant ce passage-là, les xG Bzzoiro sont sautés (même nombre d'appels sortants qu'un passage normal)
+  // Un refus de Bzzoiro (absents ou xG) met les deux en pause
+  if (!(await bzPaused(env, now))) {
+    let absDone = false;
+    try { const r = await refreshAbsents(env, index, now); if (r) { report.push(r); absDone = true; } }
+    catch (e) { report.push(`absents : ERREUR ${e.message}`); absDone = true; }
+    // xG (Bzzoiro, affichage seulement, en parallèle de Soccer Data) : 10 appels par passage au plus
+    if (!absDone) { const r = await refreshXgBz(env, now); if (r) report.push(r); }
+  }
   { const r = await refreshClubLogos(env, now); if (r) report.push(r); }
   // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
   // SportAPI : un seul appel alimente toutes ses compétitions d'une saison, donc une seule place par saison

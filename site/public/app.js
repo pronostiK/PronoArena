@@ -750,10 +750,41 @@
            <div class="xi-h">${mini(E)}<b>${esc(E.name)}</b>${cp.exterieur?.f ? `<span class="xi-f away">${esc(cp.exterieur.f)}</span>` : ""}</div><small class="xi-last">${fmtLast(cp.exterieur)}</small>
            <p class="note">Onze aligné au dernier match. La composition officielle est publiée environ 1 h avant le coup d'envoi.</p>`
         : `<p class="note">Compositions bientôt disponibles pour ce match.</p>`;
+      document.getElementById("compos").insertAdjacentHTML("beforeend", absentsBlock(md.absents, D, E));
     } catch {
       document.getElementById("h2h").innerHTML = `<p class="note">Face-à-face indisponible pour le moment.</p>`;
       document.getElementById("compos").innerHTML = `<p class="note">Compositions indisponibles pour le moment.</p>`;
     }
+  }
+
+  // ---------- Absents connus (Bzzoiro) : à titre indicatif, n'entrent pas dans le calcul. Tout ou rien : les deux équipes, sinon rien.
+  // Daltonisme : le statut est toujours écrit en toutes lettres, jamais porté par une couleur.
+  const ABS_ST = { B: "Blessé", I: "Incertain", S: "Suspendu" };
+  const INJ_FR = [["hamstring", "ischio-jambiers"], ["knee", "genou"], ["ankle", "cheville"], ["calf", "mollet"], ["thigh", "cuisse"], ["groin", "aine"],
+    ["foot", "pied"], ["toe", "orteil"], ["back", "dos"], ["hip", "hanche"], ["shoulder", "épaule"], ["achilles", "tendon d'Achille"], ["cruciate", "ligaments croisés"],
+    ["ligament", "ligaments"], ["muscle", "musculaire"], ["head", "tête"], ["concussion", "commotion"], ["illness", "maladie"], ["ill", "maladie"], ["fracture", "fracture"],
+    ["broken", "fracture"], ["red card", "carton rouge"], ["yellow", "cumul de cartons"], ["suspen", "suspension"], ["rest", "repos"], ["personal", "raisons personnelles"],
+    ["wrist", "poignet"], ["hand", "main"], ["arm", "bras"], ["leg", "jambe"], ["abdominal", "abdominaux"], ["adductor", "adducteurs"], ["unknown", ""], ["injury", ""]];
+  const injLabel = (t) => {
+    if (!t) return "";
+    if (I18N.lang === "en") return t;
+    const k = t.toLowerCase(), hit = INJ_FR.find(([en]) => k.includes(en));
+    return hit ? hit[1] : t;
+  };
+  function absentsBlock(a, D, E) {
+    if (!a?.domicile || !a?.exterieur) return "";
+    const day = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString(I18N.locale, { day: "numeric", month: "short" });
+    const team = (t, x) => `<div class="abs-team"><div class="xi-h">${mini(t)}<b>${esc(t.name)}</b></div>` + (x.l.length
+      ? `<ul class="abs">${x.l.map(([n, st, inj, ret]) => {
+          const why = injLabel(inj);
+          const more = (why ? `<span>${esc(why)}</span>` : "") + (ret ? `<span>retour prévu le ${esc(day(ret))}</span>` : "");
+          return `<li><b>${esc(n)}</b><span class="abs-st">${esc(ABS_ST[st] || st)}</span>${more ? `<small>${more}</small>` : ""}</li>`;
+        }).join("")}</ul>`
+      : `<p class="note">Aucun absent signalé</p>`) + `</div>`;
+    const at = new Date(Math.min(a.domicile.at, a.exterieur.at));
+    const when = `${at.toLocaleDateString(I18N.locale, { day: "numeric", month: "short" })} ${at.toLocaleTimeString(I18N.locale, { hour: "2-digit", minute: "2-digit" })}`;
+    return `<h3 class="abs-title">${ico("grid")}Absents connus</h3><div class="abs-wrap">${team(D, a.domicile)}${team(E, a.exterieur)}</div>
+      <p class="note">Blessés, incertains et suspendus annoncés · Bzzoiro · mis à jour le ${esc(when)}. À titre indicatif : les absents n'entrent pas dans le calcul des probabilités.</p>`;
   }
 
   // ---------- Test du modèle sur les matchs passés (fichier backtest.json, produit par test/backtest.mjs) ----------

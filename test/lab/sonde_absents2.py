@@ -10,7 +10,14 @@ def get(p, q=None):
         with urllib.request.urlopen(urllib.request.Request(u, headers={"Authorization": "Token " + TOK, "User-Agent": "DuelProno/1.0"}), timeout=30) as r: return json.loads(r.read())
     except Exception as e: print("  !", p, str(e)[:60]); return None
     finally: time.sleep(0.3)
-L = lambda d: d if isinstance(d, list) else (d or {}).get("results", [])
+KEYS = set()
+def L(d):
+    if isinstance(d, list): return d
+    if isinstance(d, dict):
+        KEYS.add(",".join(sorted(d.keys())))
+        for k in ("results", "data", "players", "squad", "items"):
+            if isinstance(d.get(k), list): return d[k]
+    return []
 LG = {"Premier League": 1, "LaLiga": 3, "Serie A": 4, "Bundesliga": 5, "Ligue 1": 6, "Championship": 12, "Ligue 2": 89, "Eredivisie": 10}
 d0 = date.today(); d1 = d0 + timedelta(days=4)
 tot = ok = 0
@@ -25,4 +32,5 @@ for nom, lid in LG.items():
             r.append((e.get(side + "_team"), len(sq), len(ab)))
         tot += 1; ok += all(x[1] > 0 for x in r)
         print(f"  {str(e.get('event_date'))[:16]} {r[0][0]} ({r[0][1]} joueurs, {r[0][2]} absents) – {r[1][0]} ({r[1][1]} joueurs, {r[1][2]} absents)")
+print("Clés des réponses (dict) :", KEYS)
 print(f"\nMatchs avec effectif reçu pour les deux équipes : {ok}/{tot} · appels : {N}")

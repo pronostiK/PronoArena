@@ -718,6 +718,64 @@ console.log("\n— xG (Bzzoiro, en parallèle de Soccer Data) —");
   check("xG Bzzoiro : sans jeton, aucun appel", calls.bz === 0);
 }
 
+console.log("\n— Absents connus (Bzzoiro, affichage seulement) —");
+{
+  const { ABS_KEY, ABS_DAILY, squadAbsents, absentsFor } = await import("../src/absents.js");
+  const A = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
+  const getA = async (path) => (await worker.fetch(new Request("https://w" + path), A, { waitUntil: () => {} })).json();
+  let t = Date.UTC(2026, 10, 9, 8, 0);
+  calls.bz = 0; calls.bzAbs = 0; calls.bzSquad = 0; SIM.bz429 = false; SIM.bzDown = false; SIM.bzEstimated = false;
+  // Remplissage, puis 24 h mesurées
+  for (let i = 0; i < 300; i++, t += 600000) { SIM.now = t; await runRobot(A, t); }
+  const w0 = A.stats.writes, a0 = calls.bzAbs; let absWrites = 0;
+  const put0 = A.PRONO_CACHE.put.bind(A.PRONO_CACHE);
+  A.PRONO_CACHE.put = async (k, v, o) => { if (k === ABS_KEY) absWrites++; return put0(k, v, o); };
+  for (let i = 0; i < 144; i++, t += 600000) { SIM.now = t; await runRobot(A, t); }
+  A.PRONO_CACHE.put = put0;
+  check("Absents : au plus 24 écritures par jour (une par heure au plus)", absWrites > 0 && absWrites <= 24, `${absWrites} écritures/jour`);
+  check("Absents : appels par jour plafonnés", calls.bzAbs - a0 <= ABS_DAILY && calls.bzAbs - a0 <= 24 * 12, `${calls.bzAbs - a0} appels/jour`);
+  const st = JSON.parse(await A.PRONO_CACHE.get(ABS_KEY));
+  check("Absents : seuls les joueurs non disponibles sont gardés (pas l'effectif complet)", Object.values(st.teams).every((x) => x.l.every((p) => ["B", "I", "S"].includes(p[1]))) && Object.values(st.teams).some((x) => x.l.length === 3));
+  // Affichage : un match des 48 h
+  const lp = await getA("/league-predictions?leagueId=39");
+  const soon = lp.predictions.filter((c) => Date.parse(c.date || c.dateHeure || c.kickoff || 0) < t + 48 * 3600000);
+  let md = null;
+  for (const c of (soon.length ? soon : lp.predictions)) { const d = await getA(`/match-details?matchId=${encodeURIComponent(c.matchId)}&source=football-data&leagueId=39&teamDomId=${c.teams.domicile.id}&teamExtId=${c.teams.exterieur.id}`); if (d.absents?.domicile && d.absents?.exterieur) { md = d; break; } }
+  check("Absents : affichés pour les deux équipes d'un match proche", !!md, md ? JSON.stringify(md.absents.domicile).slice(0, 120) : "aucun");
+  if (md) {
+    const any = [md.absents.domicile, md.absents.exterieur].find((x) => x.l.length);
+    check("Absents : nom, statut, motif et date de retour transmis", any && any.l.some((p) => p[1] === "B" && p[2] === "Knee Injury" && p[3] === "2026-12-01"), JSON.stringify(any?.l));
+  }
+  // Le visiteur ne déclenche jamais d'appel
+  const c0 = calls.bz;
+  for (const c of lp.predictions.slice(0, 5)) await getA(`/match-details?matchId=${encodeURIComponent(c.matchId)}&source=football-data&leagueId=39&teamDomId=${c.teams.domicile.id}&teamExtId=${c.teams.exterieur.id}`);
+  check("Absents : ouvrir un match ne fait aucun appel à Bzzoiro", calls.bz === c0);
+  const s = await getA("/status");
+  check("Absents : section dans /status", s.absents && s.absents.equipes > 0 && !s.absents.erreur, JSON.stringify(s.absents).slice(0, 200));
+  // Les probabilités ne changent pas avec ou sans absents
+  const N = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", ...makeKV() };
+  let tn = Date.UTC(2026, 10, 9, 8, 0);
+  for (let i = 0; i < 444; i++, tn += 600000) { SIM.now = tn; await runRobot(N, tn); }
+  const lpN = await (await worker.fetch(new Request("https://w/league-predictions?leagueId=39"), N, { waitUntil: () => {} })).json();
+  const probs = (l) => JSON.stringify(l.predictions.map((p) => [p.matchId, p.poisson]));
+  check("Absents : probabilités identiques avec ou sans absents", lp.predictions.length > 0 && lp.predictions.every((p) => p.poisson?.proba1 != null) && probs(lpN) === probs(lp));
+  // Info trop vieille : rien d'affiché ; tout ou rien
+  const fake = { teams: { 1: { n: "Équipe 1 FC", lg: 39, at: 0, l: [] } } };
+  check("Absents : info de plus de 36 h non affichée", absentsFor(fake, 39, "Équipe 1 FC", 37 * 3600000) === null && !!absentsFor(fake, 39, "Équipe 1 FC", 3600000));
+  const amb = { teams: { 1: { n: "Sporting CP", lg: 94, at: 0, l: [] }, 2: { n: "Sporting Braga", lg: 94, at: 0, l: [] } } };
+  check("Absents : deux équipes possibles → seulement le nom identique, sinon rien", absentsFor(amb, 94, "Sporting", 1) === null && !!absentsFor(amb, 94, "Sporting CP", 1));
+  const { absentsPair } = await import("../src/absents.js");
+  const vide = { teams: { 1: { n: "Équipe 1 FC", lg: 62, at: 0, l: [] }, 2: { n: "Équipe 2 FC", lg: 62, at: 0, l: [] } } };
+  check("Absents : deux listes vides (championnat non suivi) → rien d'affiché", absentsPair(vide, 62, "Équipe 1 FC", "Équipe 2 FC", 1).domicile === null);
+  check("Absents : lecture d'un effectif Bzzoiro (forme réelle { count, players, team_id })", JSON.stringify(squadAbsents({ count: 2, team_id: 7, players: [{ name: "A B", short_name: "A. B", availability: "injured", injury_type: "Ankle", injury_expected_return: "2026-12-03" }, { name: "C", availability: "available" }] })) === JSON.stringify([["A. B", "B", "Ankle", "2026-12-03"]]));
+  // Refus 429 : pause commune absents + xG
+  const P = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
+  SIM.bz429 = true; calls.bz = 0; let tp = Date.UTC(2026, 10, 12, 8, 0);
+  for (let i = 0; i < 6; i++, tp += 600000) { SIM.now = tp; await runRobot(P, tp); }
+  check("Absents : un refus 429 met tout Bzzoiro en pause", calls.bz === 1, `${calls.bz} appel(s) en 1 h`);
+  SIM.bz429 = false;
+}
+
 console.log("\n— xG (Soccer Data) —");
 {
   const X = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", SOCCERDATA_KEY: "sd_test", ...makeKV() };

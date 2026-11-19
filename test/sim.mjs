@@ -164,6 +164,22 @@ export function installFetch() {
         return { ok: true, json: async () => ({ results: rows }) };
       }
       if ((m = u.pathname.match(/^\/api\/v2\/leagues\/(\d+)\/seasons\/$/))) return { ok: true, json: async () => ({ results: [{ id: 100 + Number(m[1]), year: 2025 }, { id: 200 + Number(m[1]), year: 2026 }] }) };
+      // Absents : matchs à venir (date_from / date_to) et effectifs
+      if (u.pathname === "/api/v2/events/" && u.searchParams.get("date_from")) {
+        calls.bzAbs = (calls.bzAbs || 0) + 1;
+        const code = Object.entries(BZ).find(([, v]) => v[0] === Number(u.searchParams.get("league_id")))?.[0];
+        const f = Date.parse(u.searchParams.get("date_from") + "T00:00:00Z"), to = Date.parse(u.searchParams.get("date_to") + "T00:00:00Z") + DAY;
+        const list = (DB[`fd:${code}@2026`] || []).filter((x) => !isDone(x) && x.ts >= f && x.ts < to);
+        return { ok: true, json: async () => ({ results: list.map((x) => ({ id: x.id, event_date: new Date(x.ts).toISOString(), status: "notstarted", home_team: bzName(x.h), away_team: bzName(x.a), home_team_id: 5000 + Number(x.h), away_team_id: 5000 + Number(x.a) })) }) };
+      }
+      if ((m = u.pathname.match(/^\/api\/v2\/teams\/(\d+)\/squad\/$/))) {
+        calls.bzAbs = (calls.bzAbs || 0) + 1; calls.bzSquad = (calls.bzSquad || 0) + 1;
+        const id = Number(m[1]);
+        const PRE = ["Lucas", "Hugo", "Théo", "Nathan", "Enzo", "Louis", "Jules"], NOM = ["Martin", "Bernard", "Petit", "Durand", "Moreau", "Laurent", "Garnier"];
+        const p = (i, availability, injury_type = "", ret = null) => ({ id: id * 100 + i, name: `${PRE[(id + i) % 7]} ${NOM[(id * 3 + i) % 7]}`, short_name: `${PRE[(id + i) % 7][0]}. ${NOM[(id * 3 + i) % 7]}`, availability, injury_type, injury_expected_return: ret, position: "M", jersey_number: i });
+        const squad = [p(1, "available"), p(2, "available"), ...(id % 3 === 0 ? [p(3, "injured", "Ankle Injury")] : [p(3, "injured", "Knee Injury", "2026-12-01"), p(4, "doubtful", "Hamstring"), p(5, "suspended", "Red card")])];
+        return { ok: true, json: async () => ({ count: squad.length, players: squad, team_id: id }) }; // forme réelle de Bzzoiro
+      }
       if (u.pathname === "/api/v2/events/") {
         const code = Object.entries(BZ).find(([, v]) => v[0] === Number(u.searchParams.get("league_id")))?.[0];
         const off = Number(u.searchParams.get("offset") || 0), lim = Number(u.searchParams.get("limit") || 200);

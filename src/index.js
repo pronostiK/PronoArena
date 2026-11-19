@@ -22,6 +22,7 @@ import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./s
 import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
+import { ABS_KEY, absentsPair, absentsStatus } from "./absents.js";
 import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
 import { XGB_KEY } from "./xgbz.js";
 import { buildLive } from "./live.js";
@@ -130,10 +131,11 @@ export default {
         const leagueId = parseInt(q("leagueId")) || null;
         const who = await viewer(env, request);
         if (who !== "all" && !(leagueId && (await freeIds(env)).has(freeKey(leagueId, matchId)))) return json({ success: false, verrouille: true, error: "Inscris-toi gratuitement pour voir cette analyse." }, 401, PRIVATE);
-        const [pred, h, compos] = await Promise.all([
+        const [pred, h, compos, abs] = await Promise.all([
           findPrediction(env, matchId, leagueId, season),
           getH2H(env, { source, teamDomId: q("teamDomId"), teamExtId: q("teamExtId"), leagueId }, season),
           kvGet(env, COMPOS_KEY),
+          kvGet(env, ABS_KEY),
         ]);
         const stats = pred
           ? { domicile: { ...(pred.teams.domicile.stats || {}), classement: pred.teams.domicile.classement }, exterieur: { ...(pred.teams.exterieur.stats || {}), classement: pred.teams.exterieur.classement } }
@@ -148,7 +150,9 @@ export default {
         }
         const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
         const h2hs = attachH2HStats(h.h2h, await kvGet(env, H2HS_KEY)); // cartons, fautes, hors-jeu, corners : tout ou rien
-        return json({ success: true, stats, h2h: h2hs.h2h, h2hResume: h2hs.resume, compositions: lineups }, 200, cacheFor(who, env, 1800));
+        // Absents connus (Bzzoiro, affichage seulement) : lus dans la clé du robot, jamais d'appel ici
+        const absents = pred ? absentsPair(abs, leagueId, pred.teams.domicile.name, pred.teams.exterieur.name) : { domicile: null, exterieur: null };
+        return json({ success: true, stats, h2h: h2hs.h2h, h2hResume: h2hs.resume, compositions: lineups, absents }, 200, cacheFor(who, env, 1800));
       }
 
       if (path === "/verdict") {
@@ -173,7 +177,7 @@ export default {
       if (path === "/status") {
         const xs = await kvGet(env, XG_KEY), xb = await kvGet(env, XGB_KEY), names = {};
         if (xs || xb) for (const id of Object.keys(XG_LEAGUES)) { const pr = await kvGet(env, predsKey(Number(id), currentSeason())); names[id] = (pr?.classement || []).map((r) => r.nom); }
-        return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env), xg: xgStatus(xs, names), xgBzzoiro: xgStatus(xb, names) });
+        return json({ success: true, version: VERSION, ...(await robotStatus(env)), arene: await arenaStatus(env), xg: xgStatus(xs, names), xgBzzoiro: xgStatus(xb, names), absents: absentsStatus(await kvGet(env, ABS_KEY)) });
       }
 
       // ---------- Arène ----------

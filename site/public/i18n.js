@@ -211,6 +211,9 @@
     "Choisir un jour": "Choose a day", "Ton pronostic": "Your pick", "Sections de l'analyse": "Analysis sections", "Compte": "Account",
     "Probabilité de chaque score": "Probability of each score", "Connexion ou création de compte": "Log in or sign up", "Choisir la langue": "Choose the language",
     "Match nul": "Draw",
+    // Absents connus (onglet Compos)
+    "Absents connus": "Known absentees", "Blessé": "Injured", "Incertain": "Doubtful", "Suspendu": "Suspended", "Aucun absent signalé": "No absentees reported",
+    "épaule": "shoulder", "ligaments croisés": "cruciate ligaments", "tête": "head", "cumul de cartons": "accumulated cards",
   };
 
   // ---------- Textes avec chiffres ou noms ----------
@@ -220,6 +223,8 @@
   const AFTER = "Every forecast is frozen before kick-off: nothing is changed afterwards.";
   const R = [
     [/^Score à (\d{1,2}:\d{2})$/, (m) => `Score at ${m[1]}`],
+    [/^retour prévu le (.+)$/, (m) => `expected back ${m[1]}`],
+    [/^Blessés, incertains et suspendus annoncés · Bzzoiro · mis à jour le (.+)\. À titre indicatif : les absents n'entrent pas dans le calcul des probabilités\.$/, (m) => `Announced injuries, doubts and suspensions · Bzzoiro · updated ${m[1]}. For information only: absentees are not used to compute the probabilities.`],
     [/^xG : moyenne sur les (\d+) derniers matchs · (Soccer Data|Bzzoiro)$/, (m) => `xG: average over the last ${m[1]} matches · ${m[2]}`],
     [/^(\d+) matchs?$/, (m) => pl(m[1], "match", "matches")],
     [/^(\d+) matchs offerts chaque jour\.$/, (m) => `${m[1]} free matches every day.`],

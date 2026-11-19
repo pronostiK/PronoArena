@@ -20,7 +20,7 @@ export const LEAGUE_TEAMS = {
   "fd:FL1": teams("1", 18, 2.2, 0.88), "fd:PL": teams("2", 20, 2.0, 1.0), "fd:PD": teams("3", 20, 2.1, 0.96),
   "fd:SA": teams("4", 20, 1.9, 0.94), "fd:BL1": teams("5", 18, 2.1, 0.94), "fd:PPL": teams("6", 18, 2.0, 0.84),
   "fd:DED": teams("7", 18, 2.0, 0.82), "fd:ELC": teams("8", 24, 1.6, 0.7), "fd:BSA": teams("9", 20, 1.7, 0.75),
-  "espn:fra.2": teams("e1", 18, 1.6, 0.7), "espn:ksa.1": teams("k1", 18, 1.7, 0.72),
+  "espn:fra.2": teams("e1", 18, 1.6, 0.7), "espn:ksa.1": teams("k1", 18, 1.7, 0.72), "espn:ita.2": teams("i2", 20, 1.6, 0.7),
 };
 // SportAPI : Turquie (16), Belgique (5), Écosse (88) — identifiants d'équipes propres à ce fournisseur
 for (const [id, n] of [[16, 18], [5, 16], [88, 12]]) LEAGUE_TEAMS[`sp:${id}`] = teams(`s${id}_`, n, 1.8, 0.75);

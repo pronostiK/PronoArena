@@ -117,7 +117,7 @@
     "Buts par match": "Goals per match", "Marqués": "Scored", "Encaissés": "Conceded", "À domicile": "At home", "À l'extérieur": "Away",
     "Barre pleine : buts marqués. Barre hachurée : buts encaissés.": "Solid bar: goals scored. Hatched bar: goals conceded.",
     "Créés": "Created", "Concédés": "Conceded",
-    "Marchés": "Markets", "Compos": "Line-ups", "Face-à-face": "H2H",
+    "Points clés": "Key points", "Marchés": "Markets", "Compos": "Line-ups", "Face-à-face": "H2H",
     "Résultat": "Result", "Remboursé si nul": "Draw no bet", "Mi-temps": "Half-time",
     "Buts": "Goals", "Buts attendus": "Expected goals", "Total attendu": "Expected total", "+0,5": "+0.5", "+1,5": "+1.5", "+2,5": "+2.5", "+3,5": "+3.5",
     "Les deux équipes marquent": "Both teams score", "Buts par équipe": "Goals per team",
@@ -285,7 +285,7 @@
 
   // ---------- Traduction de la page au fil de l'affichage ----------
   // Noms d'équipes et pseudos : jamais traduits, même s'ils ressemblent à un mot du site
-  const KEEP = ".team b, .rk-name b, .pod b, .account-name, .me-hero h1, #club-now b, .club small, .pl-name, .form-head b, .xi-h b, .mp-teams, input, textarea";
+  const KEEP = ".team b, .rk-name b, .pod b, .account-name, .me-hero h1, #club-now b, .club small, .pl-name, .form-head b, .xi-h b, .mp-teams, .kp-list, .kp-fws, input, textarea";
   const ATTRS = ["aria-label", "title", "alt", "placeholder"];
   function text(n) {
     const p = n.parentElement;

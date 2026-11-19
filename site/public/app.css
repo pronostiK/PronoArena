@@ -696,3 +696,21 @@ a.more { color: var(--orange); }
 .abs-wrap { display: grid; gap: 14px; }
 .abs-team { display: flex; flex-direction: column; gap: 8px; }
 @media (min-width: 760px) { .abs-wrap { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+/* ============================================================
+   POINTS CLÉS (onglet Analyse) : une icône par phrase, « + » / « − » pour Force / Faiblesse
+   (repères lisibles sans les couleurs)
+   ============================================================ */
+.kp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.kp-list li { display: grid; grid-template-columns: 22px 24px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 14px; line-height: 1.4; color: var(--text-2); }
+.kp-list li b { color: var(--text); font-weight: 600; }
+.kp-i { font-size: 16px; line-height: 1.3; text-align: center; }
+.kp-list .crest-xs { margin-top: 1px; }
+.kp-fws { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 12px; }
+.kp-th { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.kp-th b { font-size: 14px; }
+.kp-fw { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 13.5px; line-height: 1.4; color: var(--text-2); margin-top: 4px; }
+.kp-fw em { font-style: normal; font-weight: 600; color: var(--text); }
+.kp-s { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: var(--text); }
+.kp-fw.f .kp-s { border-color: var(--win); color: var(--win); }
+.kp-fw.w .kp-s { border-color: var(--loss); color: var(--loss); }

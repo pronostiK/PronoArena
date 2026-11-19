@@ -543,18 +543,20 @@
         <p class="note">Fiabilité ${esc(p.donnees?.fiabilite || "—")} · ${esc(p.donnees?.matchsDomicile ?? "—")} et ${esc(p.donnees?.matchsExterieur ?? "—")} matchs analysés</p>
       </section>`;
 
+    // Lettre de chaque résultat (V / N / D, en anglais W / D / L) : lisible sans les couleurs
+    const RL = I18N.lang === "en" ? { V: "W", N: "D", D: "L" } : { V: "V", N: "N", D: "D" };
     const formRow = (t) => {
       const s = t.stats;
       if (!s) return `<div class="form-team"><div class="form-head">${mini(t)}<b>${esc(t.name)}</b></div><p class="note">Pas encore de match joué cette saison.</p></div>`;
       return `<div class="form-team"><div class="form-head">${mini(t)}<b>${esc(t.name)}</b>${t.classement ? `<span class="rank">${t.classement.rang}<sup>${t.classement.rang === 1 ? "er" : "e"}</sup> · ${t.classement.points} pts</span>` : ""}</div>
-        <div class="pills">${s.formeDetail.map((f) => `<span class="fpill ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}">${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xs")}<em>${esc(f.score.replace("-", "–"))}</em></span>`).join("")}</div></div>`;
+        <div class="pills">${s.formeDetail.map((f) => `<span class="fpill ${f.r}" title="${esc(f.domicile ? "Contre " : "À ")}${esc(f.adversaire)} : ${esc(f.score)}"><i class="fl" aria-hidden="true">${RL[f.r] || ""}</i>${crest({ name: f.adversaire, logo: f.logo }, "crest crest-xs")}<em>${esc(f.score.replace("-", "–"))}</em></span>`).join("")}</div></div>`;
     };
     const SD = D.stats, SE = E.stats;
     const stats = `
       <section class="panel">
         <h2>${ico("bolt")}Forme · 5 derniers matchs</h2>
         ${formRow(D)}${formRow(E)}
-        <div class="legend"><span class="lg V"></span>Victoire<span class="lg N"></span>Nul<span class="lg D"></span>Défaite</div>
+        <div class="legend"><span class="lg V" aria-hidden="true">${RL.V}</span>Victoire<span class="lg N" aria-hidden="true">${RL.N}</span>Nul<span class="lg D" aria-hidden="true">${RL.D}</span>Défaite</div>
       </section>
       ${SD && SE ? `<section class="panel">
         <h2>${ico("target")}Face à face des stats</h2>

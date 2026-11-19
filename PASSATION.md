@@ -233,3 +233,11 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - Site : bloc « Moyenne par match » (5 barres neutres) + une ligne sous chaque score (chiffre de l'équipe à domicile à gauche, libellé, chiffre de l'équipe à l'extérieur). Lisible sans couleurs. Pas de formulations de type « Moins de 4.5 cartons » (vocabulaire de paris).
 - `/status` → `faceAFace` (matchsAvecChiffres, introuvables, enAttente, appelsAujourdhui). Si beaucoup d'« introuvables » sur Belgique/Écosse/Turquie : noms SportAPI ≠ ESPN.
 - Coût simulé en croisière : +45 appels ESPN/jour, +23 écritures KV/jour. Rattrapage initial ≈ 1 à 2 jours. Tests : 240 OK ; preview : vérification « cartons, fautes, hors-jeu et corners affichés ». Cache `?v=dp31`.
+
+## 19/11/2026 — Championnat d'Arabie saoudite ajouté (choix de l'utilisateur)
+- Proposés à l'utilisateur, classés par intérêt du public francophone : 1 Arabie saoudite (retenue), 2 Maroc, 3 MLS (à la reprise fin février), 4 Coupe de France (bloquée : logos des clubs amateurs), 5 Suisse, 6 Serie B / Liga 2 / 2. Bundesliga (matchs et logos ESPN vérifiés OK).
+- football-data gratuit : ses 12 compétitions sont toutes utilisées ; tout nouveau championnat passe par ESPN (budget 30 appels/passage partagé, en ajouter 1 ou 2 au plus à la fois) ou SportAPI.
+- Saudi Pro League : identifiant site 307, `src: "espn:ksa.1"`, logo ESPN 2488, pays « Arabie saoudite » (traduit « Saudi Arabia »). Ajouté à `FREE_PRIORITY` (build.js) et `ORDER` (app.js). Vérifié chez ESPN le 19/11 : saisons 2025-26 et 2026-27, matchs à venir (28/11, 5/12), logos de tous les clubs. Le direct passe par ESPN comme la Ligue 2 (non vérifié en réel : premier match le 28/11).
+- Le simulateur ESPN (`test/sim.mjs`) donne maintenant des adresses de logos complètes (comme le vrai ESPN). 2 tests ajoutés. Cache `?v=dp32`.
+- **À vérifier** : remplissage de l'historique (~1 jour) dans /status, puis vrais logos à l'écran (capture de l'utilisateur) quand le championnat apparaît (matchs dans les 7 jours, donc vers le 21/11).
+- Maroc (Botola) : ESPN n'a pas `mar.1` (refus). Piste restante : SportAPI (à vérifier avec la clé, via le robot).

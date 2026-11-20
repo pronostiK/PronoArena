@@ -22,7 +22,7 @@ import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./s
 import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
 import { runRobot, robotStatus, saveLeague } from "./robot.js";
 import { COMPOS_KEY, composFor } from "./compos.js";
-import { ABS_KEY, absentsPair, absentsStatus, markStarters } from "./absents.js";
+import { ABS_KEY, absentsPair, absentsStatus, markStarters, probablePair } from "./absents.js";
 import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
 import { XGB_KEY } from "./xgbz.js";
 import { buildLive } from "./live.js";
@@ -149,12 +149,14 @@ export default {
             if (xd && xe) { stats.domicile.xg = { ...xd, src: label }; stats.exterieur.xg = { ...xe, src: label }; break; }
           }
         }
-        const lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
+        let lineups = { domicile: composFor(compos, source, q("teamDomId")), exterieur: composFor(compos, source, q("teamExtId")) };
+        // Onze ESPN manquant (Ligue 2) : compo probable Bzzoiro, lue dans la clé du robot (tout ou rien, jamais d'appel ici)
+        if (pred && !(lineups.domicile && lineups.exterieur)) lineups = probablePair(abs, leagueId, pred.teams.domicile.name, pred.teams.exterieur.name) || lineups;
         const h2hs = attachH2HStats(h.h2h, await kvGet(env, H2HS_KEY)); // cartons, fautes, hors-jeu, corners : tout ou rien
         // Absents connus (Bzzoiro, affichage seulement) : lus dans la clé du robot, jamais d'appel ici
         const ab = pred ? absentsPair(abs, leagueId, pred.teams.domicile.name, pred.teams.exterieur.name) : { domicile: null, exterieur: null };
         // Titulaires du dernier match parmi les absents (onze ESPN déjà connu) : tout ou rien, les deux onzes sinon rien
-        const both = lineups.domicile?.xi?.length && lineups.exterieur?.xi?.length;
+        const both = !lineups.domicile?.probable && lineups.domicile?.xi?.length && lineups.exterieur?.xi?.length;
         const absents = both ? { domicile: markStarters(ab.domicile, lineups.domicile.xi), exterieur: markStarters(ab.exterieur, lineups.exterieur.xi) } : ab;
         return json({ success: true, stats, h2h: h2hs.h2h, h2hResume: h2hs.resume, compositions: lineups, absents }, 200, cacheFor(who, env, 1800));
       }

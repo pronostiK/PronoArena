@@ -24,6 +24,12 @@ export const ABS_TEAM_MS = 6 * HOUR; // effectif d'une équipe revu toutes les 6
 export const ABS_LIST_MS = 6 * HOUR; // liste des matchs d'une compétition revue toutes les 6 h
 export const ABS_SHOW_MS = 36 * HOUR; // au-delà, l'info est trop vieille : on n'affiche rien
 const COMP_MS = 7 * DAY;
+// Compo probable (Bzzoiro GET /events/{id}/lineups/ : 11 titulaires prévus, schéma, indice de confiance), seulement là où
+// ESPN ne donne pas le onze du dernier match. Ligue 2 (sonde réelle du 20/11/2026 : compo prévue pour chaque match,
+// mais aucun absent : tous les joueurs « available »). Un appel par match, pris dans la même rafale (aucun appel sortant
+// en plus par passage, toujours une seule écriture KV).
+export const LU_LEAGUES = new Set([62]);
+export const LU_MS = 4 * HOUR; // compo probable d'un match revue toutes les 4 h
 
 // Compétition Duel Prono → pays et noms Bzzoiro (vérifiés le 19/11/2026). Coupes : pays non utilisé, recherche par nom.
 // Pas de sélections nationales : l'onglet Compos n'existe pas pour elles.
@@ -52,7 +58,7 @@ const STATUS = { injured: "B", doubtful: "I", suspended: "S" }; // B = blessé, 
 const low = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const arr = (d, key) => (Array.isArray(d) ? d : Array.isArray(d?.[key]) ? d[key] : Array.isArray(d?.results) ? d.results : []);
 const day = (ts) => new Date(ts).toISOString().slice(0, 10);
-const emptyState = () => ({ comps: {}, ev: {}, teams: {}, day: "", used: 0, at: 0 });
+const emptyState = () => ({ comps: {}, ev: {}, teams: {}, lu: {}, day: "", used: 0, at: 0 });
 
 // Ligne du joueur : G (gardien), D (défense), M (milieu), A (attaque), "" si inconnue
 export function line(pos) {
@@ -100,7 +106,7 @@ export async function refreshAbsents(env, index, now = Date.now()) {
   const plan = planWork(st, index, now);
   if (!plan.length) return null;
 
-  let calls = 0, comps = 0, lists = 0, squads = 0;
+  let calls = 0, comps = 0, lists = 0, squads = 0, lineupsN = 0;
   const call = async (path) => {
     calls++; st.used++;
     const r = await fetch(BASE + path, { headers: { Authorization: "Token " + env.BZZOIRO_TOKEN, Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)" } });
@@ -120,11 +126,17 @@ export async function refreshAbsents(env, index, now = Date.now()) {
     for (const id of planWork(st, index, now).filter((x) => x.kind === "list").map((x) => x.id)) {
       if (!budget()) break;
       const d = await call(`/events/?league_id=${st.comps[id].cid}&date_from=${day(now)}&date_to=${day(now + ABS_AHEAD)}&limit=200`);
-      st.ev[id] = { at: now, m: arr(d).map((e) => [Date.parse(e.event_date) || 0, String(e.home_team || ""), String(e.away_team || ""), e.home_team_id, e.away_team_id])
+      st.ev[id] = { at: now, m: arr(d).map((e) => [Date.parse(e.event_date) || 0, String(e.home_team || ""), String(e.away_team || ""), e.home_team_id, e.away_team_id, e.id || null])
         .filter((e) => e[0] > now - 3 * HOUR && e[0] < now + ABS_AHEAD && e[3] && e[4]) };
       lists++;
     }
-    // 3. Effectifs des équipes, celles qui jouent le plus tôt d'abord
+    // 3. Compos probables (Ligue 2) : peu nombreuses, passent avant les effectifs pour ne jamais attendre
+    for (const t of planWork(st, index, now).filter((x) => x.kind === "lu")) {
+      if (!budget()) break;
+      (st.lu ||= {})[t.id] = { lg: t.lg, ts: t.ts, at: now, ...probableLineup(await call(`/events/${t.id}/lineups/`)) };
+      lineupsN++;
+    }
+    // 4. Effectifs des équipes, celles qui jouent le plus tôt d'abord
     for (const t of planWork(st, index, now).filter((x) => x.kind === "team")) {
       if (!budget()) break;
       st.teams[t.id] = { n: t.n, lg: t.lg, at: now, l: squadAbsents(await call(`/teams/${t.id}/squad/`)) };
@@ -139,11 +151,12 @@ export async function refreshAbsents(env, index, now = Date.now()) {
   const playing = new Set(Object.values(st.ev).flatMap((v) => v.m.flatMap((e) => [String(e[3]), String(e[4])])));
   for (const [id, t] of Object.entries(st.teams)) if (!playing.has(id) && now - t.at > 3 * DAY) delete st.teams[id];
   for (const [id, v] of Object.entries(st.ev)) if (!v.m.length && now - v.at > 3 * DAY) delete st.ev[id];
+  for (const [id, l] of Object.entries(st.lu || {})) if (l.ts < now - 3 * HOUR) delete st.lu[id];
   st.at = now;
   await env.PRONO_CACHE.put(ABS_KEY, JSON.stringify(st)); // une seule écriture par rafale
   return st.erreur
     ? `absents : ERREUR ${st.erreur}`
-    : `absents : ${calls} appels (${comps} compétitions, ${lists} listes, ${squads} effectifs), ${st.used}/${ABS_DAILY} aujourd'hui`;
+    : `absents : ${calls} appels (${comps} compétitions, ${lists} listes, ${lineupsN} compos probables, ${squads} effectifs), ${st.used}/${ABS_DAILY} aujourd'hui`;
 }
 
 // Travail à faire, dans l'ordre : compétitions, listes de matchs, effectifs
@@ -155,6 +168,14 @@ export function planWork(st, index, now) {
     const c = st.comps[id];
     if (!c || now - c.at > COMP_MS) { out.push({ kind: "comp", id }); continue; }
     if (c.cid && (!st.ev[id] || now - st.ev[id].at > ABS_LIST_MS)) out.push({ kind: "list", id });
+  }
+  for (const [lg, v] of Object.entries(st.ev)) {
+    if (!LU_LEAGUES.has(Number(lg))) continue;
+    for (const e of v.m) {
+      if (!e[5] || e[0] < now - HOUR) continue; // match commencé : plus la peine
+      const have = st.lu?.[e[5]];
+      if (!have || now - have.at > LU_MS) out.push({ kind: "lu", id: String(e[5]), lg: Number(lg), ts: e[0] });
+    }
   }
   const teams = new Map();
   for (const [lg, v] of Object.entries(st.ev)) for (const e of v.m) {
@@ -212,6 +233,29 @@ export function absentsPair(st, leagueId, dom, ext, now = Date.now()) {
   return { domicile: d, exterieur: e };
 }
 
+// Compo probable Bzzoiro → { s: statut, h: { n, f, c, xi }, a: {...} } ; xi au format des compositions ESPN [[n°, nom, poste]]
+// (postes traduits G/D/M/A → G/CD/CM/F pour que le terrain du site place les lignes). Moins de 11 titulaires : rien.
+const LU_POS = { G: "G", D: "CD", M: "CM", A: "F" };
+export function probableLineup(d) {
+  const side = (x) => {
+    const xi = (Array.isArray(x?.players) ? x.players : [])
+      .map((p) => [p?.jersey_number != null ? String(p.jersey_number) : "", String(p?.short_name || p?.name || "").slice(0, 40), LU_POS[line(p?.position)] || ""])
+      .filter((p) => p[1]);
+    return xi.length === 11 ? { n: String(x.team_name || ""), f: String(x.formation || "").slice(0, 12), c: Number(x.confidence) || null, xi } : null;
+  };
+  const h = side(d?.lineups?.home), a = side(d?.lineups?.away);
+  return h && a ? { s: String(d.lineup_status || ""), h, a } : { none: true };
+}
+
+// Compos probables d'un match pour /match-details : les deux équipes, sinon rien
+export function probablePair(st, leagueId, dom, ext, now = Date.now()) {
+  if (!LU_LEAGUES.has(Number(leagueId)) || !st?.lu || !dom || !ext) return null;
+  const l = Object.values(st.lu).find((x) => !x.none && x.lg === Number(leagueId) && now - x.at < ABS_SHOW_MS && sameTeam(x.h.n, dom) && sameTeam(x.a.n, ext));
+  if (!l) return null;
+  const one = (t) => ({ probable: true, officielle: l.s === "confirmed", at: l.at, f: t.f, c: t.c, xi: t.xi });
+  return { domicile: one(l.h), exterieur: one(l.a) };
+}
+
 // Pour /status
 export function absentsStatus(st, now = Date.now()) {
   if (!st) return { etat: "pas commencé (secret BZZOIRO_TOKEN absent ou aucun match dans les 48 h)" };
@@ -224,5 +268,6 @@ export function absentsStatus(st, now = Date.now()) {
     derniereRafale: st.at ? new Date(st.at).toISOString() : null, appelsAujourdhui: `${st.used || 0}/${ABS_DAILY}`,
     pause: (st.pauseUntil || 0) > now ? new Date(st.pauseUntil).toISOString() : null, erreur: st.erreur || null,
     equipes: Object.keys(st.teams || {}).length, competitions: comps,
+    composProbables: Object.values(st.lu || {}).filter((l) => !l.none).length,
   };
 }

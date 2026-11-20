@@ -223,8 +223,8 @@
     else if (Math.abs(P.proba1 - P.proba2) < 0.08) main = `<span class="badge">⚖ Duel serré</span>`;
     else { const fav = P.proba1 > P.proba2 ? D : E, strong = Math.max(P.proba1, P.proba2) >= 0.55; main = `<span class="badge ${P.proba1 > P.proba2 ? "b1" : "b2"}">${crest(fav, "crest crest-xxs")}${strong ? "Grand favori" : "Favori"}</span>`; }
     let goals = "";
-    if (P.probaOver25 >= 0.6) goals = `<span class="badge">⚽ Match ouvert · +2,5 ${pct(P.probaOver25)}%</span>`;
-    else if (P.probaUnder25 >= 0.6) goals = `<span class="badge">🔒 Match fermé · −2,5 ${pct(P.probaUnder25)}%</span>`;
+    if (P.probaOver25 >= 0.6) goals = `<span class="badge">⚽ Match ouvert · 3 buts ou + ${pct(P.probaOver25)}%</span>`;
+    else if (P.probaUnder25 >= 0.6) goals = `<span class="badge">🔒 Match fermé · 2 buts ou moins ${pct(P.probaUnder25)}%</span>`;
     else if (P.probaBTTS >= 0.6) goals = `<span class="badge">⚽ Les deux marquent ${pct(P.probaBTTS)}%</span>`;
     return main + goals;
   }
@@ -688,24 +688,24 @@
         </section>`;
       return;
     }
-    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur, C = p.cotesJustes || {};
+    const P = p.poisson, D = p.teams.domicile, E = p.teams.exterieur;
     const isNat = Number(leagueId) === 5;
 
     const marches = `
       <section class="panel">
         <h2>${ico("trophy")}Résultat</h2>
         <div class="probs probs-lg">
-          <div>${mini(D)}<b class="c1">${pct(P.proba1)}%</b><small>cote ${esc(C.cote1 ?? "—")}</small></div>
-          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.probaN)}%</b><small>cote ${esc(C.coteN ?? "—")}</small></div>
-          <div>${mini(E)}<b class="c2">${pct(P.proba2)}%</b><small>cote ${esc(C.cote2 ?? "—")}</small></div>
+          <div>${mini(D)}<b class="c1">${pct(P.proba1)}%</b><small>Victoire</small></div>
+          <div><span class="nul-ico" aria-hidden="true">=</span><b class="cN">${pct(P.probaN)}%</b><small>Match nul</small></div>
+          <div>${mini(E)}<b class="c2">${pct(P.proba2)}%</b><small>Victoire</small></div>
         </div>
         <div class="bar" aria-hidden="true" style="height:8px"><span style="width:${pct(P.proba1)}%"></span><span style="width:${pct(P.probaN)}%"></span><span style="width:${pct(P.proba2)}%"></span></div>
         <div class="badges">${badges(p)}</div>
       </section>
       <section class="panel">
-        <h2>${ico("split")}Double chance</h2>
-        <div class="grid3">${tile("1X", pct(P.proba1X) + "%")}${tile("X2", pct(P.probaX2) + "%")}${tile("12", pct(P.proba12) + "%")}</div>
-        <h3>${ico("shield")}Remboursé si nul</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
+        <h2>${ico("split")}Victoire ou nul</h2>
+        <div class="grid3"><div class="cell">${mini(D)}<small>Victoire ou nul</small><b>${pct(P.proba1X)}%</b></div><div class="cell">${mini(E)}<small>Victoire ou nul</small><b>${pct(P.probaX2)}%</b></div><div class="cell"><span class="nul-ico" aria-hidden="true">≠</span><small>Pas de match nul</small><b>${pct(P.proba12)}%</b></div></div>
+        <h3>${ico("shield")}S'il y a un vainqueur</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
         <h3>${ico("clock")}Mi-temps</h3>
         <div class="probs">
           <div>${mini(D)}<b class="c1">${pct(P.miTemps?.proba1)}%</b></div>
@@ -716,13 +716,13 @@
       <section class="panel">
         <h2>${ico("ball")}Buts</h2>
         <div class="grid2">${tile("Buts attendus", `${dec(p.lambdas.lambdaDom)} – ${dec(p.lambdas.lambdaExt)}`, "target")}${tile("Total attendu", dec(p.lambdas.lambdaDom + p.lambdas.lambdaExt), "ball")}</div>
-        <div class="grid3">${tile("+1,5", pct(P.probaOver15) + "%")}${tile("+2,5", pct(P.probaOver25) + "%")}${tile("+3,5", pct(P.probaOver35) + "%")}</div>
+        <div class="grid3">${tile("2 buts ou +", pct(P.probaOver15) + "%")}${tile("3 buts ou +", pct(P.probaOver25) + "%")}${tile("4 buts ou +", pct(P.probaOver35) + "%")}</div>
         <h3>Les deux équipes marquent</h3>
         <div class="pair"><span class="pair-side"><b class="c1">Oui ${pct(P.probaBTTS)}%</b></span><div class="pair-bar" aria-hidden="true"><span style="width:${pct(P.probaBTTS)}%"></span><span style="width:${pct(P.probaNoBTTS)}%"></span></div><span class="pair-side"><b class="c2">Non ${pct(P.probaNoBTTS)}%</b></span></div>
         <h3>Buts par équipe</h3>
         <div class="teamgoals">
-          <div>${mini(D)}<span><small>+0,5</small><b>${pct(P.butsDomicile?.plus05)}%</b></span><span><small>+1,5</small><b>${pct(P.butsDomicile?.plus15)}%</b></span></div>
-          <div>${mini(E)}<span><small>+0,5</small><b>${pct(P.butsExterieur?.plus05)}%</b></span><span><small>+1,5</small><b>${pct(P.butsExterieur?.plus15)}%</b></span></div>
+          <div>${mini(D)}<span><small>1 but ou +</small><b>${pct(P.butsDomicile?.plus05)}%</b></span><span><small>2 buts ou +</small><b>${pct(P.butsDomicile?.plus15)}%</b></span></div>
+          <div>${mini(E)}<span><small>1 but ou +</small><b>${pct(P.butsExterieur?.plus05)}%</b></span><span><small>2 buts ou +</small><b>${pct(P.butsExterieur?.plus15)}%</b></span></div>
         </div>
       </section>
       <section class="panel">
@@ -769,7 +769,7 @@
         <div id="xg-note"></div>
       </section>` : ""}`;
 
-    const tabsDef = [["a", "Analyse"], ["m", "Marchés"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
+    const tabsDef = [["a", "Analyse"], ["m", "Scénarios"], ["s", "Stats"], ...(isNat ? [] : [["c", "Compos"]]), ["h", "Face-à-face"]];
     view.innerHTML = `
       <div class="back"><a href="#/ligue/${esc(leagueId)}" aria-label="Retour aux duels de ${esc(lg?.nom || "la compétition")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span>${esc(lg?.nom || "")}</span></div>
       <section class="match-hero" ${liveAttr(leagueId, p)}>

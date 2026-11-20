@@ -1,0 +1,23 @@
+Matchs comparés : 360 (9 championnats × 3 dates + 1 passage avec promus)
+M0 du journal identique au moteur 02509e8 : 360/360
+M7 du journal identique au moteur 8044a83 : 360/360
+Matchs où M0 et M7 diffèrent : 360/360
+Données utilisées (1re date, puis passage avec promus) :
+61 : {"source":"principale","promus":0,"cornersMatchs":101}
+39 : {"source":"principale","promus":0,"cornersMatchs":125}
+140 : {"source":"principale","promus":0,"cornersMatchs":125}
+135 : {"source":"principale","promus":0,"cornersMatchs":125}
+78 : {"source":"principale","promus":0,"cornersMatchs":101}
+94 : {"source":"principale","promus":0,"cornersMatchs":0}
+88 : {"source":"principale","promus":0,"cornersMatchs":101}
+40 : {"source":"principale","promus":0,"cornersMatchs":181}
+62 : {"source":"principale","promus":0,"cornersMatchs":101}
+promus 61 : {"source":"principale","promus":2,"cornersMatchs":101}
+promus 39 : {"source":"principale","promus":2,"cornersMatchs":125}
+promus 140 : {"source":"principale","promus":2,"cornersMatchs":125}
+promus 135 : {"source":"principale","promus":2,"cornersMatchs":125}
+promus 78 : {"source":"principale","promus":2,"cornersMatchs":101}
+promus 94 : {"source":"principale","promus":2,"cornersMatchs":0}
+promus 88 : {"source":"principale","promus":2,"cornersMatchs":101}
+promus 40 : {"source":"principale","promus":0,"cornersMatchs":181}
+promus 62 : {"source":"principale","promus":0,"cornersMatchs":101}

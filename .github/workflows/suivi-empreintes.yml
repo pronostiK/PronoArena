@@ -1,0 +1,49 @@
+name: Suivi M0 / M7 — empreintes
+
+# Toutes les 30 min, lit l'empreinte de tête du journal des prédictions M0 / M7 (https://api.duelprono.com/suivi/empreinte)
+# et l'ajoute au fichier suivi/empreintes.jsonl de la branche « suivi-empreintes » (jamais sur main).
+# Le commit GitHub date de façon vérifiable tout ce que le journal contenait à ce moment-là : une ligne ajoutée
+# ou modifiée après coup casserait la chaîne. L'empreinte ne révèle aucune probabilité.
+# Commit seulement si l'empreinte a changé. Préfixe [skip ci] : aucune publication du site ne doit partir de ces commits.
+# Protocole : test/lab/PROTOCOLE-SUIVI.md
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: suivi-empreintes
+  cancel-in-progress: false
+
+jobs:
+  empreinte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Branche des empreintes
+        run: |
+          git config --global user.name "suivi-empreintes"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git clone --depth 1 --branch suivi-empreintes "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" b; then
+            echo "branche trouvée"
+          else
+            mkdir b && cd b && git init -b suivi-empreintes && git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          fi
+
+      - name: Lecture et ajout
+        run: |
+          cd b
+          mkdir -p suivi
+          r=$(curl -sf --max-time 30 "https://api.duelprono.com/suivi/empreinte?n=$(date +%s)") || { echo "API injoignable"; exit 0; }
+          e=$(echo "$r" | jq -r '.empreinte // empty')
+          [ -n "$e" ] || { echo "journal vide"; exit 0; }
+          last=$(tail -n 1 suivi/empreintes.jsonl 2>/dev/null | jq -r '.empreinte // empty')
+          if [ "$e" = "$last" ]; then echo "empreinte inchangée"; exit 0; fi
+          echo "$r" | jq -c --arg lu "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{lu: $lu, seq, lignes, derniere, empreinte, reglages, version}' >> suivi/empreintes.jsonl
+          git add suivi/empreintes.jsonl
+          git commit -q -m "[skip ci] suivi : empreinte $(echo "$e" | cut -c1-12) (ligne $(echo "$r" | jq -r .seq))"
+          git push -q origin suivi-empreintes

@@ -4,6 +4,7 @@
 // ============================================================
 import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
+import { SUIVI_LEAGUES } from "./suivi.js";
 import { buildModel, computeTeamRatings, computeElo, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
 import { CORNERS_LEAGUES, cornersKey, blendCorners } from "./corners.js";
@@ -148,8 +149,17 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
 
   const national = lg.national ? await nationalContext(env, finishedCur, cur.teams) : null;
   const upcoming = toUpcoming(cur, provider).sort((a, b) => a.ts - b.ts).slice(0, 10);
+  // Suivi M0 / M7 (validation de l'auditeur, 20/11/2026) : ancien moteur recalculé à côté, sans rien changer au moteur en production
+  const model0 = SUIVI_LEAGUES.has(+leagueId) && env.DB ? buildModel(finishedAll) : null;
+  const suivi = [];
   const predictions = upcoming.map((m) => {
     const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+    if (model0) {
+      const p0 = calculate_match_prediction(m, { model: model0, leagueId, season, domestic, national });
+      suivi.push({ match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name,
+        m0: [p0.poisson.proba1, p0.poisson.probaN, p0.poisson.proba2], m7: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2],
+        infos: { source: secours ? "secours" : "principale", promus: newcomers ? newcomers.size : 0, cornersMatchs: model.cornersMatchs || 0 } });
+    }
     for (const side of ["domicile", "exterieur"]) {
       const team = p.teams[side];
       const st = teamStats(team.id, formePool);
@@ -181,6 +191,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     },
     classement: table.map((r) => ({ rang: r.rang, id: r.id, nom: names[r.id]?.[0] || r.id, logo: names[r.id]?.[1] || null, joues: r.j, v: r.v, n: r.n, d: r.d, bp: r.bp, bc: r.bc, diff: r.diff, points: r.pts })),
     predictions,
+    ...(model0 ? { _suivi: suivi } : {}),
   };
 }
 

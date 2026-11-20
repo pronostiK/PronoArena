@@ -984,6 +984,57 @@ console.log("\n— Corners —");
 }
 function DAYMS() { return 86400000; }
 
+console.log("\n— Suivi M0 / M7 —");
+{
+  const { saveLeague } = await import("../src/robot.js");
+  const { buildLeague, predsKey } = await import("../src/build.js");
+  const { LEAGUES } = await import("../src/config.js");
+  const { rowText, SUIVI_LEAGUES } = await import("../src/suivi.js");
+  const { createHash } = await import("node:crypto");
+  const h = (t) => createHash("sha256").update(t).digest("hex");
+  const d1 = await makeD1();
+  const E = { ...env, DB: d1.DB };
+  SIM.now = NOW;
+  const idx = JSON.parse(await env.PRONO_CACHE.get("robot:index")) || {};
+  await env.PRONO_CACHE.delete("preds:61@2026");
+  await saveLeague(E, 61, 2026, NOW, idx);
+  const rows = d1.raw.prepare("SELECT * FROM suivi ORDER BY seq").all();
+  const stored = JSON.parse(await env.PRONO_CACHE.get("preds:61@2026"));
+  const futur = stored.predictions.filter((p) => Date.parse(p.date) > NOW);
+  check("Suivi : une ligne par match à venir de Ligue 1", rows.length === futur.length && rows.length > 0, `${rows.length} lignes / ${futur.length} matchs`);
+  check("Suivi : rien n'est ajouté aux pronostics publiés", !("_suivi" in stored));
+  const byMatch = Object.fromEntries(rows.map((r) => [r.match, r]));
+  check("Suivi : M7 = probabilités réellement publiées", futur.every((p) => byMatch[`61:${p.matchId}`]?.m7 === JSON.stringify([p.poisson.proba1, p.poisson.probaN, p.poisson.proba2])));
+  check("Suivi : M0 = ancien moteur (sans promus, Elo, corners) et différent de M7", rows.every((r) => JSON.parse(r.m0).length === 3) && rows.some((r) => r.m0 !== r.m7));
+  check("Suivi : horodatage avant le coup d'envoi", rows.every((r) => r.cree_le === NOW && r.coup_envoi > r.cree_le));
+  let prec = "0".repeat(64), chain = true;
+  for (const r of rows) { const c = h(rowText(r)); if (c !== r.contenu || r.prec !== prec || h(prec + "|" + c) !== r.empreinte) chain = false; prec = r.empreinte; }
+  check("Suivi : chaîne d'empreintes vérifiable", chain);
+  await saveLeague(E, 61, 2026, NOW + 600000, idx);
+  check("Suivi : rien de réécrit si les probabilités ne changent pas", d1.raw.prepare("SELECT COUNT(*) AS n FROM suivi").get().n === rows.length);
+  let refusU = false, refusD = false;
+  try { d1.raw.prepare("UPDATE suivi SET m7 = '[1,0,0]' WHERE seq = 1").run(); } catch { refusU = true; }
+  try { d1.raw.prepare("DELETE FROM suivi").run(); } catch { refusD = true; }
+  check("Suivi : modification et suppression refusées par la base", refusU && refusD && d1.raw.prepare("SELECT m7 FROM suivi WHERE seq = 1").get().m7 === rows[0].m7);
+  const nonSuivi = Object.keys(LEAGUES).map(Number).find((id) => !SUIVI_LEAGUES.has(id) && env.store.has(predsKey(id, 2026)));
+  if (nonSuivi) { const n0 = rows.length; await saveLeague(E, nonSuivi, 2026, NOW, idx); check("Suivi : championnats hors audit non enregistrés", d1.raw.prepare("SELECT COUNT(*) AS n FROM suivi").get().n === n0, String(nonSuivi)); }
+  const call = async (path) => (await worker.fetch(new Request("https://w" + path), E, { waitUntil() {} })).json();
+  const head = await call("/suivi/empreinte");
+  check("Suivi : empreinte de tête publique, sans probabilités", head.actif && head.empreinte === rows[rows.length - 1].empreinte && head.lignes === rows.length && !JSON.stringify(head).includes("m7"), JSON.stringify(head));
+  const ex = await call("/suivi/export");
+  check("Suivi : export, probabilités masquées avant le match", ex.lignes.length === rows.length && ex.lignes.every((l) => l.masque && !l.m7 && l.empreinte));
+  Date.now = () => NOW + 30 * 86400000;
+  const ex2 = await call("/suivi/export");
+  Date.now = () => SIM.now;
+  check("Suivi : export, probabilités visibles après le match", ex2.lignes.every((l) => !l.masque && l.m0 && l.m7));
+  const sansDB = await buildLeague(env, 61, 2026, NOW);
+  check("Suivi : sans base, aucun calcul en plus", !("_suivi" in sansDB));
+  const E2 = { ...env, DB: { prepare() { throw new Error("D1 indisponible"); }, batch() { throw new Error("D1 indisponible"); } } };
+  await env.PRONO_CACHE.delete("preds:61@2026");
+  const okSave = await saveLeague(E2, 61, 2026, NOW, idx);
+  check("Suivi : base en panne → pronostics publiés quand même, erreur notée", okSave === true && /indisponible/.test(idx._suiviErreur || ""), idx._suiviErreur);
+}
+
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;
 process.exit(ko ? 1 : 0);

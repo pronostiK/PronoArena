@@ -15,6 +15,7 @@ import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.
 import { refreshSeed } from "./nations.js";
 import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
 import { refreshCorners, cornersStatus } from "./corners.js";
+import { logSuivi } from "./suivi.js";
 import { LEAGUES, BACKUP_AFTER_MS } from "./config.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -53,6 +54,15 @@ export function pickDue(sources, index, now) {
 export async function saveLeague(env, leagueId, season, now, index = null) {
   const result = await buildLeague(env, leagueId, season, now, index);
   if (!result) return false;
+  // Suivi M0 / M7 : journal à part (base D1), jamais stocké avec les pronostics ; une erreur ici ne bloque jamais le robot
+  const suivi = result._suivi;
+  delete result._suivi;
+  if (suivi) {
+    try {
+      const n = await logSuivi(env, leagueId, suivi, now);
+      if (index) index._suivi = { ...(index._suivi || {}), [leagueId]: { at: now, lignes: n } };
+    } catch (e) { if (index) index._suiviErreur = `${new Date(now).toISOString()} ${leagueId} : ${e.message}`; }
+  }
   if (index) {
     index[`count:${leagueId}`] = result.count; // pour /leagues, sans relire les pronostics
     if (result.modele?.selections) index[`selections:${leagueId}`] = result.modele.selections; // pour /status
@@ -270,5 +280,5 @@ export async function robotStatus(env, now = Date.now()) {
   }
   const faceAFace = await h2hStatsStatus(env);
   const corners = await cornersStatus(env, season);
-  return { saison: season, faceAFace, corners, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  return { saison: season, faceAFace, corners, suivi: { parChampionnat: index._suivi || {}, ...(index._suiviErreur ? { derniereErreur: index._suiviErreur } : {}) }, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

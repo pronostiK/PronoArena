@@ -19,7 +19,7 @@ def shape(x, depth=0):
     if isinstance(x, list): return f"[{len(x)}×{shape(x[0], depth+1) if x and depth < 2 else ''}]"
     return type(x).__name__
 d0 = date.today(); d1 = d0 + timedelta(days=3); dm = d0 - timedelta(days=7)
-for nom, lid in {"Ligue 2": 89, "Ligue 1": 6}.items():
+for nom, lid in {"Ligue 2": 89, "Ligue 1": 6}.items():  # v2
     print(f"\n######## BZZOIRO {nom} (id {lid})")
     evs = L(bz("/events/", {"league_id": lid, "date_from": d0.isoformat(), "date_to": d1.isoformat(), "limit": 50}))
     past = L(bz("/events/", {"league_id": lid, "date_from": dm.isoformat(), "date_to": (d0 - timedelta(days=1)).isoformat(), "limit": 50}))
@@ -32,12 +32,19 @@ for nom, lid in {"Ligue 2": 89, "Ligue 1": 6}.items():
             for p in sq: av[p.get("availability")] = av.get(p.get("availability"), 0) + 1
             print(f"   effectif {side} : {len(sq)} joueurs, disponibilité {av}")
         lu = bz(f"/events/{e.get('id')}/lineups/")
-        print("   lineups forme :", shape(lu)[:700])
+        lu = lu or {}
+        for side in ("home", "away"):
+            x = (lu.get("lineups") or {}).get(side) or {}
+            pl = x.get("players") or []
+            print(f"   compo prédite {side} : statut {lu.get('lineup_status')} beta {lu.get('beta')} formation {x.get('formation')} confiance {x.get('confidence')} titulaires {len(pl)} remplaçants {len(x.get('substitutes') or [])} ; absents {len((lu.get('unavailable_players') or {}).get(side) or [])}")
+        if lu.get("lineups", {}).get("home", {}).get("players"): print("   forme d'un joueur :", shape(lu["lineups"]["home"]["players"][0]))
+        print("   mise à jour :", lu.get("updated_at"))
 print(f"\nappels Bzzoiro : {N}")
 for slug in ("fra.2", "fra.1"):
     print(f"\n######## ESPN {slug}")
-    sb = espn(slug, f"scoreboard?dates={dm.strftime('%Y%m%d')}-{d1.strftime('%Y%m%d')}")
-    evs = (sb or {}).get("events", [])
+    evs = []
+    for k in range(1, 8):
+        evs += (espn(slug, f"scoreboard?dates={(d0 - timedelta(days=k)).strftime('%Y%m%d')}") or {}).get("events", [])
     fin = [e for e in evs if e.get("status", {}).get("type", {}).get("completed")]
     print(f"matchs : {len(evs)}, terminés : {len(fin)}")
     for e in fin[:2] + [x for x in evs if x not in fin][:1]:

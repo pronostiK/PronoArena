@@ -1,0 +1,16 @@
+name: Sonde Ligue 2 (temporaire)
+on:
+  push:
+    branches: [claude/project-thread-0f4of8]
+    paths: [".github/workflows/sonde-l2.yml", "test/lab/sonde_l2.py"]
+permissions:
+  contents: read
+jobs:
+  sonde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          BZZOIRO_TOKEN: ${{ secrets.BZZOIRO_TOKEN }}
+        run: python3 test/lab/sonde_l2.py

@@ -164,7 +164,7 @@ check("Analyse : mon prono affiché", (await page.locator(".pick[aria-pressed='t
   check("Le logo du site ramène à l'accueil « Tout »", (await page.locator(".rail .chip-all").getAttribute("aria-pressed")) === "true");
   await page.goBack(); await page.waitForSelector(".duel"); await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300); }
 { const mt = await page.locator("[data-panel='m']").textContent();
-  check("Scénarios : plus de cotes ni de vocabulaire de paris, pourcentages présents", !/\bcote|Rembours|Double chance|\+\d,5/.test(mt) && /S'il y a un vainqueur/.test(mt) && /Victoire ou nul/.test(mt) && /3 buts ou \+/.test(mt) && (await page.locator(".tabs button").first().textContent()) === "Analyse" && (await page.locator(".tabs button[data-pane='m']").textContent()) === "Scénarios", mt.replace(/\s+/g, " ").slice(0, 200)); }
+  check("Scénarios : plus de cotes ni de vocabulaire de paris, pourcentages présents", !/\bcote|Double chance|\+\d,5/.test(mt) && /Remboursé si nul/.test(mt) && /Victoire ou nul/.test(mt) && /3 buts ou \+/.test(mt) && (await page.locator(".tabs button").first().textContent()) === "Analyse" && (await page.locator(".tabs button[data-pane='m']").textContent()) === "Scénarios", mt.replace(/\s+/g, " ").slice(0, 200)); }
 const scenShots = async (lg) => { await page.click(".tabs button[data-pane='m']"); await page.waitForTimeout(300);
   check(`Scénarios (${lg}, téléphone) : pas de débordement`, (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390);
   const hideBar = await page.addStyleTag({ content: '.tabbar{visibility:hidden} .topbar{position:static !important}' }); await page.locator("[data-panel='m']").screenshot({ path: `${OUT}/scenarios-telephone-${lg}.png` });
@@ -338,7 +338,7 @@ await go("#/", ".duel"); await page.locator(".picks:not(.locked)").first().locat
 check("Anglais : prono enregistré, message traduit", /^Pick saved · \d+ pts at stake$/.test(await page.textContent("#toast")) && /My pick/.test(await page.locator(".pick[aria-pressed='true']").first().textContent()));
 await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400);
 await shot("en-3-analysis");
-await scenShots("en"); { const mt = await page.locator("[data-panel='m']").textContent(); check("Scenarios (EN) : textes traduits", /If there is a winner/.test(mt) && /Win or draw/.test(mt) && /3\+ goals/.test(mt) && !/odds/i.test(mt), mt.replace(/\s+/g, " ").slice(0, 200)); }
+await scenShots("en"); { const mt = await page.locator("[data-panel='m']").textContent(); check("Scenarios (EN) : textes traduits", /Draw no bet/.test(mt) && /Win or draw/.test(mt) && /3\+ goals/.test(mt) && !/odds/i.test(mt), mt.replace(/\s+/g, " ").slice(0, 200)); }
 for (const k of ["s", "c", "h"]) { await page.click(`.tabs button[data-pane='${k}']`); await page.waitForTimeout(300); }
 SIM.now += 61000; await go("#/arene", ".board"); await page.waitForSelector(".mp"); await shot("en-4-arena");
 await go("#/compte", ".me-hero"); await shot("en-5-space");

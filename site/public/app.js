@@ -705,7 +705,7 @@
       <section class="panel">
         <h2>${ico("split")}Victoire ou nul</h2>
         <div class="grid3"><div class="cell">${mini(D)}<small>Victoire ou nul</small><b>${pct(P.proba1X)}%</b></div><div class="cell">${mini(E)}<small>Victoire ou nul</small><b>${pct(P.probaX2)}%</b></div><div class="cell"><span class="nul-ico" aria-hidden="true">≠</span><small>Pas de match nul</small><b>${pct(P.proba12)}%</b></div></div>
-        <h3>${ico("shield")}S'il y a un vainqueur</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
+        <h3>${ico("shield")}Remboursé si nul</h3>${pair(P.rembourseSiNul?.dom, D, P.rembourseSiNul?.ext, E)}
         <h3>${ico("clock")}Mi-temps</h3>
         <div class="probs">
           <div>${mini(D)}<b class="c1">${pct(P.miTemps?.proba1)}%</b></div>

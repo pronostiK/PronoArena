@@ -118,7 +118,7 @@
     "Barre pleine : buts marqués. Barre hachurée : buts encaissés.": "Solid bar: goals scored. Hatched bar: goals conceded.",
     "Créés": "Created", "Concédés": "Conceded",
     "Points clés": "Key points", "Scénarios": "Scenarios", "Compos": "Line-ups", "Face-à-face": "H2H",
-    "Résultat": "Result", "S'il y a un vainqueur": "If there is a winner", "Victoire ou nul": "Win or draw", "Pas de match nul": "No draw", "Match nul": "Draw", "2 buts ou +": "2+ goals", "3 buts ou +": "3+ goals", "4 buts ou +": "4+ goals", "1 but ou +": "1+ goal", "Mi-temps": "Half-time",
+    "Résultat": "Result", "Remboursé si nul": "Draw no bet", "Victoire ou nul": "Win or draw", "Pas de match nul": "No draw", "Match nul": "Draw", "2 buts ou +": "2+ goals", "3 buts ou +": "3+ goals", "4 buts ou +": "4+ goals", "1 but ou +": "1+ goal", "Mi-temps": "Half-time",
     "Buts": "Goals", "Buts attendus": "Expected goals", "Total attendu": "Expected total", 
     "Les deux équipes marquent": "Both teams score", "Buts par équipe": "Goals per team",
     "Victoire et plus": "Win and more", "Victoire sans encaisser": "Win to nil", "Victoire + les deux marquent": "Win + both teams score", "Victoire par 2 buts ou +": "Win by 2+ goals",

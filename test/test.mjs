@@ -731,7 +731,8 @@ console.log("\n— Absents connus (Bzzoiro, affichage seulement) —");
   const A = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };
   const getA = async (path) => (await worker.fetch(new Request("https://w" + path), A, { waitUntil: () => {} })).json();
   let t = Date.UTC(2026, 10, 9, 8, 0);
-  calls.bz = 0; calls.bzAbs = 0; calls.bzSquad = 0; SIM.bz429 = false; SIM.bzDown = false; SIM.bzEstimated = false;
+  calls.bz = 0; calls.bzAbs = 0; calls.bzSquad = 0; calls.bzLineups = 0; SIM.bz429 = false; SIM.bzDown = false; SIM.bzEstimated = false;
+  SIM.noRostersL2 = true; // Ligue 2 : pas de onze ESPN (comme sur le vrai site), d'où la compo probable Bzzoiro
   // Remplissage, puis 24 h mesurées
   for (let i = 0; i < 300; i++, t += 600000) { SIM.now = t; await runRobot(A, t); }
   const w0 = A.stats.writes, a0 = calls.bzAbs; let absWrites = 0;
@@ -785,6 +786,30 @@ console.log("\n— Absents connus (Bzzoiro, affichage seulement) —");
     const both = [md.absents.domicile, md.absents.exterieur];
     check("Absents : ligne transmise pour chaque absent", both.every((x) => x.l.every((p) => ["G", "D", "M", "A"].includes(p[4]))), JSON.stringify(both[0].l[0]));
   }
+  // Compo probable Ligue 2 (Bzzoiro /events/{id}/lineups/) quand ESPN n'a pas le onze
+  {
+    const { probableLineup, probablePair } = await import("../src/absents.js");
+    check("Compo probable : récupérée par le robot (Ligue 2)", calls.bzLineups > 0 && Object.values(st.lu || {}).some((l) => l.lg === 62 && !l.none), `${calls.bzLineups} appels, ${Object.keys(st.lu || {}).length} matchs`);
+    check("Compo probable : seulement la Ligue 2", Object.values(st.lu || {}).every((l) => l.lg === 62));
+    const l2 = await getA("/league-predictions?leagueId=62");
+    let mdl = null;
+    for (const c of l2.predictions) { const d = await getA(`/match-details?matchId=${encodeURIComponent(c.matchId)}&source=${encodeURIComponent(c.source || "espn")}&leagueId=62&teamDomId=${c.teams.domicile.id}&teamExtId=${c.teams.exterieur.id}`); if (d.compositions?.domicile?.probable) { mdl = d; break; } } // (simulateur : certains identifiants ESPN de Ligue 2 existent aussi ailleurs)
+    check("Compo probable : affichée pour les deux équipes d'un match de Ligue 2", mdl && mdl.compositions.domicile.probable && mdl.compositions.exterieur.probable && mdl.compositions.domicile.xi.length === 11 && mdl.compositions.exterieur.f === "4-3-3", JSON.stringify(mdl?.compositions?.domicile || null).slice(0, 160));
+    check("Compo probable : postes traduits pour le terrain (G, CD, CM, F)", mdl && mdl.compositions.domicile.xi[0][2] === "G" && mdl.compositions.domicile.xi[1][2] === "CD" && mdl.compositions.domicile.xi[5][2] === "CM" && mdl.compositions.domicile.xi[10][2] === "F");
+    check("Compo probable : Ligue 2 sans absents (effectifs tous disponibles) → pas de bloc absents", mdl && mdl.absents.domicile === null);
+    const lpd = await getA("/league-predictions?leagueId=39"), c1 = lpd.predictions[0];
+    const d1 = await getA(`/match-details?matchId=${encodeURIComponent(c1.matchId)}&source=football-data&leagueId=39&teamDomId=${c1.teams.domicile.id}&teamExtId=${c1.teams.exterieur.id}`);
+    check("Compo probable : jamais à la place du onze ESPN (Premier League inchangée)", !d1.compositions?.domicile?.probable && !d1.compositions?.exterieur?.probable);
+    check("Compo probable : lecture de la vraie forme Bzzoiro, moins de 11 titulaires → rien", (() => {
+      const pl = (n) => Array.from({ length: n }, (_, i) => ({ short_name: "A. B" + i, position: i ? "M" : "G", jersey_number: i + 1 }));
+      const ok = probableLineup({ lineup_status: "predicted", lineups: { home: { team_name: "X", formation: "4-4-2", confidence: 0.6, players: pl(11) }, away: { team_name: "Y", formation: "4-4-2", confidence: 0.7, players: pl(11) } } });
+      const ko = probableLineup({ lineups: { home: { players: pl(11) }, away: { players: pl(9) } } });
+      return ok.h.xi.length === 11 && ok.h.xi[0][0] === "1" && ok.h.xi[0][2] === "G" && ok.a.c === 0.7 && ko.none === true && probableLineup(null).none === true;
+    })());
+    const fake = { lu: { 1: { lg: 62, ts: 5, at: 1, s: "predicted", h: { n: "Equipe 1 FC", f: "4-4-2", c: 0.6, xi: [] }, a: { n: "Equipe 2 FC", f: "4-4-2", c: 0.6, xi: [] } } } };
+    check("Compo probable : info de plus de 36 h ou autre championnat → rien", !!probablePair(fake, 62, "Equipe 1 FC", "Equipe 2 FC", 3600000) && probablePair(fake, 62, "Equipe 1 FC", "Equipe 2 FC", 37 * 3600000) === null && probablePair(fake, 61, "Equipe 1 FC", "Equipe 2 FC", 3600000) === null);
+  }
+  SIM.noRostersL2 = false;
   // (titulaires sur un match complet : vérifié par test/absents-preview.mjs, où les compositions sont chargées)
   // Refus 429 : pause commune absents + xG
   const P = { FOOTBALL_DATA_KEY: "x", SPORTAPI_KEY: "sp_test", BZZOIRO_TOKEN: "bz_test", ...makeKV() };

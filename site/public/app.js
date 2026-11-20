@@ -816,12 +816,13 @@
           }).join("") + (md.h2hResume ? `<div class="h2h-after">${h2hSummary(md.h2hResume, D, E)}</div>` : "")
         : `<p class="note">Aucune confrontation récente entre ces deux équipes.</p>`;
       const cp = md.compositions || {};
-      const fmtLast = (c) => (c ? `${esc(new Date(c.ts).toLocaleDateString(I18N.locale, { day: "numeric", month: "short" }))} · ${c.side === "D" ? "contre" : "à"} ${esc(c.opp || "—")} · ${esc(String(c.score).replace("-", " – "))}` : "Composition non disponible");
+      const prob = !!(cp.domicile?.probable && cp.exterieur?.probable);
+      const fmtLast = (c) => (prob && c ? (c.officielle ? "Composition officielle" : c.c ? `Compo probable · fiabilité estimée ${Math.round(c.c * 100)} %` : "Compo probable") : c ? `${esc(new Date(c.ts).toLocaleDateString(I18N.locale, { day: "numeric", month: "short" }))} · ${c.side === "D" ? "contre" : "à"} ${esc(c.opp || "—")} · ${esc(String(c.score).replace("-", " – "))}` : "Composition non disponible");
       document.getElementById("compos").innerHTML = cp.domicile || cp.exterieur
         ? `<div class="xi-h">${mini(D)}<b>${esc(D.name)}</b>${cp.domicile?.f ? `<span class="xi-f home">${esc(cp.domicile.f)}</span>` : ""}</div><small class="xi-last">${fmtLast(cp.domicile)}</small>
            ${pitch(cp.domicile, cp.exterieur)}
            <div class="xi-h">${mini(E)}<b>${esc(E.name)}</b>${cp.exterieur?.f ? `<span class="xi-f away">${esc(cp.exterieur.f)}</span>` : ""}</div><small class="xi-last">${fmtLast(cp.exterieur)}</small>
-           <p class="note">Onze aligné au dernier match. La composition officielle est publiée environ 1 h avant le coup d'envoi.</p>`
+           <p class="note">${prob ? (cp.domicile.officielle ? "Composition officielle · Bzzoiro." : "Compo probable : estimation avant le match (Bzzoiro), pas la composition officielle. Celle-ci est publiée environ 1 h avant le coup d'envoi.") : "Onze aligné au dernier match. La composition officielle est publiée environ 1 h avant le coup d'envoi."}</p>`
         : `<p class="note">Compositions bientôt disponibles pour ce match.</p>`;
       document.getElementById("compos").insertAdjacentHTML("beforeend", absentsBlock(md.absents, D, E));
     } catch {

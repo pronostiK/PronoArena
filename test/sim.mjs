@@ -156,8 +156,12 @@ export function installFetch() {
       calls.bz = (calls.bz || 0) + 1; SIM.bzAuth = opts?.headers?.Authorization ?? null;
       if (SIM.bz429) return { ok: false, status: 429 };
       if (SIM.bzDown) return { ok: false, status: 503 };
-      const BZ = { PL: [1, "Premier League", "England"], PD: [2, "La Liga", "Spain"], SA: [3, "Serie A", "Italy"], BL1: [4, "Bundesliga", "Germany"], FL1: [5, "Ligue 1", "France"] };
-      const bzName = (id) => `Équipe ${id} FC`;
+      const BZ = { PL: [1, "Premier League", "England"], PD: [2, "La Liga", "Spain"], SA: [3, "Serie A", "Italy"], BL1: [4, "Bundesliga", "Germany"], FL1: [5, "Ligue 1", "France"], FL2: [89, "Ligue 2", "France"] };
+      // Ligue 2 : matchs de la source ESPN fra.2, mêmes noms qu'ESPN ; comme en vrai (sonde du 20/11) : effectifs tous « available », compo probable pour chaque match
+      const l2 = (code) => code === "FL2";
+      const bzList = (code) => (l2(code) ? DB["espn:fra.2@2026"] : DB[`fd:${code}@2026`]) || [];
+      const bzTid = (code, id) => (l2(code) ? 7000 + Number(String(id).replace(/\D/g, "")) : 5000 + Number(id));
+      const bzName = (id) => (/^e\d+$/.test(id) ? teamName(id) : `Équipe ${id} FC`);
       if (u.pathname === "/api/v2/leagues/") {
         const rows = Object.values(BZ).filter(([, , c]) => c === u.searchParams.get("country")).map(([id, n]) => ({ id, name: n, is_women: false }));
         rows.push({ id: 99, name: "Premier League", is_women: true });
@@ -169,12 +173,22 @@ export function installFetch() {
         calls.bzAbs = (calls.bzAbs || 0) + 1;
         const code = Object.entries(BZ).find(([, v]) => v[0] === Number(u.searchParams.get("league_id")))?.[0];
         const f = Date.parse(u.searchParams.get("date_from") + "T00:00:00Z"), to = Date.parse(u.searchParams.get("date_to") + "T00:00:00Z") + DAY;
-        const list = (DB[`fd:${code}@2026`] || []).filter((x) => !isDone(x) && x.ts >= f && x.ts < to);
-        return { ok: true, json: async () => ({ results: list.map((x) => ({ id: x.id, event_date: new Date(x.ts).toISOString(), status: "notstarted", home_team: bzName(x.h), away_team: bzName(x.a), home_team_id: 5000 + Number(x.h), away_team_id: 5000 + Number(x.a) })) }) };
+        const list = bzList(code).filter((x) => !isDone(x) && x.ts >= f && x.ts < to);
+        return { ok: true, json: async () => ({ results: list.map((x) => ({ id: x.id, event_date: new Date(x.ts).toISOString(), status: "notstarted", home_team: bzName(x.h), away_team: bzName(x.a), home_team_id: bzTid(code, x.h), away_team_id: bzTid(code, x.a) })) }) };
+      }
+      if ((m = u.pathname.match(/^\/api\/v2\/events\/([^/]+)\/lineups\/$/))) {
+        calls.bzAbs = (calls.bzAbs || 0) + 1; calls.bzLineups = (calls.bzLineups || 0) + 1;
+        const x = (DB["espn:fra.2@2026"] || []).find((y) => String(y.id) === m[1]);
+        if (!x) return { ok: false, status: 404 };
+        const POSL = ["G", "D", "D", "D", "D", "M", "M", "M", "F", "F", "F"], PRE = ["Lucas", "Hugo", "Théo", "Nathan", "Enzo", "Louis", "Jules", "Adam", "Noah", "Sacha", "Tom"];
+        const side = (id, k) => ({ team_id: bzTid("FL2", id), team_name: bzName(id), formation: k ? "4-3-3" : "4-2-3-1", confidence: k ? 0.682 : 0.655,
+          players: POSL.map((q, i) => ({ id: i, name: `${PRE[i]} Probable${i + 1}`, short_name: `${PRE[i][0]}. Probable${i + 1}`, position: q, jersey_number: i + 1, ai_score: 0.5 })), substitutes: [] });
+        return { ok: true, json: async () => ({ event_id: x.id, lineup_status: "predicted", beta: true, lineups: { home: side(x.h, 0), away: side(x.a, 1) }, unavailable_players: { home: [], away: [] }, updated_at: new Date(SIM.now).toISOString() }) };
       }
       if ((m = u.pathname.match(/^\/api\/v2\/teams\/(\d+)\/squad\/$/))) {
         calls.bzAbs = (calls.bzAbs || 0) + 1; calls.bzSquad = (calls.bzSquad || 0) + 1;
         const id = Number(m[1]);
+        if (id >= 7000) return { ok: true, json: async () => ({ count: 2, players: [1, 2].map((i) => ({ id: id * 100 + i, name: `X Y${i}`, short_name: `X. Y${i}`, availability: "available", position: "M" })), team_id: id }) };
         const PRE = ["Lucas", "Hugo", "Théo", "Nathan", "Enzo", "Louis", "Jules"], NOM = ["Martin", "Bernard", "Petit", "Durand", "Moreau", "Laurent", "Garnier"];
         const POSB = ["G", "G", "D", "D", "M", "F"];
         // Le n° 3 est le titulaire n° 9 du dernier match (onze simulé « J. Joueur1…11 ») pour une équipe sur deux
@@ -217,6 +231,7 @@ export function installFetch() {
       calls.compos = (calls.compos || 0) + 1;
       const ev = Object.values(DB).flat().find((x) => x.id === u.searchParams.get("event"));
       if (!ev) return { ok: false, status: 404 };
+      if (SIM.noRostersL2 && m[1] === "fra.2") return { ok: true, json: async () => ({ rosters: [], boxscore: { teams: [] } }) }; // Ligue 2 sans onze (constaté sur le vrai site le 20/11)
       const POS = ["G", "RB", "CD-R", "CD-L", "LB", "DM", "CM-R", "CM-L", "RW", "LW", "F"];
       const roster = (id, side) => ({ homeAway: side, formation: "4-3-3", team: { id }, roster: POS.map((q, i) => ({ starter: true, jersey: String(i + 1), formationPlace: i + 1, position: { abbreviation: q }, athlete: { shortName: `J. Joueur${i + 1}`, displayName: `Jean Joueur${i + 1}` } })).concat([{ starter: false, jersey: "12", athlete: { shortName: "Remplaçant" } }]) });
       // Chiffres du match (cartons, fautes, hors-jeu, corners), comme la vraie fiche ESPN : chaînes de caractères, équipe à domicile pas toujours en premier

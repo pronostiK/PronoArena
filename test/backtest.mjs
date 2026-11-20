@@ -11,6 +11,9 @@
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 import { buildModel, calculate_match_prediction } from "../src/model.js";
+import { LEAGUES, MODEL } from "../src/config.js";
+// Championnats où le moteur corrige les promus (comme le robot : promus: true dans config.js)
+const PROMUS = new Set(Object.values(LEAGUES).filter((l) => l.promus).map((l) => l.src.replace("fd:", "")));
 
 const [HIST = "../pronostik/pronostik/data/history.json", PK_MODEL = "../pronostik/pronostik/model.mjs", OUT = "site/public/backtest.json"] = process.argv.slice(2);
 const hist = JSON.parse(fs.readFileSync(HIST, "utf8")).filter((m) => (m.division || "L1") === "L1");
@@ -38,14 +41,18 @@ for (const lg of Object.keys(NAMES)) {
     // Comme sur le site : saison en cours + saison précédente, uniquement des matchs déjà joués
     const past = fin.filter((f) => f.date < date && f.season >= S - 1);
     if (past.length < 20) continue;
-    const model = buildModel(past);
+    // Comme le robot : promus = équipes de la saison absentes de la saison précédente (1res divisions, au plus 4)
+    const prevT = new Set(); for (const f of past) if (f.season === S - 1) { prevT.add(f.homeId); prevT.add(f.awayId); }
+    const curT = new Set(); for (const f of fin) if (f.season === S) { curT.add(f.homeId); curT.add(f.awayId); }
+    const nc = new Set([...curT].filter((t) => !prevT.has(t)));
+    const model = buildModel(past, { newcomers: PROMUS.has(lg) && prevT.size && nc.size && nc.size <= MODEL.promotedMaxTeams ? nc : null });
     // Prévision naïve : fréquences 1/N/2 du championnat sur les matchs passés
     const base = [0, 0, 0]; for (const f of past) base[res(f)]++; const naive = base.map((x) => x / past.length);
     // Références naïves des marchés de buts : fréquences des matchs PASSÉS seulement (jamais celles des matchs évalués)
     const nO25 = past.filter((f) => f.hg + f.ag > 2.5).length / past.length, nBTTS = past.filter((f) => f.hg > 0 && f.ag > 0).length / past.length;
     for (const i of idx) {
       const m = L[i];
-      const p = calculate_match_prediction({ matchId: i, teamDomId: m.home, teamExtId: m.away, date }, { model, leagueId: lg, season: S }).poisson;
+      const p = calculate_match_prediction({ matchId: i, teamDomId: m.home, teamExtId: m.away, date }, { model, leagueId: lg, season: S, eloMix: true }).poisson;
       const dp = [p.proba1, p.probaN, p.proba2];
       const o = [m.avgH, m.avgD, m.avgA];
       const bk = o.every((x) => x > 1) ? o.map((x) => 1 / x) : null;

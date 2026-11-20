@@ -1,44 +1,44 @@
 {
- "genere": "2026-11-12",
+ "genere": "2026-11-20",
  "periode": {
   "du": "2024-08-09",
-  "au": "2026-11-07"
+  "au": "2026-11-08"
  },
- "matchs": 7091,
+ "matchs": 7168,
  "total": {
   "duelProno": {
-   "n": 7091,
-   "brier": 0.5995,
-   "logloss": 1.0025,
-   "reussite": 0.5075
+   "n": 7168,
+   "brier": 0.5968,
+   "logloss": 0.9987,
+   "reussite": 0.5102
   },
   "bookmakers": {
-   "n": 7091,
-   "brier": 0.5836,
-   "logloss": 0.9791,
-   "reussite": 0.5274
+   "n": 7168,
+   "brier": 0.583,
+   "logloss": 0.9783,
+   "reussite": 0.5278
   },
   "pronostik": {
-   "n": 7091,
-   "brier": 0.5993,
-   "logloss": 1.0029,
-   "reussite": 0.5087
+   "n": 7168,
+   "brier": 0.5989,
+   "logloss": 1.0023,
+   "reussite": 0.5092
   },
   "naif": {
-   "n": 7091,
-   "brier": 0.6518,
-   "logloss": 1.0769,
-   "reussite": 0.4322
+   "n": 7168,
+   "brier": 0.6517,
+   "logloss": 1.0768,
+   "reussite": 0.4325
   },
   "ecartBookmakers": {
-   "ecart": 0.0159,
-   "bas": 0.0131,
-   "haut": 0.019
+   "ecart": 0.0138,
+   "bas": 0.0113,
+   "haut": 0.0164
   },
   "ecartPronostik": {
-   "ecart": 0.0001,
-   "bas": -0.0012,
-   "haut": 0.0014
+   "ecart": -0.0021,
+   "bas": -0.0034,
+   "haut": -0.0008
   }
  },
  "championnats": [
@@ -46,111 +46,111 @@
    "code": "FL1",
    "nom": "Ligue 1",
    "duelProno": {
-    "n": 669,
-    "brier": 0.5914,
-    "logloss": 0.991,
-    "reussite": 0.5411
+    "n": 678,
+    "brier": 0.5895,
+    "logloss": 0.9886,
+    "reussite": 0.5428
    },
    "bookmakers": {
-    "n": 669,
-    "brier": 0.5728,
-    "logloss": 0.9648,
-    "reussite": 0.5471
+    "n": 678,
+    "brier": 0.5722,
+    "logloss": 0.9638,
+    "reussite": 0.5472
    },
    "pronostik": {
-    "n": 669,
+    "n": 678,
     "brier": 0.5892,
-    "logloss": 0.988,
-    "reussite": 0.5306
+    "logloss": 0.9879,
+    "reussite": 0.5295
    },
    "naif": {
-    "n": 669,
-    "brier": 0.6405,
-    "logloss": 1.0604,
-    "reussite": 0.4649
+    "n": 678,
+    "brier": 0.6409,
+    "logloss": 1.0608,
+    "reussite": 0.4631
    }
   },
   {
    "code": "PL",
    "nom": "Premier League",
    "duelProno": {
-    "n": 823,
-    "brier": 0.6075,
-    "logloss": 1.0131,
-    "reussite": 0.4897
+    "n": 833,
+    "brier": 0.6043,
+    "logloss": 1.0082,
+    "reussite": 0.4958
    },
    "bookmakers": {
-    "n": 823,
-    "brier": 0.5935,
-    "logloss": 0.9926,
-    "reussite": 0.52
+    "n": 833,
+    "brier": 0.593,
+    "logloss": 0.9919,
+    "reussite": 0.5198
    },
    "pronostik": {
-    "n": 823,
-    "brier": 0.607,
-    "logloss": 1.0135,
-    "reussite": 0.4872
+    "n": 833,
+    "brier": 0.6065,
+    "logloss": 1.0128,
+    "reussite": 0.4886
    },
    "naif": {
-    "n": 823,
-    "brier": 0.6569,
-    "logloss": 1.0838,
-    "reussite": 0.4131
+    "n": 833,
+    "brier": 0.6563,
+    "logloss": 1.083,
+    "reussite": 0.4154
    }
   },
   {
    "code": "PD",
    "nom": "LaLiga",
    "duelProno": {
-    "n": 837,
-    "brier": 0.5813,
-    "logloss": 0.9789,
-    "reussite": 0.5185
+    "n": 847,
+    "brier": 0.5796,
+    "logloss": 0.9765,
+    "reussite": 0.5207
    },
    "bookmakers": {
-    "n": 837,
-    "brier": 0.5611,
-    "logloss": 0.9494,
-    "reussite": 0.5532
+    "n": 847,
+    "brier": 0.5607,
+    "logloss": 0.9488,
+    "reussite": 0.5525
    },
    "pronostik": {
-    "n": 837,
-    "brier": 0.5804,
-    "logloss": 0.9778,
-    "reussite": 0.5329
+    "n": 847,
+    "brier": 0.5808,
+    "logloss": 0.9784,
+    "reussite": 0.5313
    },
    "naif": {
-    "n": 837,
-    "brier": 0.6416,
-    "logloss": 1.0627,
-    "reussite": 0.4648
+    "n": 847,
+    "brier": 0.6429,
+    "logloss": 1.0646,
+    "reussite": 0.4616
    }
   },
   {
    "code": "SA",
    "nom": "Serie A",
    "duelProno": {
-    "n": 836,
-    "brier": 0.5823,
-    "logloss": 0.9774,
-    "reussite": 0.5443
+    "n": 846,
+    "brier": 0.58,
+    "logloss": 0.9743,
+    "reussite": 0.5378
    },
    "bookmakers": {
-    "n": 836,
-    "brier": 0.5677,
-    "logloss": 0.9559,
-    "reussite": 0.555
+    "n": 846,
+    "brier": 0.5674,
+    "logloss": 0.9555,
+    "reussite": 0.5556
    },
    "pronostik": {
-    "n": 836,
-    "brier": 0.5838,
-    "logloss": 0.9805,
-    "reussite": 0.5407
+    "n": 846,
+    "brier": 0.5842,
+    "logloss": 0.981,
+    "reussite": 0.5402
    },
    "naif": {
-    "n": 836,
-    "brier": 0.6575,
-    "logloss": 1.0845,
+    "n": 846,
+    "brier": 0.6576,
+    "logloss": 1.0847,
     "reussite": 0.4031
    }
   },
@@ -158,112 +158,112 @@
    "code": "BL1",
    "nom": "Bundesliga",
    "duelProno": {
-    "n": 661,
-    "brier": 0.6,
-    "logloss": 1.0053,
-    "reussite": 0.5113
+    "n": 670,
+    "brier": 0.5925,
+    "logloss": 0.9948,
+    "reussite": 0.5239
    },
    "bookmakers": {
-    "n": 661,
-    "brier": 0.578,
-    "logloss": 0.9724,
-    "reussite": 0.5477
+    "n": 670,
+    "brier": 0.5744,
+    "logloss": 0.9675,
+    "reussite": 0.5522
    },
    "pronostik": {
-    "n": 661,
-    "brier": 0.5993,
-    "logloss": 1.0048,
-    "reussite": 0.5204
+    "n": 670,
+    "brier": 0.5959,
+    "logloss": 1,
+    "reussite": 0.5254
    },
    "naif": {
-    "n": 661,
-    "brier": 0.6537,
-    "logloss": 1.0788,
-    "reussite": 0.4206
+    "n": 670,
+    "brier": 0.6525,
+    "logloss": 1.0771,
+    "reussite": 0.4239
    }
   },
   {
    "code": "PPL",
    "nom": "Liga Portugal",
    "duelProno": {
-    "n": 677,
-    "brier": 0.5526,
+    "n": 685,
+    "brier": 0.5521,
     "logloss": 0.9336,
-    "reussite": 0.5598
+    "reussite": 0.5577
    },
    "bookmakers": {
-    "n": 677,
-    "brier": 0.5435,
-    "logloss": 0.9184,
-    "reussite": 0.5598
+    "n": 685,
+    "brier": 0.5421,
+    "logloss": 0.9164,
+    "reussite": 0.5606
    },
    "pronostik": {
-    "n": 677,
-    "brier": 0.5561,
-    "logloss": 0.9404,
-    "reussite": 0.5524
+    "n": 685,
+    "brier": 0.5546,
+    "logloss": 0.9383,
+    "reussite": 0.5533
    },
    "naif": {
-    "n": 677,
-    "brier": 0.6554,
-    "logloss": 1.082,
-    "reussite": 0.4195
+    "n": 685,
+    "brier": 0.6553,
+    "logloss": 1.0817,
+    "reussite": 0.419
    }
   },
   {
    "code": "DED",
    "nom": "Eredivisie",
    "duelProno": {
-    "n": 688,
-    "brier": 0.5862,
-    "logloss": 0.9842,
-    "reussite": 0.5276
+    "n": 697,
+    "brier": 0.5826,
+    "logloss": 0.9782,
+    "reussite": 0.5194
    },
    "bookmakers": {
-    "n": 688,
-    "brier": 0.5723,
-    "logloss": 0.9618,
-    "reussite": 0.5392
+    "n": 697,
+    "brier": 0.573,
+    "logloss": 0.963,
+    "reussite": 0.5366
    },
    "pronostik": {
-    "n": 688,
-    "brier": 0.5883,
-    "logloss": 0.9876,
-    "reussite": 0.5291
+    "n": 697,
+    "brier": 0.5888,
+    "logloss": 0.9884,
+    "reussite": 0.5294
    },
    "naif": {
-    "n": 688,
-    "brier": 0.6505,
-    "logloss": 1.0753,
-    "reussite": 0.4375
+    "n": 697,
+    "brier": 0.6509,
+    "logloss": 1.0758,
+    "reussite": 0.4362
    }
   },
   {
    "code": "ELC",
    "nom": "Championship",
    "duelProno": {
-    "n": 1228,
-    "brier": 0.6323,
-    "logloss": 1.0477,
-    "reussite": 0.456
+    "n": 1240,
+    "brier": 0.6312,
+    "logloss": 1.0462,
+    "reussite": 0.4613
    },
    "bookmakers": {
-    "n": 1228,
-    "brier": 0.6214,
-    "logloss": 1.0325,
-    "reussite": 0.4788
+    "n": 1240,
+    "brier": 0.622,
+    "logloss": 1.0333,
+    "reussite": 0.479
    },
    "pronostik": {
-    "n": 1228,
-    "brier": 0.6324,
-    "logloss": 1.0483,
-    "reussite": 0.4528
+    "n": 1240,
+    "brier": 0.6326,
+    "logloss": 1.0485,
+    "reussite": 0.4532
    },
    "naif": {
-    "n": 1228,
-    "brier": 0.6531,
-    "logloss": 1.0795,
-    "reussite": 0.434
+    "n": 1240,
+    "brier": 0.6525,
+    "logloss": 1.0787,
+    "reussite": 0.4363
    }
   },
   {
@@ -271,9 +271,9 @@
    "nom": "Ligue 2",
    "duelProno": {
     "n": 672,
-    "brier": 0.6421,
-    "logloss": 1.0642,
-    "reussite": 0.4539
+    "brier": 0.6391,
+    "logloss": 1.0597,
+    "reussite": 0.4658
    },
    "bookmakers": {
     "n": 672,
@@ -300,9 +300,9 @@
    "saison": "2024-25",
    "duelProno": {
     "n": 3107,
-    "brier": 0.5932,
-    "logloss": 0.9927,
-    "reussite": 0.5163
+    "brier": 0.5914,
+    "logloss": 0.9902,
+    "reussite": 0.5153
    },
    "bookmakers": {
     "n": 3107,
@@ -321,9 +321,9 @@
    "saison": "2025-26",
    "duelProno": {
     "n": 3149,
-    "brier": 0.6065,
-    "logloss": 1.0129,
-    "reussite": 0.4941
+    "brier": 0.6041,
+    "logloss": 1.0094,
+    "reussite": 0.5011
    },
    "bookmakers": {
     "n": 3149,
@@ -341,110 +341,760 @@
   {
    "saison": "2026-27",
    "duelProno": {
-    "n": 835,
-    "brier": 0.5966,
-    "logloss": 0.9998,
-    "reussite": 0.5257
+    "n": 912,
+    "brier": 0.5902,
+    "logloss": 0.9907,
+    "reussite": 0.5241
    },
    "bookmakers": {
-    "n": 835,
-    "brier": 0.5775,
-    "logloss": 0.9709,
-    "reussite": 0.5425
+    "n": 912,
+    "brier": 0.5736,
+    "logloss": 0.9654,
+    "reussite": 0.5439
    },
    "pronostik": {
-    "n": 835,
-    "brier": 0.5967,
-    "logloss": 0.9995,
-    "reussite": 0.5257
+    "n": 912,
+    "brier": 0.5936,
+    "logloss": 0.9953,
+    "reussite": 0.5285
    }
   }
  ],
  "calibration": [
   {
    "tranche": "0-10 %",
-   "annonce": 0.0702,
-   "observe": 0.0503,
-   "n": 457
+   "annonce": 0.0729,
+   "observe": 0.0655,
+   "n": 473
   },
   {
    "tranche": "10-20 %",
-   "annonce": 0.1593,
-   "observe": 0.1548,
-   "n": 2384
+   "annonce": 0.1591,
+   "observe": 0.1453,
+   "n": 2430
   },
   {
    "tranche": "20-30 %",
-   "annonce": 0.2568,
-   "observe": 0.262,
-   "n": 8327
+   "annonce": 0.2581,
+   "observe": 0.2603,
+   "n": 8769
   },
   {
    "tranche": "30-40 %",
-   "annonce": 0.3405,
-   "observe": 0.3328,
-   "n": 4393
+   "annonce": 0.3418,
+   "observe": 0.3431,
+   "n": 4031
   },
   {
    "tranche": "40-50 %",
-   "annonce": 0.446,
-   "observe": 0.4373,
-   "n": 2710
+   "annonce": 0.4459,
+   "observe": 0.4401,
+   "n": 2679
   },
   {
    "tranche": "50-60 %",
    "annonce": 0.5444,
-   "observe": 0.552,
-   "n": 1634
+   "observe": 0.5445,
+   "n": 1684
   },
   {
    "tranche": "60-70 %",
-   "annonce": 0.643,
-   "observe": 0.6506,
-   "n": 853
+   "annonce": 0.6445,
+   "observe": 0.6597,
+   "n": 908
   },
   {
    "tranche": "70-80 %",
-   "annonce": 0.7449,
-   "observe": 0.7808,
-   "n": 365
+   "annonce": 0.7466,
+   "observe": 0.7784,
+   "n": 388
   },
   {
    "tranche": "80-90 %",
-   "annonce": 0.8381,
-   "observe": 0.8592,
-   "n": 142
+   "annonce": 0.8388,
+   "observe": 0.8613,
+   "n": 137
   },
   {
    "tranche": "90-100 %",
-   "annonce": 0.9113,
-   "observe": 0.75,
-   "n": 8
+   "annonce": 0.9096,
+   "observe": 0.6,
+   "n": 5
   }
  ],
  "equipesConnues": {
   "duelProno": {
-   "n": 7027,
-   "brier": 0.5994,
-   "logloss": 1.0024,
-   "reussite": 0.5076
+   "n": 7104,
+   "brier": 0.597,
+   "logloss": 0.999,
+   "reussite": 0.51
   },
   "bookmakers": {
-   "n": 7027,
-   "brier": 0.5836,
-   "logloss": 0.9792,
-   "reussite": 0.5275
+   "n": 7104,
+   "brier": 0.5831,
+   "logloss": 0.9784,
+   "reussite": 0.5279
   }
  },
  "buts": {
   "n": 7438,
   "plus25": {
-   "duelProno": 0.2461,
-   "naif": 0.2491
+   "duelProno": 0.2454,
+   "naif": 0.2476
   },
   "deuxMarquent": {
-   "duelProno": 0.2482,
-   "naif": 0.2481
+   "duelProno": 0.2481,
+   "naif": 0.2473
+  }
+ },
+ "calibrationParIssue": {
+  "B": {
+   "domicile": {
+    "n": 2218,
+    "annonceMoyen": 0.4281,
+    "observe": 0.4301,
+    "tranches": [
+     {
+      "tranche": "0-5 %",
+      "n": 1,
+      "annonce": 0.049,
+      "observe": 0,
+      "ecart": -0.049
+     },
+     {
+      "tranche": "5-10 %",
+      "n": 21,
+      "annonce": 0.0796,
+      "observe": 0.0476,
+      "ecart": -0.032
+     },
+     {
+      "tranche": "10-15 %",
+      "n": 50,
+      "annonce": 0.1267,
+      "observe": 0.12,
+      "ecart": -0.0067
+     },
+     {
+      "tranche": "15-20 %",
+      "n": 85,
+      "annonce": 0.1774,
+      "observe": 0.1647,
+      "ecart": -0.0127
+     },
+     {
+      "tranche": "20-25 %",
+      "n": 117,
+      "annonce": 0.2234,
+      "observe": 0.2137,
+      "ecart": -0.0098
+     },
+     {
+      "tranche": "25-30 %",
+      "n": 166,
+      "annonce": 0.2764,
+      "observe": 0.2651,
+      "ecart": -0.0114
+     },
+     {
+      "tranche": "30-35 %",
+      "n": 249,
+      "annonce": 0.3254,
+      "observe": 0.3414,
+      "ecart": 0.016
+     },
+     {
+      "tranche": "35-40 %",
+      "n": 280,
+      "annonce": 0.3769,
+      "observe": 0.4107,
+      "ecart": 0.0338
+     },
+     {
+      "tranche": "40-45 %",
+      "n": 296,
+      "annonce": 0.424,
+      "observe": 0.4291,
+      "ecart": 0.005
+     },
+     {
+      "tranche": "45-50 %",
+      "n": 286,
+      "annonce": 0.4735,
+      "observe": 0.4406,
+      "ecart": -0.0329
+     },
+     {
+      "tranche": "50-55 %",
+      "n": 209,
+      "annonce": 0.5218,
+      "observe": 0.4976,
+      "ecart": -0.0242
+     },
+     {
+      "tranche": "55-60 %",
+      "n": 159,
+      "annonce": 0.5748,
+      "observe": 0.5597,
+      "ecart": -0.015
+     },
+     {
+      "tranche": "60-65 %",
+      "n": 117,
+      "annonce": 0.6224,
+      "observe": 0.6239,
+      "ecart": 0.0016
+     },
+     {
+      "tranche": "65-70 %",
+      "n": 79,
+      "annonce": 0.6743,
+      "observe": 0.6962,
+      "ecart": 0.0219
+     },
+     {
+      "tranche": "70-75 %",
+      "n": 36,
+      "annonce": 0.7285,
+      "observe": 0.8611,
+      "ecart": 0.1326
+     },
+     {
+      "tranche": "75-80 %",
+      "n": 36,
+      "annonce": 0.7751,
+      "observe": 0.9167,
+      "ecart": 0.1416
+     },
+     {
+      "tranche": "80-85 %",
+      "n": 18,
+      "annonce": 0.8257,
+      "observe": 0.8333,
+      "ecart": 0.0076
+     },
+     {
+      "tranche": "85-90 %",
+      "n": 11,
+      "annonce": 0.8725,
+      "observe": 0.8182,
+      "ecart": -0.0544
+     },
+     {
+      "tranche": "90-95 %",
+      "n": 2,
+      "annonce": 0.917,
+      "observe": 1,
+      "ecart": 0.083
+     }
+    ]
+   },
+   "nul": {
+    "n": 2218,
+    "annonceMoyen": 0.2589,
+    "observe": 0.257,
+    "tranches": [
+     {
+      "tranche": "5-10 %",
+      "n": 11,
+      "annonce": 0.0814,
+      "observe": 0.0909,
+      "ecart": 0.0095
+     },
+     {
+      "tranche": "10-15 %",
+      "n": 56,
+      "annonce": 0.1313,
+      "observe": 0.125,
+      "ecart": -0.0063
+     },
+     {
+      "tranche": "15-20 %",
+      "n": 116,
+      "annonce": 0.1783,
+      "observe": 0.0948,
+      "ecart": -0.0835
+     },
+     {
+      "tranche": "20-25 %",
+      "n": 499,
+      "annonce": 0.2303,
+      "observe": 0.2605,
+      "ecart": 0.0302
+     },
+     {
+      "tranche": "25-30 %",
+      "n": 1310,
+      "annonce": 0.2749,
+      "observe": 0.2733,
+      "ecart": -0.0016
+     },
+     {
+      "tranche": "30-35 %",
+      "n": 226,
+      "annonce": 0.3112,
+      "observe": 0.2788,
+      "ecart": -0.0324
+     }
+    ]
+   },
+   "exterieur": {
+    "n": 2218,
+    "annonceMoyen": 0.3129,
+    "observe": 0.3129,
+    "tranches": [
+     {
+      "tranche": "0-5 %",
+      "n": 18,
+      "annonce": 0.0386,
+      "observe": 0.0556,
+      "ecart": 0.017
+     },
+     {
+      "tranche": "5-10 %",
+      "n": 71,
+      "annonce": 0.0789,
+      "observe": 0.0423,
+      "ecart": -0.0366
+     },
+     {
+      "tranche": "10-15 %",
+      "n": 138,
+      "annonce": 0.1277,
+      "observe": 0.1232,
+      "ecart": -0.0045
+     },
+     {
+      "tranche": "15-20 %",
+      "n": 238,
+      "annonce": 0.1755,
+      "observe": 0.1471,
+      "ecart": -0.0285
+     },
+     {
+      "tranche": "20-25 %",
+      "n": 310,
+      "annonce": 0.2258,
+      "observe": 0.2387,
+      "ecart": 0.0129
+     },
+     {
+      "tranche": "25-30 %",
+      "n": 401,
+      "annonce": 0.2732,
+      "observe": 0.2868,
+      "ecart": 0.0136
+     },
+     {
+      "tranche": "30-35 %",
+      "n": 302,
+      "annonce": 0.3246,
+      "observe": 0.3113,
+      "ecart": -0.0134
+     },
+     {
+      "tranche": "35-40 %",
+      "n": 207,
+      "annonce": 0.3738,
+      "observe": 0.3865,
+      "ecart": 0.0127
+     },
+     {
+      "tranche": "40-45 %",
+      "n": 174,
+      "annonce": 0.4204,
+      "observe": 0.3851,
+      "ecart": -0.0353
+     },
+     {
+      "tranche": "45-50 %",
+      "n": 112,
+      "annonce": 0.4739,
+      "observe": 0.5357,
+      "ecart": 0.0618
+     },
+     {
+      "tranche": "50-55 %",
+      "n": 90,
+      "annonce": 0.5237,
+      "observe": 0.4556,
+      "ecart": -0.0681
+     },
+     {
+      "tranche": "55-60 %",
+      "n": 62,
+      "annonce": 0.5709,
+      "observe": 0.6452,
+      "ecart": 0.0742
+     },
+     {
+      "tranche": "60-65 %",
+      "n": 36,
+      "annonce": 0.6223,
+      "observe": 0.6667,
+      "ecart": 0.0444
+     },
+     {
+      "tranche": "65-70 %",
+      "n": 27,
+      "annonce": 0.673,
+      "observe": 0.7037,
+      "ecart": 0.0307
+     },
+     {
+      "tranche": "70-75 %",
+      "n": 14,
+      "annonce": 0.7193,
+      "observe": 0.7857,
+      "ecart": 0.0664
+     },
+     {
+      "tranche": "75-80 %",
+      "n": 14,
+      "annonce": 0.7744,
+      "observe": 0.7143,
+      "ecart": -0.0601
+     },
+     {
+      "tranche": "80-85 %",
+      "n": 4,
+      "annonce": 0.8163,
+      "observe": 0.75,
+      "ecart": -0.0663
+     }
+    ]
+   }
+  },
+  "C": {
+   "domicile": {
+    "n": 1843,
+    "annonceMoyen": 0.4277,
+    "observe": 0.4281,
+    "tranches": [
+     {
+      "tranche": "0-5 %",
+      "n": 1,
+      "annonce": 0.036,
+      "observe": 0,
+      "ecart": -0.036
+     },
+     {
+      "tranche": "5-10 %",
+      "n": 14,
+      "annonce": 0.0773,
+      "observe": 0.1429,
+      "ecart": 0.0656
+     },
+     {
+      "tranche": "10-15 %",
+      "n": 35,
+      "annonce": 0.1235,
+      "observe": 0.2,
+      "ecart": 0.0765
+     },
+     {
+      "tranche": "15-20 %",
+      "n": 68,
+      "annonce": 0.1762,
+      "observe": 0.1324,
+      "ecart": -0.0439
+     },
+     {
+      "tranche": "20-25 %",
+      "n": 119,
+      "annonce": 0.2249,
+      "observe": 0.2269,
+      "ecart": 0.002
+     },
+     {
+      "tranche": "25-30 %",
+      "n": 143,
+      "annonce": 0.2751,
+      "observe": 0.2727,
+      "ecart": -0.0023
+     },
+     {
+      "tranche": "30-35 %",
+      "n": 217,
+      "annonce": 0.3269,
+      "observe": 0.2811,
+      "ecart": -0.0458
+     },
+     {
+      "tranche": "35-40 %",
+      "n": 227,
+      "annonce": 0.376,
+      "observe": 0.4537,
+      "ecart": 0.0778
+     },
+     {
+      "tranche": "40-45 %",
+      "n": 244,
+      "annonce": 0.4235,
+      "observe": 0.3975,
+      "ecart": -0.0259
+     },
+     {
+      "tranche": "45-50 %",
+      "n": 215,
+      "annonce": 0.474,
+      "observe": 0.4465,
+      "ecart": -0.0275
+     },
+     {
+      "tranche": "50-55 %",
+      "n": 168,
+      "annonce": 0.5236,
+      "observe": 0.494,
+      "ecart": -0.0296
+     },
+     {
+      "tranche": "55-60 %",
+      "n": 127,
+      "annonce": 0.5744,
+      "observe": 0.5827,
+      "ecart": 0.0083
+     },
+     {
+      "tranche": "60-65 %",
+      "n": 107,
+      "annonce": 0.6219,
+      "observe": 0.6168,
+      "ecart": -0.0051
+     },
+     {
+      "tranche": "65-70 %",
+      "n": 65,
+      "annonce": 0.6734,
+      "observe": 0.7231,
+      "ecart": 0.0497
+     },
+     {
+      "tranche": "70-75 %",
+      "n": 34,
+      "annonce": 0.7252,
+      "observe": 0.8529,
+      "ecart": 0.1277
+     },
+     {
+      "tranche": "75-80 %",
+      "n": 33,
+      "annonce": 0.7765,
+      "observe": 0.7879,
+      "ecart": 0.0114
+     },
+     {
+      "tranche": "80-85 %",
+      "n": 18,
+      "annonce": 0.8182,
+      "observe": 1,
+      "ecart": 0.1818
+     },
+     {
+      "tranche": "85-90 %",
+      "n": 6,
+      "annonce": 0.8627,
+      "observe": 0.8333,
+      "ecart": -0.0293
+     },
+     {
+      "tranche": "90-95 %",
+      "n": 2,
+      "annonce": 0.9035,
+      "observe": 0,
+      "ecart": -0.9035
+     }
+    ]
+   },
+   "nul": {
+    "n": 1843,
+    "annonceMoyen": 0.2565,
+    "observe": 0.2545,
+    "tranches": [
+     {
+      "tranche": "5-10 %",
+      "n": 7,
+      "annonce": 0.0839,
+      "observe": 0.4286,
+      "ecart": 0.3447
+     },
+     {
+      "tranche": "10-15 %",
+      "n": 47,
+      "annonce": 0.1321,
+      "observe": 0.1277,
+      "ecart": -0.0044
+     },
+     {
+      "tranche": "15-20 %",
+      "n": 111,
+      "annonce": 0.179,
+      "observe": 0.1532,
+      "ecart": -0.0259
+     },
+     {
+      "tranche": "20-25 %",
+      "n": 424,
+      "annonce": 0.2303,
+      "observe": 0.2075,
+      "ecart": -0.0227
+     },
+     {
+      "tranche": "25-30 %",
+      "n": 1113,
+      "annonce": 0.2734,
+      "observe": 0.2767,
+      "ecart": 0.0033
+     },
+     {
+      "tranche": "30-35 %",
+      "n": 140,
+      "annonce": 0.3126,
+      "observe": 0.3286,
+      "ecart": 0.016
+     },
+     {
+      "tranche": "35-40 %",
+      "n": 1,
+      "annonce": 0.351,
+      "observe": 1,
+      "ecart": 0.649
+     }
+    ]
+   },
+   "exterieur": {
+    "n": 1843,
+    "annonceMoyen": 0.3158,
+    "observe": 0.3174,
+    "tranches": [
+     {
+      "tranche": "0-5 %",
+      "n": 9,
+      "annonce": 0.0398,
+      "observe": 0,
+      "ecart": -0.0398
+     },
+     {
+      "tranche": "5-10 %",
+      "n": 71,
+      "annonce": 0.0763,
+      "observe": 0.0141,
+      "ecart": -0.0622
+     },
+     {
+      "tranche": "10-15 %",
+      "n": 114,
+      "annonce": 0.1294,
+      "observe": 0.0965,
+      "ecart": -0.0329
+     },
+     {
+      "tranche": "15-20 %",
+      "n": 201,
+      "annonce": 0.1762,
+      "observe": 0.199,
+      "ecart": 0.0228
+     },
+     {
+      "tranche": "20-25 %",
+      "n": 241,
+      "annonce": 0.226,
+      "observe": 0.2614,
+      "ecart": 0.0355
+     },
+     {
+      "tranche": "25-30 %",
+      "n": 301,
+      "annonce": 0.275,
+      "observe": 0.2558,
+      "ecart": -0.0191
+     },
+     {
+      "tranche": "30-35 %",
+      "n": 252,
+      "annonce": 0.3255,
+      "observe": 0.3175,
+      "ecart": -0.008
+     },
+     {
+      "tranche": "35-40 %",
+      "n": 197,
+      "annonce": 0.3748,
+      "observe": 0.3858,
+      "ecart": 0.011
+     },
+     {
+      "tranche": "40-45 %",
+      "n": 141,
+      "annonce": 0.4236,
+      "observe": 0.4113,
+      "ecart": -0.0123
+     },
+     {
+      "tranche": "45-50 %",
+      "n": 115,
+      "annonce": 0.4736,
+      "observe": 0.4696,
+      "ecart": -0.004
+     },
+     {
+      "tranche": "50-55 %",
+      "n": 77,
+      "annonce": 0.522,
+      "observe": 0.4935,
+      "ecart": -0.0285
+     },
+     {
+      "tranche": "55-60 %",
+      "n": 57,
+      "annonce": 0.5734,
+      "observe": 0.6491,
+      "ecart": 0.0757
+     },
+     {
+      "tranche": "60-65 %",
+      "n": 23,
+      "annonce": 0.6253,
+      "observe": 0.8696,
+      "ecart": 0.2442
+     },
+     {
+      "tranche": "65-70 %",
+      "n": 21,
+      "annonce": 0.6762,
+      "observe": 0.619,
+      "ecart": -0.0571
+     },
+     {
+      "tranche": "70-75 %",
+      "n": 12,
+      "annonce": 0.7216,
+      "observe": 0.75,
+      "ecart": 0.0284
+     },
+     {
+      "tranche": "75-80 %",
+      "n": 9,
+      "annonce": 0.7824,
+      "observe": 0.7778,
+      "ecart": -0.0047
+     },
+     {
+      "tranche": "80-85 %",
+      "n": 1,
+      "annonce": 0.809,
+      "observe": 1,
+      "ecart": 0.191
+     },
+     {
+      "tranche": "85-90 %",
+      "n": 1,
+      "annonce": 0.867,
+      "observe": 0,
+      "ecart": -0.867
+     }
+    ]
+   }
   }
  }
 }

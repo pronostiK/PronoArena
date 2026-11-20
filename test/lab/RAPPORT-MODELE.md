@@ -107,3 +107,10 @@ Scripts : `dump-baseline-promus.mjs` (moteur avec promus) → `run-elo2.mjs` ; c
 - **12. Enchaînement des matchs** (repos ≤ 3 ou 4 jours, championnat seulement) : ~0,0000 partout.
 - **13. Poids des matchs récents** : 10 derniers ×2 +0,0003 / −0,0000 / −0,0002 ; 15 derniers ×1,5 +0,0002 / −0,0003 / +0,0003. Change de sens.
 - **14. Absents** (`run-absents.mjs`, absents API-Football 2023-24 et 2024-25 de l'étude PronostiK, 3 398 matchs, données non versées) : réglage sur 2023-24 α = 0,05, β = 0 → 2023-24 −0,0003 · 2024-25 −0,0006 (moitiés −0,0003 / −0,0009). Mais Ligue 1 se dégrade les deux saisons (+0,0005 / +0,0010) et Liga en 2023-24 (+0,0015). Gain minuscule ; en production il faudrait en plus l'importance de chaque joueur (minutes de la saison précédente), que le robot n'a pas. À refaire sur les absents Bzzoiro collectés par le site.
+
+## Pistes 15 à 18 (20/11/2026) — base : moteur en ligne, règle de Kay
+Script : `run-pistes-15-18.mjs` (+ `run-corners.mjs` pour la grille élargie). 7 437 matchs. Écarts de Brier 2024-25 / 2025-26 / 2026-27.
+- **15. Mélange avec PronostiK** : le meilleur poids sur 2024-25 est 0 (aucun mélange). Poids 0,1 : +0,0000 / −0,0001 / +0,0001. Rien à gagner : depuis promus + Elo, notre moteur fait déjà mieux.
+- **16. Matchs avec carton rouge moins comptés** : meilleur poids 0,75 → +0,0001 / −0,0000 / +0,0002. Rien.
+- **17. Corners mêlés aux buts dans les forces** (buts remplacés par 70 % buts + 30 % corners × buts/corners du championnat ; Elo sur les vrais buts) : 30 % choisi sur 2024-25 → **−0,0011 / −0,0015 / −0,0010**, même sens les 3 saisons (grille 10 à 70 % : optimum 30-40 %). Par championnat, très variable : Portugal pire en 2025-26 et 2026-27 (+0,0016 / +0,0036), Liga +0,0004 / −0,0007 / +0,0005, Serie A 2026-27 +0,0081 ; gros gains Championship, Ligue 2. Pour la production : il faut les corners de tous les matchs passés (football-data.co.uk, que le robot ne lit pas aujourd'hui).
+- **18. Part domicile/extérieur** : 0,45 choisi → −0,0000 / +0,0004 / +0,0001. Rien, 0,3 reste.

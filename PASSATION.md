@@ -293,3 +293,22 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - **20/11/2026 : mélange Elo des clubs en ligne** (accord de Kay) : 25 % d'une prévision tirée de l'écart d'Elo (`MODEL.eloMix`, régression ordonnée réglée sur 2024-25), championnats de clubs seulement (`eloMix: !lg.cup && !lg.national` dans build.js). La grille des scores est remise à l'échelle par zone pour garder tous les marchés cohérents. Brier −0,0008 / −0,0021 / −0,0006. `_modelRev` = 10. Détail : RAPPORT-MODELE.md piste 3 bis.
 - **20/11/2026 : Verdict recalculé avec le moteur actuel** (accord de Kay) : `test/backtest.mjs` reproduit maintenant promus + mélange Elo. 7 168 matchs : Brier 0,5968 (ancien moteur 0,5991 sur les mêmes matchs), bookmakers 0,5830, PronostiK 0,599 (écart −0,002 [−0,003 ; −0,001]). Seul recul : Liga Portugal (0,5510 → 0,5521). `window.DP_BT` (index.html) = date du fichier, à changer à chaque régénération pour vider le cache.
 - **20/11/2026 : corners en ligne** (accord de Kay) : `src/corners.js` lit les CSV football-data.co.uk (F1, E0, SP1, I1, D1, N1, E1, F2 ; pas le Portugal), un fichier par passage (saison précédente une fois, saison en cours toutes les 6 h), relie les matchs par date ± 1 jour + score (équipes reconnues par leurs dates, sans liste de noms). Forces = 70 % buts + 30 % corners × buts/corners ; Elo, classement, forme sur les vrais buts. KV `corners:<id>@<saison>`, état dans /status → `corners`. Brier −0,0011 / −0,0017 / −0,0013. `_modelRev` = 11.
+
+## 20/11/2026 — Bilan de la journée (à lire en premier pour reprendre le modèle)
+**Moteur : 3 corrections en ligne, toutes avec l'accord de Kay**
+1. Promus lissés vers une équipe plus faible (7 premières divisions) — Brier −0,0028 / −0,0010 / −0,0040.
+2. Mélange 25 % Elo des clubs (championnats de clubs) — −0,0008 / −0,0021 / −0,0006.
+3. Corners : forces sur 70 % buts + 30 % corners (8 championnats, pas le Portugal), fichiers football-data.co.uk — −0,0011 / −0,0017 / −0,0013. Rattrapage des corners par le robot : environ 3 h après la publication (vérifier /status → `corners`).
+(Écarts de Brier sur 2024-25 / 2025-26 / 2026-27, négatif = mieux. Détail et scripts : `test/lab/RAPPORT-MODELE.md`, pistes 9 à 18.)
+
+**Verdict** (avant les corners) : 7 168 matchs, Duel Prono 0,5968 (ancien moteur 0,5991), PronostiK 0,599, bookmakers 0,583. À régénérer une fois les corners rattrapés : `node test/backtest.mjs <history.json PronostiK> <model.mjs PronostiK> site/public/backtest.json`, puis changer `window.DP_BT` dans index.html. Attention : `backtest.mjs` reproduit promus + Elo, **pas encore les corners** (à ajouter, comme dans `test/lab/check-corners-moteur.mjs`).
+
+**Règle de Kay sur les petits gains (20/11)** : tout gain est pris, même 0,001, s'il va dans le même sens sur chaque saison testée et n'abîme rien ailleurs. Un gain qui change de sens d'une saison à l'autre = hasard.
+
+**Pistes testées et rejetées le 20/11 (ne pas refaire sans information nouvelle)** : Elo de départ des promus plus bas ; nuls (rho) par championnat ; enchaînement des matchs ; poids des matchs récents ; part domicile/extérieur ; mélange avec PronostiK ; matchs avec carton rouge moins comptés ; absents API-Football 2023-25 (gain minuscule, Ligue 1 pire).
+
+**À refaire** : xG 50/50 vers fin février 2027 (assez de matchs 2026-27, même variante) ; absents vers mars 2027 avec les absents Bzzoiro collectés par le site (il faudra aussi l'importance de chaque joueur).
+
+**Site (20/11)** : onglet Marchés renommé « Scénarios » (cotes retirées, vocabulaire neutre) ; Kay a voulu garder « Remboursé si nul » et le mot « bookmakers » dans le Verdict : ne plus proposer de les changer. Rechargement automatique du site en ligne (dp42). Logos Arabie saoudite et Serie B validés.
+
+**Plan Cloudflare (décision de Kay)** : le robot est à la limite de l'offre gratuite. Fin novembre 2026 : passer à Workers Paid (5 $/mois) avec un plafond de dépense d'environ 2 $ (vérifié : rien de gratuit ne devient payant ; un 2e compte gratuit a été écarté). Étapes : dash.cloudflare.com → Workers et Pages → Forfaits → Workers Paid → régler le plafond de dépense. Ensuite seulement : ajouter la 2. Bundesliga et la Liga 2 espagnole (déjà vérifiées chez ESPN).

@@ -163,7 +163,14 @@ check("Analyse : mon prono affiché", (await page.locator(".pick[aria-pressed='t
   await page.click(".brand"); await page.waitForSelector(".lg-tag");
   check("Le logo du site ramène à l'accueil « Tout »", (await page.locator(".rail .chip-all").getAttribute("aria-pressed")) === "true");
   await page.goBack(); await page.waitForSelector(".duel"); await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(300); }
-check("Analyse : onglet Analyse en premier, cotes, « Remboursé si nul » et onglet Marchés présents", /cote \d/.test(await page.locator("[data-panel='m']").textContent()) && /Remboursé si nul/.test(await page.locator("[data-panel='m']").textContent()) && (await page.locator(".tabs button").first().textContent()) === "Analyse" && (await page.locator(".tabs button[data-pane='m']").textContent()) === "Marchés");
+{ const mt = await page.locator("[data-panel='m']").textContent();
+  check("Scénarios : plus de cotes ni de vocabulaire de paris, pourcentages présents", !/\bcote|Double chance|\+\d,5/.test(mt) && /Remboursé si nul/.test(mt) && /Victoire ou nul/.test(mt) && /3 buts ou \+/.test(mt) && (await page.locator(".tabs button").first().textContent()) === "Analyse" && (await page.locator(".tabs button[data-pane='m']").textContent()) === "Scénarios", mt.replace(/\s+/g, " ").slice(0, 200)); }
+const scenShots = async (lg) => { await page.click(".tabs button[data-pane='m']"); await page.waitForTimeout(300);
+  check(`Scénarios (${lg}, téléphone) : pas de débordement`, (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390);
+  const hideBar = await page.addStyleTag({ content: '.tabbar{visibility:hidden} .topbar{position:static !important}' }); await page.locator("[data-panel='m']").screenshot({ path: `${OUT}/scenarios-telephone-${lg}.png` });
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300); await page.locator("[data-panel='m']").screenshot({ path: `${OUT}/scenarios-pc-${lg}.png` }); await hideBar.evaluate((e) => e.remove());
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(200); await page.click(".tabs button[data-pane='a']"); };
+await scenShots("fr");
 await shot("5-analyse", false);
 // Arène et compte
 await page.click(".tabbar a[data-tab='arene']"); await page.waitForSelector(".podium"); await page.waitForSelector(".mp");
@@ -331,6 +338,7 @@ await go("#/", ".duel"); await page.locator(".picks:not(.locked)").first().locat
 check("Anglais : prono enregistré, message traduit", /^Pick saved · \d+ pts at stake$/.test(await page.textContent("#toast")) && /My pick/.test(await page.locator(".pick[aria-pressed='true']").first().textContent()));
 await page.locator(".duel:has(.pick[aria-pressed='true']) .more").first().click(); await page.waitForSelector(".match-hero"); await page.waitForTimeout(400);
 await shot("en-3-analysis");
+await scenShots("en"); { const mt = await page.locator("[data-panel='m']").textContent(); check("Scenarios (EN) : textes traduits", /Draw no bet/.test(mt) && /Win or draw/.test(mt) && /3\+ goals/.test(mt) && !/odds/i.test(mt), mt.replace(/\s+/g, " ").slice(0, 200)); }
 for (const k of ["s", "c", "h"]) { await page.click(`.tabs button[data-pane='${k}']`); await page.waitForTimeout(300); }
 SIM.now += 61000; await go("#/arene", ".board"); await page.waitForSelector(".mp"); await shot("en-4-arena");
 await go("#/compte", ".me-hero"); await shot("en-5-space");

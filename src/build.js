@@ -4,10 +4,11 @@
 // ============================================================
 import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
-import { SUIVI_LEAGUES } from "./suivi.js";
+import { SUIVI_LEAGUES, SUIVI_X, blendXg } from "./suivi.js";
+import { XGX_LEAGUES, xgRows } from "./xghist.js";
 import { buildModel, computeTeamRatings, computeElo, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
-import { CORNERS_LEAGUES, cornersKey, blendCorners } from "./corners.js";
+import { CORNERS_LEAGUES, cornersKey, blendCorners, matchCorners } from "./corners.js";
 import { keyPoints } from "./keypoints.js";
 import { flagTeams, flagUrl } from "./flags.js";
 import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
@@ -113,10 +114,11 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const finishedAll = prev ? [...toFinished(prev), ...finishedCur] : finishedCur;
   const newcomers = promotedTeams(lg, prev, cur);
   // Corners (20/11/2026) : forces sur 70 % buts + 30 % corners ; Elo, classement et forme sur les vrais buts
-  let model;
+  let model, m7fin = null; // m7fin : matchs passés vus par M7 (mêlés aux corners), pour le suivi M7X
   if (CORNERS_LEAGUES[leagueId] && !secours) {
     const maps = await Promise.all([kvGet(env, cornersKey(leagueId, season)), kvGet(env, cornersKey(leagueId, season - 1))]);
     const bl = blendCorners(finishedAll, maps);
+    m7fin = bl.finished;
     model = { ...computeTeamRatings(bl.finished, { newcomers }), elo: computeElo(finishedAll), cornersMatchs: bl.n };
   } else model = buildModel(finishedAll, { newcomers });
 
@@ -187,6 +189,25 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     });
   }
 
+  // Suivi expérimental M7X (5 grands championnats, non affiché) : calculé après tout le reste, ne touche à rien de publié.
+  // Enregistré seulement quand l'historique des xG est complet ; couverture et fraîcheur notées sur chaque ligne.
+  async function suiviX() {
+    try {
+      if (secours || !m7fin) return { entries: [], raison: "source de secours ou sans corners" };
+      const { rows, complet } = await xgRows(env, leagueId, season);
+      if (!complet) return { entries: [], raison: "historique des xG en cours de remplissage" };
+      const { m } = matchCorners(rows, finishedAll);
+      const xg = {}; let last = 0;
+      for (const f of finishedAll) { const x = m[f.id]; if (x && x[0] !== null && x[1] !== null) { xg[f.id] = x; if (f.ts > last) last = f.ts; } }
+      const n = Object.keys(xg).length, couverture = finishedAll.length ? n / finishedAll.length : 0;
+      const modelX = { ...computeTeamRatings(blendXg(finishedAll, m7fin, xg), { newcomers }), elo: model.elo };
+      const targets = [...upcoming, ...allUpcoming.slice(10).filter((u) => u.ts <= now + 7 * 86400000)];
+      const infos = { couverture: Math.round(couverture * 1000) / 1000, xg: n, matchs: finishedAll.length, dernierXg: last ? new Date(last).toISOString().slice(0, 10) : null, promus: newcomers ? newcomers.size : 0, cornersMatchs: model.cornersMatchs || 0 };
+      return { entries: targets.map((u) => { const p = calculate_match_prediction(u, { model: modelX, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+        return { match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name, m7x: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2], infos }; }) };
+    } catch (e) { return { entries: [], erreur: String(e.message).slice(0, 160) }; }
+  }
+
   return {
     success: true,
     leagueId,
@@ -205,6 +226,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     classement: table.map((r) => ({ rang: r.rang, id: r.id, nom: names[r.id]?.[0] || r.id, logo: names[r.id]?.[1] || null, joues: r.j, v: r.v, n: r.n, d: r.d, bp: r.bp, bc: r.bc, diff: r.diff, points: r.pts })),
     predictions,
     ...(model0 ? { _suivi: [...suivi, ...suiviExtra()] } : {}),
+    ...(model0 && SUIVI_X && XGX_LEAGUES[leagueId] ? { _suiviX: await suiviX() } : {}),
   };
 }
 

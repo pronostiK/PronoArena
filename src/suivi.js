@@ -87,3 +87,82 @@ export async function suiviExport(env, now = Date.now(), from = 0) {
   const lignes = (results || []).map((r) => (r.coup_envoi < now - 3 * 3600000 ? r : { seq: r.seq, cree_le: r.cree_le, ligue: r.ligue, coup_envoi: r.coup_envoi, contenu: r.contenu, prec: r.prec, empreinte: r.empreinte, masque: true }));
   return { actif: true, version: SUIVI_VERSION, reglages: SUIVI_PARAMS, lignes };
 }
+
+// ============================================================
+// SUIVI EXPÉRIMENTAL M7X (autorisé par l'auditeur le 20/11/2026, plan : test/lab/PLAN-M7X.md)
+// M7X = M7, mais la part « buts » des forces (70 %) devient 50 % buts + 50 % xG mesurés (variante de test/lab/run-xg-m7.mjs).
+// 5 grands championnats, non affiché. Journal séparé (table suivi_x, sa propre chaîne) : la table suivi, sa formule d'empreinte
+// et ses sceaux ne changent pas. Calculé APRÈS M0 / M7 ; une erreur ici n'empêche jamais l'enregistrement de M0 / M7.
+// ============================================================
+export const SUIVI_X = true; // interrupteur : false coupe M7X sans rien changer d'autre
+export const SUIVI_X_SHARE = 0.5;
+export const SUIVI_X_MIN_COVERAGE = 0.8;
+export const SUIVI_X_VERSION = "M7X figé le 20/11/2026 (M7 8044a83 + 50 % xG mesurés dans la part buts)";
+export const SUIVI_X_PARAMS = JSON.stringify({ base: JSON.parse(SUIVI_PARAMS), xgShare: SUIVI_X_SHARE, xgMesuresSeulement: true });
+
+// Matchs passés « M7X » : à partir des matchs de M7 (déjà mêlés aux corners), la part buts réels est remplacée par
+// 50 % buts + 50 % xG. Poids de la part buts : 70 % si le match a des corners, 100 % sinon. Match sans xG mesuré : inchangé.
+// (même calcul que withXg dans test/lab/run-xg-m7.mjs)
+export function blendXg(real, m7Finished, xg) {
+  return m7Finished.map((f, i) => {
+    const o = real[i], x = xg[o.id];
+    if (!x) return f;
+    const w = (f !== o ? 1 - CORNERS_SHARE : 1) * SUIVI_X_SHARE;
+    return { ...f, hg: f.hg + w * (x[0] - o.hg), ag: f.ag + w * (x[1] - o.ag) };
+  });
+}
+
+const SCHEMA_X = [
+  `CREATE TABLE IF NOT EXISTS suivi_x (seq INTEGER PRIMARY KEY AUTOINCREMENT, cree_le INTEGER NOT NULL, ligue INTEGER NOT NULL, match TEXT NOT NULL, coup_envoi INTEGER NOT NULL, dom TEXT, ext TEXT, m7x TEXT NOT NULL, infos TEXT, params TEXT NOT NULL, contenu TEXT NOT NULL, prec TEXT NOT NULL, empreinte TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS suivi_x_match ON suivi_x(match, seq)`,
+  `CREATE TRIGGER IF NOT EXISTS suivi_x_sans_modif BEFORE UPDATE ON suivi_x BEGIN SELECT RAISE(ABORT, 'suivi_x : ajout seul'); END`,
+  `CREATE TRIGGER IF NOT EXISTS suivi_x_sans_suppr BEFORE DELETE ON suivi_x BEGIN SELECT RAISE(ABORT, 'suivi_x : ajout seul'); END`,
+];
+const schemaX = new WeakSet();
+async function ensureSuiviX(env) {
+  if (!env.DB) return false;
+  if (schemaX.has(env.DB)) return true;
+  for (const q of SCHEMA_X) await env.DB.prepare(q).run();
+  schemaX.add(env.DB);
+  return true;
+}
+export const rowTextX = (r) => [r.cree_le, r.ligue, r.match, r.coup_envoi, r.dom, r.ext, r.m7x, r.infos, r.params].join("|");
+
+// entries : [{ match, ts, dom, ext, m7x: [p1, pN, p2], infos }]
+export async function logSuiviX(env, leagueId, entries, now = Date.now()) {
+  if (!SUIVI_X || !entries?.length || !(await ensureSuiviX(env))) return 0;
+  const todo = entries.filter((e) => e.ts > now);
+  if (!todo.length) return 0;
+  const keys = todo.map((e) => `${leagueId}:${e.match}`), last = new Map();
+  const { results } = await env.DB.prepare(`SELECT match, coup_envoi, m7x FROM suivi_x WHERE seq IN (SELECT MAX(seq) FROM suivi_x WHERE match IN (${keys.map(() => "?").join(",")}) GROUP BY match)`).bind(...keys).all();
+  for (const r of results || []) last.set(r.match, r);
+  const head = await env.DB.prepare("SELECT empreinte FROM suivi_x ORDER BY seq DESC LIMIT 1").first();
+  let prec = head?.empreinte || "0".repeat(64);
+  const params = await sha256(SUIVI_X_PARAMS);
+  const stmts = [];
+  for (let i = 0; i < todo.length; i++) {
+    const e = todo[i], k = keys[i], m7x = JSON.stringify(e.m7x), old = last.get(k);
+    if (old && old.m7x === m7x && old.coup_envoi === e.ts) continue;
+    const r = { cree_le: now, ligue: +leagueId, match: k, coup_envoi: e.ts, dom: e.dom || "", ext: e.ext || "", m7x, infos: JSON.stringify(e.infos || {}), params };
+    const contenu = await sha256(rowTextX(r)), empreinte = await sha256(prec + "|" + contenu);
+    stmts.push(env.DB.prepare("INSERT INTO suivi_x (cree_le, ligue, match, coup_envoi, dom, ext, m7x, infos, params, contenu, prec, empreinte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+      .bind(r.cree_le, r.ligue, r.match, r.coup_envoi, r.dom, r.ext, r.m7x, r.infos, r.params, contenu, prec, empreinte));
+    prec = empreinte;
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return stmts.length;
+}
+
+export async function suiviHeadX(env) {
+  if (!SUIVI_X || !(await ensureSuiviX(env))) return { actif: false };
+  const h = await env.DB.prepare("SELECT seq, cree_le, empreinte FROM suivi_x ORDER BY seq DESC LIMIT 1").first();
+  const n = await env.DB.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT match) AS m FROM suivi_x").first();
+  return { actif: true, version: SUIVI_X_VERSION, reglages: await sha256(SUIVI_X_PARAMS), lignes: n?.n || 0, matchs: n?.m || 0, seq: h?.seq || 0, derniere: h ? new Date(h.cree_le).toISOString() : null, empreinte: h?.empreinte || null };
+}
+
+export async function suiviExportX(env, now = Date.now(), from = 0) {
+  if (!SUIVI_X || !(await ensureSuiviX(env))) return { actif: false, lignes: [] };
+  const { results } = await env.DB.prepare("SELECT * FROM suivi_x WHERE seq > ? ORDER BY seq LIMIT 5000").bind(from).all();
+  const lignes = (results || []).map((r) => (r.coup_envoi < now - 3 * 3600000 ? r : { seq: r.seq, cree_le: r.cree_le, ligue: r.ligue, coup_envoi: r.coup_envoi, contenu: r.contenu, prec: r.prec, empreinte: r.empreinte, masque: true }));
+  return { actif: true, version: SUIVI_X_VERSION, reglages: SUIVI_X_PARAMS, lignes };
+}

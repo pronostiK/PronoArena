@@ -61,3 +61,18 @@ Figé le 20/11/2026, avant le premier match suivi. Toute modification de ce prot
 - Un calcul de plus (M0) par championnat recalculé, et au plus une lecture et quelques écritures dans la base par recalcul (une ligne seulement quand les probabilités changent).
 - Environ 48 lectures par jour de `/suivi/empreinte` par GitHub (un commit seulement si l'empreinte a changé).
 - Si la base est en panne, les pronostics du site sont publiés quand même ; l'erreur est notée dans `/status` (rubrique `suivi`).
+
+## Annexe — suivi expérimental M7X (autorisé par l'auditeur le 20/11/2026)
+
+- **Ce qu'est M7X** : M7, sauf la part « buts » des forces (70 %), qui devient 50 % buts + 50 % xG mesurés. Variante figée de `test/lab/run-xg-m7.mjs`, aucun autre réglage. 5 championnats : 61, 39, 140, 135, 78. Non affiché.
+- **Code** : `src/xghist.js` (historique des xG en D1) et `src/suivi.js` (calcul et journal `suivi_x`). Ni M0, ni M7, ni la table `suivi`, ni ce protocole principal ne changent. Un test vérifie que le journal M0 / M7 est identique octet pour octet avec et sans M7X.
+- **Sceaux** : `suivi/empreintes-x.jsonl`, dans le même commit que les sceaux M0 / M7. Adresses : `/suivi/empreinte-x` et `/suivi/export-x`.
+- **Démarrage** : premier enregistrement M7X une fois l'historique des xG complet (saison 2025-26 et saison en cours ; date dans `/status` → `suivi.m7x.xgHistorique.remplissageTermine`). Pas de démarrage partiel.
+- **Règles d'évaluation** : celles de `test/lab/PLAN-M7X.md`, section 4, fixées avant le premier enregistrement.
+  - un xG manquant laisse les vrais buts ;
+  - même règle 3 (ancrage tardif à part, résultats avec et sans) ;
+  - analyse principale sur les lignes dont la couverture xG est d'au moins 80 % ;
+  - gros favoris (≥ 60 %) suivis à part ;
+  - critère final de fin de saison en 3 conditions ;
+  - Serie A présentée à part ;
+  - aucun réglage pendant l'évaluation.

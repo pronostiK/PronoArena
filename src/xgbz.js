@@ -32,8 +32,9 @@ export const XGB_LEAGUES = {
 const emptyState = () => ({ comps: {}, listed: {}, lp: {}, m: {}, day: "", used: 0 });
 const arr = (d, key) => (Array.isArray(d) ? d : Array.isArray(d?.[key]) ? d[key] : Array.isArray(d?.results) ? d.results : []);
 
+export let passCalls = 0; // appels faits par le dernier passage (lu par xghist.js pour rester sous 10 appels par passage en tout)
 async function call(env, st, path) {
-  st.used++;
+  st.used++; passCalls++;
   const r = await fetch(BASE + path, { headers: { Authorization: "Token " + env.BZZOIRO_TOKEN, Accept: "application/json", "User-Agent": "DuelProno/1.0 (+https://duelprono.com)" } });
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`Bzzoiro [${r.status}] ${path.split("?")[0]}`);
@@ -51,6 +52,7 @@ export function extractXg(s) {
 }
 
 export async function refreshXgBz(env, now = Date.now()) {
+  passCalls = 0;
   if (!env.BZZOIRO_TOKEN || !env.PRONO_CACHE) return null;
   const st = (await kvGet(env, XGB_KEY)) || emptyState();
   const today = new Date(now).toISOString().slice(0, 10);

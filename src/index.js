@@ -27,7 +27,7 @@ import { XG_KEY, XG_LEAGUES, xgTeam, xgStatus } from "./xg.js";
 import { XGB_KEY } from "./xgbz.js";
 import { buildLive } from "./live.js";
 import { H2HS_KEY, attachH2HStats } from "./h2hstats.js";
-import { suiviHead, suiviExport } from "./suivi.js";
+import { suiviHead, suiviExport, suiviHeadX, suiviExportX } from "./suivi.js";
 import { readBody, signup, login, logout, deleteAccount, saveProfile, changeEmail, changePassword, forgotPassword, resetPassword, resetAvailable, auth, me, savePick, cancelPick, leaderboard, arenaStatus } from "./arena.js";
 
 const CORS = {
@@ -182,6 +182,8 @@ export default {
 
       // Suivi M0 / M7 (validation prospective) : empreinte de tête publique, export pour le bilan
       if (path === "/suivi/empreinte") return json(await suiviHead(env), 200, { "Cache-Control": "no-store" });
+      if (path === "/suivi/empreinte-x") return json(await suiviHeadX(env), 200, { "Cache-Control": "no-store" });
+      if (path === "/suivi/export-x") return json(await suiviExportX(env, Date.now(), parseInt(q("depuis")) || 0), 200, { "Cache-Control": "no-store" });
       if (path === "/suivi/export") return json(await suiviExport(env, Date.now(), parseInt(q("depuis")) || 0), 200, { "Cache-Control": "no-store" });
 
       if (path === "/status") {

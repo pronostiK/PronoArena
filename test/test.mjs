@@ -1062,6 +1062,75 @@ console.log("\n— Suivi M0 / M7 —");
   check("Suivi : base en panne → pronostics publiés quand même, erreur notée", okSave === true && /indisponible/.test(idx._suiviErreur || ""), idx._suiviErreur);
 }
 
+console.log("\n— Suivi expérimental M7X —");
+{
+  const { saveLeague } = await import("../src/robot.js");
+  const { refreshXgHist, xgHistStatus } = await import("../src/xghist.js");
+  const { rowTextX, blendXg, SUIVI_X_SHARE } = await import("../src/suivi.js");
+  const { CORNERS_SHARE } = await import("../src/corners.js");
+  const { createHash } = await import("node:crypto");
+  const h = (t) => createHash("sha256").update(t).digest("hex");
+  // Même formule que withXg de test/lab/run-xg-m7.mjs (variante figée), sur des matchs fictifs
+  const real = [{ id: "a", hg: 2, ag: 0 }, { id: "b", hg: 1, ag: 1 }, { id: "c", hg: 0, ag: 3 }];
+  const m7 = [{ ...real[0], hg: 1.9, ag: 0.4 }, real[1], real[2]];
+  const xg = { a: [1.2, 0.8], b: [2.1, 0.3] };
+  const ref = m7.map((f, i) => { const o = real[i]; if (!xg[o.id]) return f; const w = (f !== o ? 1 - CORNERS_SHARE : 1) * 0.5; return { ...f, hg: f.hg + w * (xg[o.id][0] - o.hg), ag: f.ag + w * (xg[o.id][1] - o.ag) }; });
+  const got = blendXg(real, m7, xg);
+  check("M7X : même formule que le test hors ligne (70 % × 50/50 avec corners, 50/50 sans, sans xG inchangé)", SUIVI_X_SHARE === 0.5 && JSON.stringify(got) === JSON.stringify(ref) && got[2] === m7[2]);
+
+  // Remplissage de l'historique des xG (D1 seulement)
+  const d1 = await makeD1();
+  const X = { ...env, DB: d1.DB, BZZOIRO_TOKEN: "bz_test" };
+  const w0 = env.stats.writes, bz0 = calls.bz || 0;
+  let t = NOW, maxPerPass = 0, passes = 0;
+  for (; passes < 3000; passes++, t += 600000) { SIM.now = t; const b = calls.bz || 0; await refreshXgHist(X, t); maxPerPass = Math.max(maxPerPass, (calls.bz || 0) - b); if ((await xgHistStatus(X)).remplissageTermine) break; }
+  const hs = await xgHistStatus(X);
+  check("M7X : historique des xG rempli (2 saisons, 5 championnats)", !!hs.remplissageTermine && Object.keys(hs.parSaison).length === 10, `${passes} passages, ${JSON.stringify(hs.parSaison["39@2025"])}`);
+  check("M7X : au plus 10 appels Bzzoiro par passage", maxPerPass <= 10, String(maxPerPass));
+  check("M7X : aucune écriture dans le cache KV", env.stats.writes === w0, `${env.stats.writes - w0}`);
+  SIM.now = NOW;
+
+  // Journal : M0 / M7 identiques avec et sans M7X
+  const idx = JSON.parse(await env.PRONO_CACHE.get("robot:index")) || {};
+  const dSans = await makeD1(), Sans = { ...env, DB: dSans.DB };
+  await env.PRONO_CACHE.delete("preds:39@2026"); await saveLeague(Sans, 39, 2026, NOW, idx);
+  await env.PRONO_CACHE.delete("preds:39@2026"); await saveLeague(X, 39, 2026, NOW, idx);
+  const rowsAvec = d1.raw.prepare("SELECT * FROM suivi ORDER BY seq").all(), rowsSans = dSans.raw.prepare("SELECT * FROM suivi ORDER BY seq").all();
+  check("M7X : journal M0 / M7 identique octet pour octet avec et sans M7X", rowsAvec.length > 0 && JSON.stringify(rowsAvec) === JSON.stringify(rowsSans), `${rowsAvec.length} / ${rowsSans.length}`);
+  const rx = d1.raw.prepare("SELECT * FROM suivi_x ORDER BY seq").all();
+  check("M7X : une ligne M7X par match noté en M0 / M7 (mêmes matchs)", rx.length === rowsAvec.length && rx.every((r, i) => r.match === rowsAvec[i].match && r.coup_envoi === rowsAvec[i].coup_envoi), `${rx.length} lignes`);
+  const inf = JSON.parse(rx[0]?.infos || "{}");
+  const plFin = JSON.parse(await env.PRONO_CACHE.get("src:fd:PL@2026")).finished.map((r) => r[5]);
+  check("M7X : couverture et fraîcheur notées, xG seulement de matchs déjà terminés pour le robot", inf.couverture >= 0.8 && inf.dernierXg && Date.parse(inf.dernierXg) <= Math.max(...plFin) && Date.parse(inf.dernierXg) <= Math.min(...rx.map((r) => r.coup_envoi)), JSON.stringify(inf));
+  check("M7X : probabilités différentes de M7", rx.some((r, i) => r.m7x !== rowsAvec[i].m7));
+  let prec = "0".repeat(64), chain = true;
+  for (const r of rx) { const c = h(rowTextX(r)); if (c !== r.contenu || r.prec !== prec || h(prec + "|" + c) !== r.empreinte) chain = false; prec = r.empreinte; }
+  check("M7X : chaîne d'empreintes séparée et vérifiable", chain && rx[0].prec === "0".repeat(64));
+  let ru = false, rd = false;
+  try { d1.raw.prepare("UPDATE suivi_x SET m7x = '[1,0,0]'").run(); } catch { ru = true; }
+  try { d1.raw.prepare("DELETE FROM suivi_x").run(); } catch { rd = true; }
+  check("M7X : modification et suppression refusées par la base", ru && rd);
+  const call = async (path) => (await worker.fetch(new Request("https://w" + path), X, { waitUntil() {} })).json();
+  const hx = await call("/suivi/empreinte-x"), h0 = await call("/suivi/empreinte");
+  check("M7X : sceau séparé, sceau M0 / M7 inchangé", hx.actif && hx.empreinte === rx[rx.length - 1].empreinte && h0.empreinte === rowsAvec[rowsAvec.length - 1].empreinte);
+  const ex = await call("/suivi/export-x");
+  check("M7X : export masqué avant le match", ex.lignes.length === rx.length && ex.lignes.every((l) => l.masque && !l.m7x));
+  // Hors des 5 grands championnats : rien
+  await env.PRONO_CACHE.delete("preds:94@2026"); const n94 = rx.length; await saveLeague(X, 94, 2026, NOW, idx);
+  check("M7X : rien pour le Portugal (pas de xG)", d1.raw.prepare("SELECT COUNT(*) AS n FROM suivi_x").get().n === n94 && d1.raw.prepare("SELECT COUNT(*) AS n FROM suivi WHERE ligue = 94").get().n > 0);
+  // Panne de l'historique des xG : M0 / M7 enregistrés quand même
+  const dP = await makeD1();
+  const realPrepare = dP.DB.prepare;
+  const P = { ...env, DB: { ...dP.DB, prepare: (sql) => { if (/xg_/.test(sql)) throw new Error("xG en panne"); return realPrepare(sql); } } };
+  await env.PRONO_CACHE.delete("preds:39@2026"); const okP = await saveLeague(P, 39, 2026, NOW, idx);
+  check("M7X : historique en panne → M0 / M7 enregistrés, erreur notée", okP === true && dP.raw.prepare("SELECT COUNT(*) AS n FROM suivi").get().n === rowsAvec.length && /panne/.test(idx._suiviX?.[39]?.erreur || ""), JSON.stringify(idx._suiviX?.[39]));
+  // Avant la fin du remplissage : aucune ligne M7X
+  const dV = await makeD1(), V = { ...env, DB: dV.DB, BZZOIRO_TOKEN: "bz_test" };
+  await refreshXgHist(V, NOW);
+  await env.PRONO_CACHE.delete("preds:39@2026"); await saveLeague(V, 39, 2026, NOW, idx);
+  check("M7X : pas de démarrage partiel (remplissage en cours → aucune ligne)", (() => { try { return dV.raw.prepare("SELECT COUNT(*) AS n FROM suivi_x").get().n; } catch { return 0; } })() === 0 && dV.raw.prepare("SELECT COUNT(*) AS n FROM suivi").get().n > 0);
+}
+
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;
 process.exit(ko ? 1 : 0);

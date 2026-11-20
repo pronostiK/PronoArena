@@ -200,7 +200,8 @@ export function installFetch() {
       if (u.pathname === "/api/v2/events/") {
         const code = Object.entries(BZ).find(([, v]) => v[0] === Number(u.searchParams.get("league_id")))?.[0];
         const off = Number(u.searchParams.get("offset") || 0), lim = Number(u.searchParams.get("limit") || 200);
-        const all = (DB[`fd:${code}@2026`] || []).filter(isDone).sort((a, b) => b.ts - a.ts);
+        const yr = Number(u.searchParams.get("season_id")) < 200 ? 2025 : 2026; // saisons : 100 + id = 2025, 200 + id = 2026
+        const all = (DB[`fd:${code}@${yr}`] || []).filter(isDone).sort((a, b) => b.ts - a.ts);
         const page = all.slice(off, off + lim);
         return { ok: true, json: async () => ({ results: page.map((x) => ({ id: x.id, event_date: new Date(x.ts).toISOString(), home_team: bzName(x.h), away_team: bzName(x.a), home_score: x.hg, away_score: x.ag, has_xg: true })), next: off + lim < all.length ? "more" : null }) };
       }

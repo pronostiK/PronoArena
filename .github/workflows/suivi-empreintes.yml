@@ -38,12 +38,23 @@ jobs:
         run: |
           cd b
           mkdir -p suivi
-          r=$(curl -sf --max-time 30 "https://api.duelprono.com/suivi/empreinte?n=$(date +%s)") || { echo "API injoignable"; exit 0; }
-          e=$(echo "$r" | jq -r '.empreinte // empty')
-          [ -n "$e" ] || { echo "journal vide"; exit 0; }
+          lu=$(date -u +%Y-%m-%dT%H:%M:%SZ); msg=""
+          # Journal principal M0 / M7 (inchangé)
+          r=$(curl -sf --max-time 30 "https://api.duelprono.com/suivi/empreinte?n=$(date +%s)") || r=""
+          e=$(echo "$r" | jq -r '.empreinte // empty' 2>/dev/null)
           last=$(tail -n 1 suivi/empreintes.jsonl 2>/dev/null | jq -r '.empreinte // empty')
-          if [ "$e" = "$last" ]; then echo "empreinte inchangée"; exit 0; fi
-          echo "$r" | jq -c --arg lu "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{lu: $lu, seq, lignes, derniere, empreinte, reglages, version}' >> suivi/empreintes.jsonl
-          git add suivi/empreintes.jsonl
-          git commit -q -m "[skip ci] suivi : empreinte $(echo "$e" | cut -c1-12) (ligne $(echo "$r" | jq -r .seq))"
+          if [ -n "$e" ] && [ "$e" != "$last" ]; then
+            echo "$r" | jq -c --arg lu "$lu" '{lu: $lu, seq, lignes, derniere, empreinte, reglages, version}' >> suivi/empreintes.jsonl
+            git add suivi/empreintes.jsonl; msg="empreinte $(echo "$e" | cut -c1-12) (ligne $(echo "$r" | jq -r .seq))"
+          fi
+          # Journal expérimental M7X (fichier séparé)
+          rx=$(curl -sf --max-time 30 "https://api.duelprono.com/suivi/empreinte-x?n=$(date +%s)") || rx=""
+          ex=$(echo "$rx" | jq -r '.empreinte // empty' 2>/dev/null)
+          lastx=$(tail -n 1 suivi/empreintes-x.jsonl 2>/dev/null | jq -r '.empreinte // empty')
+          if [ -n "$ex" ] && [ "$ex" != "$lastx" ]; then
+            echo "$rx" | jq -c --arg lu "$lu" '{lu: $lu, seq, lignes, derniere, empreinte, reglages, version}' >> suivi/empreintes-x.jsonl
+            git add suivi/empreintes-x.jsonl; msg="$msg M7X $(echo "$ex" | cut -c1-12)"
+          fi
+          if [ -z "$msg" ]; then echo "rien de nouveau"; exit 0; fi
+          git commit -q -m "[skip ci] suivi : $msg"
           git push -q origin suivi-empreintes

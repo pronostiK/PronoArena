@@ -9,13 +9,14 @@ import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcomi
 import { lastEvents, refreshOneCompo } from "./compos.js";
 import { gradePicks, cleanArena } from "./arena.js";
 import { refreshXg } from "./xg.js";
-import { refreshXgBz } from "./xgbz.js";
+import { refreshXgBz, passCalls } from "./xgbz.js";
 import { refreshAbsents, bzPaused } from "./absents.js";
 import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
 import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
 import { refreshCorners, cornersStatus } from "./corners.js";
-import { logSuivi, SUIVI_LEAGUES } from "./suivi.js";
+import { logSuivi, logSuiviX, SUIVI_LEAGUES } from "./suivi.js";
+import { refreshXgHist, xgHistStatus } from "./xghist.js";
 import { LEAGUES, BACKUP_AFTER_MS } from "./config.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -62,6 +63,15 @@ export async function saveLeague(env, leagueId, season, now, index = null) {
       const n = await logSuivi(env, leagueId, suivi, now);
       if (index) index._suivi = { ...(index._suivi || {}), [leagueId]: { at: now, lignes: n } };
     } catch (e) { if (index) index._suiviErreur = `${new Date(now).toISOString()} ${leagueId} : ${e.message}`; }
+  }
+  // Suivi expérimental M7X : journal séparé, après M0 / M7 ; une erreur ici ne bloque ni M0 / M7 ni le robot
+  const sx = result._suiviX;
+  delete result._suiviX;
+  if (sx) {
+    try {
+      const n = await logSuiviX(env, leagueId, sx.entries, now);
+      if (index) index._suiviX = { ...(index._suiviX || {}), [leagueId]: { at: now, lignes: n, ...(sx.entries[0] ? { couverture: sx.entries[0].infos.couverture, dernierXg: sx.entries[0].infos.dernierXg } : {}), ...(sx.raison ? { attente: sx.raison } : {}), ...(sx.erreur ? { erreur: sx.erreur } : {}) } };
+    } catch (e) { if (index) index._suiviXErreur = `${new Date(now).toISOString()} ${leagueId} : ${e.message}`; }
   }
   if (index) {
     index[`count:${leagueId}`] = result.count; // pour /leagues, sans relire les pronostics
@@ -115,7 +125,11 @@ export async function runRobot(env, now = Date.now()) {
     try { const r = await refreshAbsents(env, index, now); if (r) { report.push(r); absDone = true; } }
     catch (e) { report.push(`absents : ERREUR ${e.message}`); absDone = true; }
     // xG (Bzzoiro, affichage seulement, en parallèle de Soccer Data) : 10 appels par passage au plus
-    if (!absDone) { const r = await refreshXgBz(env, now); if (r) report.push(r); }
+    if (!absDone) {
+      const r = await refreshXgBz(env, now); if (r) report.push(r);
+      // Historique des xG pour le suivi M7X : avec les appels que l'affichage n'a pas utilisés (10 par passage en tout, comme avant)
+      try { const h = await refreshXgHist(env, now, 10 - passCalls); if (h) report.push(h); } catch (e) { report.push(`xG historique : ERREUR ${e.message}`); }
+    }
   }
   { const r = await refreshClubLogos(env, now); if (r) report.push(r); }
   // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
@@ -282,5 +296,5 @@ export async function robotStatus(env, now = Date.now()) {
   }
   const faceAFace = await h2hStatsStatus(env);
   const corners = await cornersStatus(env, season);
-  return { saison: season, faceAFace, corners, suivi: { parChampionnat: index._suivi || {}, ...(index._suiviErreur ? { derniereErreur: index._suiviErreur } : {}) }, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  return { saison: season, faceAFace, corners, suivi: { parChampionnat: index._suivi || {}, ...(index._suiviErreur ? { derniereErreur: index._suiviErreur } : {}), m7x: { parChampionnat: index._suiviX || {}, ...(index._suiviXErreur ? { derniereErreur: index._suiviXErreur } : {}), xgHistorique: await xgHistStatus(env).catch((e) => ({ erreur: e.message })) } }, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

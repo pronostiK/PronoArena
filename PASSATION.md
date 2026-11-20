@@ -290,3 +290,4 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 - Raison : promus surestimés sur leurs 10 premiers matchs (≈ 1,21 pt/match annoncé, 1,05 réel, 3 saisons). Brier −0,0028 / −0,0010 / −0,0040 (2024-25 / 2025-26 / 2026-27). Détail : `test/lab/RAPPORT-MODELE.md` piste 9.
 - **Règle de Kay (20/11)** : tout gain, même petit, est retenu s'il va dans le même sens sur plusieurs saisons et n'abîme rien ailleurs.
 - Le Verdict (`site/public/backtest.json`) n'est pas régénéré : il montre encore l'ancien moteur.
+- **20/11/2026 : mélange Elo des clubs en ligne** (accord de Kay) : 25 % d'une prévision tirée de l'écart d'Elo (`MODEL.eloMix`, régression ordonnée réglée sur 2024-25), championnats de clubs seulement (`eloMix: !lg.cup && !lg.national` dans build.js). La grille des scores est remise à l'échelle par zone pour garder tous les marchés cohérents. Brier −0,0008 / −0,0021 / −0,0006. `_modelRev` = 10. Détail : RAPPORT-MODELE.md piste 3 bis.

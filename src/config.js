@@ -21,6 +21,10 @@ export const MODEL = {
   // Réglé sur 2024-25, 1res divisions seulement (test/lab/run-promus.mjs) ; gain de précision non prouvé statistiquement.
   promoted: { priorMatches: 15, attack: 0.75, defense: 1.3 },
   promotedMaxTeams: 4,   // garde-fou : au-delà, les identifiants ont sans doute changé d'une saison à l'autre → pas de correction
+  // Elo des clubs mélangé au calcul (20/11/2026, accord de Kay) : 25 % d'une prévision tirée de l'écart d'Elo
+  // (régression ordonnée réglée sur 2024-25) ; Brier −0,0008 / −0,0021 / −0,0006 sur 2024-25 / 2025-26 / 2026-27.
+  // Championnats de clubs seulement (pas les coupes ni les sélections).
+  eloMix: { alpha: 0.25, slope: 0.514, cut1: -0.904, cut2: 0.29 },
   maxGoalsCalc: 10,
   maxGoalsMatrix: 5,
   lambdaMin: 0.2,

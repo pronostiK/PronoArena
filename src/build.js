@@ -142,7 +142,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const national = lg.national ? await nationalContext(env, finishedCur, cur.teams) : null;
   const upcoming = toUpcoming(cur, provider).sort((a, b) => a.ts - b.ts).slice(0, 10);
   const predictions = upcoming.map((m) => {
-    const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national });
+    const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
     for (const side of ["domicile", "exterieur"]) {
       const team = p.teams[side];
       const st = teamStats(team.id, formePool);

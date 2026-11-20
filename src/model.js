@@ -10,6 +10,7 @@ const r1 = (x) => Math.round(x * 10) / 10;
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 
 // ---------- Poisson + Dixon-Coles ----------
+const sig = (z) => 1 / (1 + Math.exp(-z));
 const fact = [1];
 for (let i = 1; i <= 20; i++) fact[i] = fact[i - 1] * i;
 const pois = (l, k) => (l === 0 ? (k === 0 ? 1 : 0) : (Math.pow(l, k) * Math.exp(-l)) / fact[k]);
@@ -21,7 +22,9 @@ function tau(i, j, l1, l2, rho) {
   return 1;
 }
 
-export function calculate_poisson_match(lD, lE, rho = MODEL.rho) {
+// target (facultatif) : probabilités 1-N-2 visées [p1, pN, p2] (mélange avec l'Elo des clubs). La grille des scores
+// est alors remise à l'échelle zone par zone (victoires dom., nuls, victoires ext.), et tous les marchés en découlent.
+export function calculate_poisson_match(lD, lE, rho = MODEL.rho, target = null) {
   const N = MODEL.maxGoalsCalc;
   const m = [];
   let total = 0;
@@ -29,9 +32,12 @@ export function calculate_poisson_match(lD, lE, rho = MODEL.rho) {
     m[i] = [];
     for (let j = 0; j <= N; j++) { const p = Math.max(0, pois(lD, i) * pois(lE, j) * tau(i, j, lD, lE, rho)); m[i][j] = p; total += p; }
   }
+  const zone = [0, 0, 0], zi = (i, j) => (i > j ? 0 : i === j ? 1 : 2);
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) { m[i][j] /= total; zone[zi(i, j)] += m[i][j]; }
+  if (target) for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) { const z = zi(i, j); if (zone[z] > 0) m[i][j] *= target[z] / zone[z]; }
   let p1 = 0, pN = 0, p2 = 0, o15 = 0, o25 = 0, o35 = 0, btts = 0, best = { i: 0, j: 0, p: 0 };
   for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
-    const p = (m[i][j] /= total);
+    const p = m[i][j];
     if (i > j) p1 += p; else if (i === j) pN += p; else p2 += p;
     if (i + j > 1.5) o15 += p;
     if (i + j > 2.5) o25 += p;
@@ -256,7 +262,14 @@ export function calculate_match_prediction(match, ctx) {
 
   const lambdaDom = r3(clamp(lD, MODEL.lambdaMin, MODEL.lambdaMax));
   const lambdaExt = r3(clamp(lE, MODEL.lambdaMin, MODEL.lambdaMax));
-  const poisson = calculate_poisson_match(lambdaDom, lambdaExt);
+  // Clubs, en championnat : mélange avec l'Elo (20/11/2026, accord de Kay ; test/lab/run-elo2.mjs)
+  let poisson = calculate_poisson_match(lambdaDom, lambdaExt);
+  if (ctx.eloMix && sourceCalc === "competition") {
+    const E = MODEL.eloMix, x = (eloD - eloE) / 100;
+    const pA = sig(E.cut1 - E.slope * x), pAD = sig(E.cut2 - E.slope * x), e = [1 - pAD, Math.max(pAD - pA, 1e-9), pA];
+    const base = [poisson.proba1, poisson.probaN, poisson.proba2], tb = base.reduce((a, b) => a + b, 0);
+    poisson = calculate_poisson_match(lambdaDom, lambdaExt, MODEL.rho, base.map((p, i) => (1 - E.alpha) * (p / tb) + E.alpha * e[i]));
+  }
   const cote = (p) => (p > 0 ? Math.round((1 / p) * 100) / 100 : null);
 
   return {

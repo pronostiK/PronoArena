@@ -911,6 +911,30 @@ console.log("\n— Promus —");
   check("Promus : les probabilités font toujours 100 %", Math.abs(tot - 1) < 0.01, String(tot));
 }
 
+// ---- Elo des clubs mélangé (20/11/2026) ----
+console.log("\n— Mélange Elo —");
+{
+  const { MODEL } = await import("../src/config.js");
+  const fin = [];
+  for (let k = 0; k < 12; k++) { fin.push({ id: "e" + k, homeId: "Fort", awayId: "Faible", hg: 2, ag: 0, ts: Date.UTC(2026, 7, 1 + k), season: 2026 }); fin.push({ id: "f" + k, homeId: "X", awayId: "Y", hg: 1, ag: 1, ts: Date.UTC(2026, 7, 1 + k), season: 2026 }); }
+  const model = buildModel(fin);
+  const ctx = (mix) => ({ model, leagueId: 61, season: 2026, eloMix: mix });
+  const a = calculate_match_prediction({ teamDomId: "Fort", teamExtId: "Faible" }, ctx(false)).poisson;
+  const b = calculate_match_prediction({ teamDomId: "Fort", teamExtId: "Faible" }, ctx(true)).poisson;
+  const sum = (p) => p.proba1 + p.probaN + p.proba2;
+  check("Elo : sans le réglage, rien ne change", JSON.stringify(a) === JSON.stringify(calculate_poisson_match(calculate_match_prediction({ teamDomId: "Fort", teamExtId: "Faible" }, ctx(false)).lambdas.lambdaDom, calculate_match_prediction({ teamDomId: "Fort", teamExtId: "Faible" }, ctx(false)).lambdas.lambdaExt)));
+  check("Elo : le mélange modifie les probabilités 1-N-2", a.proba1 !== b.proba1, `${a.proba1} → ${b.proba1}`);
+  check("Elo : probabilités toujours à 100 %", Math.abs(sum(b) - 1) < 0.01, String(sum(b)));
+  check("Elo : double chance cohérente avec 1-N-2", Math.abs(b.proba1X - (b.proba1 + b.probaN)) < 0.002 && Math.abs(b.probaX2 - (b.probaN + b.proba2)) < 0.002);
+  const g = b.matrix.flat().reduce((x, y) => x + y, 0);
+  check("Elo : la grille des scores reste cohérente (somme ≤ 100 %, scores exacts triés)", g <= 1.001 && b.scoresExacts[0].proba >= b.scoresExacts[1].proba, String(g));
+  // Valeur exacte : 75 % moteur + 25 % prévision Elo
+  const r = calculate_match_prediction({ teamDomId: "Fort", teamExtId: "Faible" }, ctx(false)), E = MODEL.eloMix, x = (r.teams.domicile.elo - r.teams.exterieur.elo) / 100;
+  const sg = (z) => 1 / (1 + Math.exp(-z)), pA = sg(E.cut1 - E.slope * x), pAD = sg(E.cut2 - E.slope * x);
+  const want = 0.75 * (a.proba1 / sum(a)) + 0.25 * (1 - pAD);
+  check("Elo : victoire dom. = 75 % moteur + 25 % Elo (à l'arrondi près)", Math.abs(b.proba1 - want) < 0.003, `${b.proba1} vs ${want.toFixed(3)}`);
+}
+
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;
 process.exit(ko ? 1 : 0);

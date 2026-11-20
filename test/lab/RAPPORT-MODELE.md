@@ -99,3 +99,11 @@ Scripts : `dump-baseline-promus.mjs` (moteur avec promus) → `run-elo2.mjs` ; c
 - Brier (mélange − moteur avec promus) : 2024-25 −0,0008 [−0,0020 ; +0,0003] · 2025-26 −0,0021 [−0,0032 ; −0,0009] · 2026-27 −0,0006 [−0,0026 ; +0,0015].
 - Par championnat (2025-26 + 2026-27) : mieux en Ligue 1, PL, Serie A, Bundesliga, Eredivisie, Championship, Ligue 2 ; un peu moins bien en Liga (+0,0008) et au Portugal (+0,0003).
 - **Décision de Kay (20/11/2026) : appliqué** (gain dans le même sens sur 3 saisons). La grille des scores est remise à l'échelle par zone (victoires dom. / nuls / victoires ext.) pour que tous les marchés restent cohérents. Championnats de clubs seulement.
+
+## Pistes 10 à 14 (20/11/2026) — base : moteur en ligne (promus + Elo 25 %), règle de Kay (même sens sur chaque saison, rien d'abîmé)
+Écarts de Brier 2024-25 / 2025-26 / 2026-27, négatif = mieux. Aucune n'est retenue.
+- **10. Elo de départ des promus plus bas** (`run-elo-promus.mjs`, testé avec une version temporaire de `computeElo`) : départ 1350 choisi sur 2024-25 → −0,0001 / +0,0004 / +0,0002. Plus le départ est bas, plus 2025-26 et 2026-27 se dégradent.
+- **11. Nuls par championnat** (`run-pistes-11-13.mjs`) : −0,0007 / +0,0003 / +0,0007. Seules PL et Eredivisie vont dans le bon sens 3 fois sur 3 : sur 9 championnats, c'est ce que le hasard donne, non retenu.
+- **12. Enchaînement des matchs** (repos ≤ 3 ou 4 jours, championnat seulement) : ~0,0000 partout.
+- **13. Poids des matchs récents** : 10 derniers ×2 +0,0003 / −0,0000 / −0,0002 ; 15 derniers ×1,5 +0,0002 / −0,0003 / +0,0003. Change de sens.
+- **14. Absents** (`run-absents.mjs`, absents API-Football 2023-24 et 2024-25 de l'étude PronostiK, 3 398 matchs, données non versées) : réglage sur 2023-24 α = 0,05, β = 0 → 2023-24 −0,0003 · 2024-25 −0,0006 (moitiés −0,0003 / −0,0009). Mais Ligue 1 se dégrade les deux saisons (+0,0005 / +0,0010) et Liga en 2023-24 (+0,0015). Gain minuscule ; en production il faudrait en plus l'importance de chaque joueur (minutes de la saison précédente), que le robot n'a pas. À refaire sur les absents Bzzoiro collectés par le site.

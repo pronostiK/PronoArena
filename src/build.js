@@ -82,6 +82,17 @@ export function chooseSource(lg, season, index, now) {
   return { src: lg.src, secours: false };
 }
 
+// Promus : équipes de la saison en cours absentes de la saison précédente (1res divisions testées seulement)
+export function promotedTeams(lg, prev, cur) {
+  if (!lg.promus || !prev?.finished?.length) return null;
+  const before = new Set(); for (const f of toFinished(prev)) { before.add(String(f.homeId)); before.add(String(f.awayId)); }
+  const now = new Set();
+  for (const f of toFinished(cur)) { now.add(String(f.homeId)); now.add(String(f.awayId)); }
+  for (const u of cur.upcoming || []) { now.add(String(u[1])); now.add(String(u[2])); }
+  const out = new Set([...now].filter((id) => !before.has(id)));
+  return out.size && out.size <= MODEL.promotedMaxTeams ? out : null;
+}
+
 export async function buildLeague(env, leagueId, season, now = Date.now(), index = null) {
   const lg = LEAGUES[leagueId];
   if (!lg) return null;
@@ -98,7 +109,8 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
 
   const finishedCur = toFinished(cur);
   const finishedAll = prev ? [...toFinished(prev), ...finishedCur] : finishedCur;
-  const model = buildModel(finishedAll);
+  const newcomers = promotedTeams(lg, prev, cur);
+  const model = buildModel(finishedAll, { newcomers });
 
   // Coupes : forces en championnat de chaque équipe
   let domestic = null;

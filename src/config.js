@@ -16,6 +16,11 @@ export const MODEL = {
   defaultAvgAway: 1.15,
   minLeagueMatches: 30,
   rho: -0.08,            // correction Dixon-Coles
+  // Promus (20/11/2026, accord de Kay) : une équipe absente du championnat la saison précédente est lissée vers
+  // une équipe plus faible (attaque ×0,75, défense ×1,30) sur 15 matchs fictifs, au lieu d'une équipe moyenne sur 6.
+  // Réglé sur 2024-25, 1res divisions seulement (test/lab/run-promus.mjs) ; gain de précision non prouvé statistiquement.
+  promoted: { priorMatches: 15, attack: 0.75, defense: 1.3 },
+  promotedMaxTeams: 4,   // garde-fou : au-delà, les identifiants ont sans doute changé d'une saison à l'autre → pas de correction
   maxGoalsCalc: 10,
   maxGoalsMatrix: 5,
   lambdaMin: 0.2,
@@ -49,13 +54,13 @@ const logo = (n) => `https://a.espncdn.com/i/leaguelogos/soccer/500/${n}.png`;
 
 // leagueId (utilisé par le site) -> source de données
 export const LEAGUES = {
-  61: { name: "Ligue 1", logo: logo(9), country: "France", src: "fd:FL1", backup: "espn:fra.1" },
-  39: { name: "Premier League", logo: logo(23), country: "Angleterre", src: "fd:PL", backup: "espn:eng.1" },
-  140: { name: "LaLiga", logo: logo(15), country: "Espagne", src: "fd:PD", backup: "espn:esp.1" },
-  135: { name: "Serie A", logo: logo(12), country: "Italie", src: "fd:SA", backup: "espn:ita.1" },
-  78: { name: "Bundesliga", logo: logo(10), country: "Allemagne", src: "fd:BL1", backup: "espn:ger.1" },
-  94: { name: "Liga Portugal", logo: logo(14), country: "Portugal", src: "fd:PPL", backup: "espn:por.1" },
-  88: { name: "Eredivisie", logo: logo(11), country: "Pays-Bas", src: "fd:DED", backup: "espn:ned.1" },
+  61: { name: "Ligue 1", logo: logo(9), country: "France", src: "fd:FL1", backup: "espn:fra.1", promus: true },
+  39: { name: "Premier League", logo: logo(23), country: "Angleterre", src: "fd:PL", backup: "espn:eng.1", promus: true },
+  140: { name: "LaLiga", logo: logo(15), country: "Espagne", src: "fd:PD", backup: "espn:esp.1", promus: true },
+  135: { name: "Serie A", logo: logo(12), country: "Italie", src: "fd:SA", backup: "espn:ita.1", promus: true },
+  78: { name: "Bundesliga", logo: logo(10), country: "Allemagne", src: "fd:BL1", backup: "espn:ger.1", promus: true },
+  94: { name: "Liga Portugal", logo: logo(14), country: "Portugal", src: "fd:PPL", backup: "espn:por.1", promus: true },
+  88: { name: "Eredivisie", logo: logo(11), country: "Pays-Bas", src: "fd:DED", backup: "espn:ned.1", promus: true },
   40: { name: "Championship", logo: logo(24), country: "Angleterre", src: "fd:ELC", backup: "espn:eng.2" },
   71: { name: "Brasileirão", logo: logo(85), country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
   2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC },

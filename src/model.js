@@ -79,7 +79,10 @@ export function calculate_poisson_match(lD, lE, rho = MODEL.rho) {
 }
 
 // ---------- Forces attaque / défense ----------
-export function computeTeamRatings(finished) {
+// opts.newcomers : équipes absentes du championnat la saison précédente (promus). Leur lissage tire vers
+// une équipe plus faible que la moyenne (MODEL.promoted) au lieu d'une équipe moyenne. Voir test/lab/run-promus.mjs.
+export function computeTeamRatings(finished, opts = {}) {
+  const newcomers = opts.newcomers || null;
   // Moyennes de la compétition sur tous les matchs utilisés
   let sH = 0, sA = 0;
   for (const f of finished) { sH += f.hg; sA += f.ag; }
@@ -91,9 +94,13 @@ export function computeTeamRatings(finished) {
   // Pour chaque équipe : ses 40 derniers matchs, les 5 plus récents comptent double
   const byTeam = {};
   for (const f of finished) { (byTeam[f.homeId] ||= []).push(f); (byTeam[f.awayId] ||= []).push(f); }
+  if (newcomers) for (const id of newcomers) byTeam[id] ||= []; // promu qui n'a encore joué aucun match
 
-  const K = MODEL.priorMatches, s = MODEL.specificWeight, ratings = {};
+  const s = MODEL.specificWeight, ratings = {};
   for (const [id, list] of Object.entries(byTeam)) {
+    const isNew = !!newcomers?.has(String(id));
+    const K = isNew ? MODEL.promoted.priorMatches : MODEL.priorMatches;
+    const a0 = isNew ? MODEL.promoted.attack : 1, d0 = isNew ? MODEL.promoted.defense : 1;
     const recent = list.sort((a, b) => b.ts - a.ts).slice(0, MODEL.windowMatches);
     const v = { hf: 0, ha: 0, hw: 0, af: 0, aa: 0, aw: 0 };
     recent.forEach((f, i) => {
@@ -101,14 +108,15 @@ export function computeTeamRatings(finished) {
       if (String(f.homeId) === id) { v.hf += x * f.hg / avgHome; v.ha += x * f.ag / avgAway; v.hw += x; }
       else { v.af += x * f.ag / avgAway; v.aa += x * f.hg / avgHome; v.aw += x; }
     });
-    const attAll = (v.hf + v.af + K) / (v.hw + v.aw + K);
-    const defAll = (v.ha + v.aa + K) / (v.hw + v.aw + K);
+    const attAll = (v.hf + v.af + K * a0) / (v.hw + v.aw + K);
+    const defAll = (v.ha + v.aa + K * d0) / (v.hw + v.aw + K);
     ratings[id] = {
-      attHome: s * (v.hf + K) / (v.hw + K) + (1 - s) * attAll,
-      defHome: s * (v.ha + K) / (v.hw + K) + (1 - s) * defAll,
-      attAway: s * (v.af + K) / (v.aw + K) + (1 - s) * attAll,
-      defAway: s * (v.aa + K) / (v.aw + K) + (1 - s) * defAll,
+      attHome: s * (v.hf + K * a0) / (v.hw + K) + (1 - s) * attAll,
+      defHome: s * (v.ha + K * d0) / (v.hw + K) + (1 - s) * defAll,
+      attAway: s * (v.af + K * a0) / (v.aw + K) + (1 - s) * attAll,
+      defAway: s * (v.aa + K * d0) / (v.aw + K) + (1 - s) * defAll,
       attAll, defAll, played: recent.length,
+      ...(isNew ? { promu: true } : {}),
     };
   }
   return { avgHome, avgAway, ratings, matchesAnalysed: n };
@@ -133,8 +141,8 @@ export function computeElo(finished) {
   return elo;
 }
 
-export function buildModel(finished) {
-  return { ...computeTeamRatings(finished), elo: computeElo(finished) };
+export function buildModel(finished, opts = {}) {
+  return { ...computeTeamRatings(finished, opts), elo: computeElo(finished) };
 }
 
 // ---------- Forme et statistiques d'une équipe ----------

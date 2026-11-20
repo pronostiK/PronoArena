@@ -86,3 +86,10 @@ Huit T de 0,85 à 1,20 ; sur la période A le meilleur est T = 1,00 (aucune corr
 
 ## Décision de l'auditeur (19/11/2026)
 Moteur actuel maintenu, tous les tests de coefficients clôturés (décroissance, forces jointes, Elo, recalibration des favoris, xG, pondération, température). Ne pas les refaire sans justification nouvelle. Prochaine piste : absences de joueurs, sous réserve de données historiques fiables et horodatées (proposition : `PISTE8-ABSENCES-PROPOSITION.md`).
+
+## Piste 9 — équipes promues (20/11/2026)
+Scripts : `test/lab/run-promus.mjs <history.json>` (laboratoire) et `test/lab/check-promus-moteur.mjs` (même calcul avec le vrai moteur). Historique PronostiK, 7 437 matchs avec cotes, 2024-08 → 2026-11-08. Périodes par saison : A = 2024-25 (réglage), B = 2025-26, C = 2026-27 (jamais utilisée avant pour ce test).
+- **Diagnostic** : sur les 10 premiers matchs d'une équipe absente du championnat la saison précédente, points par match annoncés moteur / bookmakers / réels : A 1,21 / 1,10 / 1,05 · B 1,23 / 1,17 / 1,09 · C 1,19 / 1,11 / 1,01. Après 10 matchs l'écart disparaît. Surestimation répétée en début de saison.
+- Variante toutes divisions (réglée sur A : K=6, att 0,95, déf 1,30) : A −0,0010, B +0,0001, C −0,0020 ; abîme Championship (+0,0028) et Ligue 2 (+0,0060), où une nouvelle venue peut être un relégué.
+- **Variante retenue, 1res divisions seulement** (choix fait après avoir vu B) : K=15, att 0,75, déf 1,30 (réglée sur A, bords de grille pour K et déf). Tous matchs : A −0,0021 [−0,0042 ; −0,0003] · B −0,0007 [−0,0027 ; +0,0013] · C −0,0028 [−0,0076 ; +0,0016]. Avec le vrai moteur, 7 championnats de 1re division : A −0,0028 · B −0,0010 · C −0,0040. Points annoncés sur les 10 premiers matchs après correction : 1,05 / 1,07 / 1,03 pour 1,05 / 1,09 / 1,01 réels.
+- **Décision de Kay (20/11/2026) : correction appliquée** (gain régulier sur 3 saisons, même s'il n'est pas prouvé statistiquement). Nouvelle règle de Kay : on n'écarte plus un gain parce qu'il est petit s'il va dans le même sens sur plusieurs saisons et n'abîme rien ailleurs.

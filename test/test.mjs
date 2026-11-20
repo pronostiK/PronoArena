@@ -884,6 +884,33 @@ console.log("\n— xG (Soccer Data) —");
   check("Points clés : trop peu de matchs (2) → rien", keyPoints({ domId: "A", extId: "F", all: ms.slice(0, 2), cur: ms.slice(0, 2), table: leagueTable(ms.slice(0, 2)), isLeague: true, statsD: null, statsE: null }) === null);
 }
 
+// ---- Promus (correction du 20/11/2026) ----
+console.log("\n— Promus —");
+{
+  const { promotedTeams } = await import("../src/build.js");
+  const { LEAGUES, MODEL } = await import("../src/config.js");
+  // Saison précédente : A, B, C, D ; saison en cours : A, B, C, P (P = promu)
+  const mk = (season, pairs) => ({ season, finished: pairs.map(([h, a, hg, ag], i) => [`${season}-${i}`, h, a, hg, ag, Date.UTC(season, 8, 1 + i)]), upcoming: [] });
+  const prev = mk(2025, [["A", "B", 2, 1], ["C", "D", 1, 1], ["B", "C", 0, 2], ["D", "A", 1, 3], ["A", "C", 1, 0], ["B", "D", 2, 2]]);
+  const cur = mk(2026, [["A", "B", 1, 0], ["C", "P", 2, 0]]); cur.upcoming = [["u1", "P", "A", Date.UTC(2026, 10, 1)], ["u2", "Q", "B", Date.UTC(2026, 10, 1)]];
+  const nc = promotedTeams(LEAGUES[61], prev, cur);
+  check("Promus : les équipes absentes la saison précédente sont repérées (P joué, Q pas encore)", nc && nc.size === 2 && nc.has("P") && nc.has("Q"), JSON.stringify(nc && [...nc]));
+  check("Promus : jamais en Championship ni en Ligue 2 (2e divisions)", promotedTeams(LEAGUES[40], prev, cur) === null && promotedTeams(LEAGUES[62], prev, cur) === null);
+  check("Promus : jamais en coupe", promotedTeams(LEAGUES[2], prev, cur) === null);
+  check("Promus : rien sans saison précédente", promotedTeams(LEAGUES[61], null, cur) === null);
+  const many = mk(2026, [["W", "X", 1, 0], ["Y", "Z", 1, 0], ["V", "A", 1, 0]]);
+  check(`Promus : garde-fou, plus de ${MODEL.promotedMaxTeams} nouvelles équipes → aucune correction`, promotedTeams(LEAGUES[61], prev, many) === null);
+  const fin = [...prev.finished, ...cur.finished].map(([id, homeId, awayId, hg, ag, ts]) => ({ id, homeId, awayId, hg, ag, ts }));
+  const m0 = buildModel(fin), m1 = buildModel(fin, { newcomers: nc });
+  check("Promus : les autres équipes gardent exactement les mêmes forces", JSON.stringify(m0.ratings.A) === JSON.stringify(m1.ratings.A) && JSON.stringify(m0.ratings.C) === JSON.stringify(m1.ratings.C));
+  check("Promus : un promu attaque moins et encaisse plus qu'avant", m1.ratings.P.attAll < m0.ratings.P.attAll && m1.ratings.P.defAll > m0.ratings.P.defAll, JSON.stringify([m0.ratings.P, m1.ratings.P]));
+  check("Promus : un promu sans match joué n'est plus une équipe moyenne", m1.ratings.Q && m1.ratings.Q.attAll === MODEL.promoted.attack && m1.ratings.Q.defAll === MODEL.promoted.defense && m1.ratings.Q.played === 0);
+  const pr = (m) => calculate_match_prediction({ teamDomId: "P", teamExtId: "A" }, { model: m, leagueId: 61, season: 2026 }).poisson;
+  check("Promus : chances du promu en baisse face à A", pr(m1).proba1 < pr(m0).proba1, `${pr(m0).proba1} → ${pr(m1).proba1}`);
+  const tot = pr(m1).proba1 + pr(m1).probaN + pr(m1).proba2;
+  check("Promus : les probabilités font toujours 100 %", Math.abs(tot - 1) < 0.01, String(tot));
+}
+
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;
 process.exit(ko ? 1 : 0);

@@ -14,6 +14,7 @@ import { refreshAbsents, bzPaused } from "./absents.js";
 import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
 import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
+import { refreshCorners, cornersStatus } from "./corners.js";
 import { LEAGUES, BACKUP_AFTER_MS } from "./config.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -192,9 +193,13 @@ export async function runRobot(env, now = Date.now()) {
     catch (e) { report.push(`face-à-face (cartons, fautes…) : ERREUR ${e.message}`); if (refused(e)) pauseEspn(String(e.message)); }
   }
 
+  // Corners des matchs passés (football-data.co.uk) : un fichier par passage au plus ; recalcul du championnat si nouveaux corners
+  try { const r = await refreshCorners(env, index, season, now); if (r) { report.push(typeof r === "string" ? r : r.report); if (r.changed) toRebuild.add(r.leagueId); } }
+  catch (e) { report.push(`corners : ERREUR ${e.message}`); }
+
   // Changement de méthode pour les sélections : leurs pronostics sont recalculés une fois, sans attendre de nouvelles données
   // Nouveaux réglages du modèle (12/11/2026) puis rang dans le groupe pour les sélections (12/11/2026, rév. 3) : toutes les compétitions sont recalculées une fois
-  if (index._modelRev !== 10) { index._modelRev = 10; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.robot !== false) toRebuild.add(Number(id)); }
+  if (index._modelRev !== 11) { index._modelRev = 11; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.robot !== false) toRebuild.add(Number(id)); }
   if (index._natRev !== 2) { index._natRev = 2; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.national && lg.robot !== false) toRebuild.add(Number(id)); }
   // Sélections : notes Elo rafraîchies une fois par semaine (tous les matchs internationaux)
   if (now - (index._nationsAt || 0) > 7 * DAY) {
@@ -264,5 +269,6 @@ export async function robotStatus(env, now = Date.now()) {
     logos[lg.name] = { clubsConnus: noms.length, clubsSportScore: Object.keys(rec?.m || {}).length, jours: rec ? `${rec.n}/80${rec.done ? " (terminé)" : ""}` : "pas commencé", manquants, noms_sportscore: Object.keys(rec?.m || {}) };
   }
   const faceAFace = await h2hStatsStatus(env);
-  return { saison: season, faceAFace, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  const corners = await cornersStatus(env, season);
+  return { saison: season, faceAFace, corners, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

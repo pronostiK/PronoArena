@@ -199,6 +199,18 @@ export function installFetch() {
       return { ok: false, status: 404 };
     }
     if (u.hostname === "api.resend.com") { const b = JSON.parse(opts?.body || "{}"); SIM.mails.push({ ...b, auth: opts?.headers?.Authorization }); return { ok: !SIM.mailDown, status: SIM.mailDown ? 500 : 200, json: async () => ({ id: "m" + SIM.mails.length }) }; }
+    // football-data.co.uk : CSV des résultats avec corners (noms écrits autrement que chez le robot, comme en vrai)
+    if (u.hostname === "www.football-data.co.uk" && (m = u.pathname.match(/^\/mmz4281\/(\d{2})\d{2}\/(\w+)\.csv$/))) {
+      calls.csv = (calls.csv || 0) + 1;
+      const src = { F1: "fd:FL1", E0: "fd:PL", SP1: "fd:PD", I1: "fd:SA", D1: "fd:BL1", N1: "fd:DED", E1: "fd:ELC", F2: "espn:fra.2" }[m[2]];
+      const list = src && DB[`${src}@20${m[1]}`];
+      if (!list || SIM.csvDown) return { ok: false, status: 404 };
+      const d2 = (ts) => { const d = new Date(ts); return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`; };
+      const nm = (id) => (SIM.csvRename?.[id] ?? `Club ${id}`);
+      const rows = list.filter(isDone).map((x) => [d2(x.ts), nm(x.h), nm(x.a), x.hg, x.ag, 2 + ((x.hg * 3 + x.ag + x.ts / 3600000) % 7 | 0), 1 + ((x.ag * 3 + x.hg + x.ts / 7200000) % 6 | 0)]);
+      const text = "Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HC,AC\n" + rows.map((r) => [m[2], ...r].join(",")).join("\n");
+      return { ok: true, status: 200, text: async () => text };
+    }
     if (u.hostname === "raw.githubusercontent.com") { calls.seed = (calls.seed || 0) + 1; return { ok: false, status: 404 }; }
     if (SIM.espnBlocked && u.hostname.includes("espn")) { calls.espnRefus = (calls.espnRefus || 0) + 1; return { ok: false, status: 403 }; }
     if ((m = u.pathname.match(/\/soccer\/([\w.]+)\/summary/))) {
@@ -228,6 +240,7 @@ export function makeKV() {
   return { store, stats, PRONO_CACHE: {
     get: async (k) => { stats.reads++; return store.get(k) ?? null; },
     put: async (k, v) => { stats.writes++; store.set(k, v); },
+    delete: async (k) => { store.delete(k); },
   } };
 }
 

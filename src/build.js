@@ -4,8 +4,9 @@
 // ============================================================
 import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
-import { buildModel, computeTeamRatings, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
+import { buildModel, computeTeamRatings, computeElo, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
+import { CORNERS_LEAGUES, cornersKey, blendCorners } from "./corners.js";
 import { keyPoints } from "./keypoints.js";
 import { flagTeams, flagUrl } from "./flags.js";
 import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
@@ -110,7 +111,13 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const finishedCur = toFinished(cur);
   const finishedAll = prev ? [...toFinished(prev), ...finishedCur] : finishedCur;
   const newcomers = promotedTeams(lg, prev, cur);
-  const model = buildModel(finishedAll, { newcomers });
+  // Corners (20/11/2026) : forces sur 70 % buts + 30 % corners ; Elo, classement et forme sur les vrais buts
+  let model;
+  if (CORNERS_LEAGUES[leagueId] && !secours) {
+    const maps = await Promise.all([kvGet(env, cornersKey(leagueId, season)), kvGet(env, cornersKey(leagueId, season - 1))]);
+    const bl = blendCorners(finishedAll, maps);
+    model = { ...computeTeamRatings(bl.finished, { newcomers }), elo: computeElo(finishedAll), cornersMatchs: bl.n };
+  } else model = buildModel(finishedAll, { newcomers });
 
   // Coupes : forces en championnat de chaque équipe
   let domestic = null;

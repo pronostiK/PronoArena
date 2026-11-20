@@ -935,6 +935,55 @@ console.log("\n— Mélange Elo —");
   check("Elo : victoire dom. = 75 % moteur + 25 % Elo (à l'arrondi près)", Math.abs(b.proba1 - want) < 0.003, `${b.proba1} vs ${want.toFixed(3)}`);
 }
 
+// ---- Corners (20/11/2026) ----
+console.log("\n— Corners —");
+{
+  const { parseCornersCsv, matchCorners, blendCorners, refreshCorners, cornersKey, CORNERS_LEAGUES } = await import("../src/corners.js");
+  const { buildLeague } = await import("../src/build.js");
+  check("Corners : pas de Portugal (moins bon au test)", !CORNERS_LEAGUES[94] && CORNERS_LEAGUES[61] === "F1");
+  const rows = parseCornersCsv("\uFEFFDiv,Date,HomeTeam,AwayTeam,FTHG,FTAG,HC,AC\r\nF1,15/08/2025,Paris SG,Lyon,2,1,7,3\r\nF1,16/08/25,Nice,Brest,0,0,,4\r\n");
+  check("Corners : lecture du CSV (date jj/mm/aa, ligne sans corners ignorée)", rows.length === 1 && rows[0][0] === Date.UTC(2025, 7, 15) && rows[0][5] === 7 && rows[0][6] === 3, JSON.stringify(rows));
+  // On réutilise les données déjà chargées par le robot principal ; un fichier par passage
+  const idx = JSON.parse(await env.PRONO_CACHE.get("robot:index")) || {}; idx._corners = {};
+  const before = calls.csv || 0;
+  let res = [];
+  const runs = Object.keys(CORNERS_LEAGUES).length * 2 + 2;
+  for (let i = 0; i < runs; i++) { const r = await refreshCorners(env, idx, 2026, SIM.now + i * 1000); if (r) res.push(r); }
+  check("Corners : un seul fichier par passage", (calls.csv || 0) - before <= runs, `${(calls.csv || 0) - before} fichiers pour ${runs} passages`);
+  const fl1 = JSON.parse(await env.PRONO_CACHE.get(cornersKey(61, 2026)) || "null");
+  const src = JSON.parse(await env.PRONO_CACHE.get("src:fd:FL1@2026") || "null");
+  const nFin = (src?.finished || []).filter((r) => r[5] + 2 * 3600000 < SIM.now).length; // matchs déjà joués à l'heure simulée (le fichier ne contient que ceux-là)
+  check("Corners : tous les matchs terminés de Ligue 1 reliés malgré des noms différents", fl1 && Object.keys(fl1.m).length === nFin && nFin > 50 && !fl1.inconnues.length, `${fl1 && Object.keys(fl1.m).length}/${nFin}`);
+  check("Corners : aussi la saison précédente", !!JSON.parse(await env.PRONO_CACHE.get(cornersKey(61, 2025)) || "null"));
+  check("Corners : rien de refait avant 6 h", (await refreshCorners(env, idx, 2026, SIM.now + runs * 1000 + 60000)) === null);
+  const a = await buildLeague(env, 61, 2026, SIM.now);
+  const saved = await env.PRONO_CACHE.get(cornersKey(61, 2026)), saved2 = await env.PRONO_CACHE.get(cornersKey(61, 2025));
+  await env.PRONO_CACHE.delete(cornersKey(61, 2026)); await env.PRONO_CACHE.delete(cornersKey(61, 2025));
+  const b = await buildLeague(env, 61, 2026, SIM.now);
+  await env.PRONO_CACHE.put(cornersKey(61, 2026), saved); await env.PRONO_CACHE.put(cornersKey(61, 2025), saved2);
+  const p0 = (x) => x?.predictions?.[0]?.poisson;
+  check("Corners : le calcul de Ligue 1 les utilise (probabilités différentes avec / sans)", p0(a) && p0(b) && p0(a).proba1 !== p0(b).proba1, `${p0(a)?.proba1} / ${p0(b)?.proba1}`);
+  check("Corners : classement inchangé (vrais buts)", JSON.stringify(a.classement) === JSON.stringify(b.classement));
+  const pt = await buildLeague(env, 94, 2026, SIM.now);
+  check("Corners : le Portugal calcule toujours", pt && pt.predictions?.length > 0);
+  // Mélange : 70 % buts + 30 % corners ; un match sans corners garde ses buts
+  const fin = [{ id: "a", homeId: "X", awayId: "Y", hg: 2, ag: 0, ts: 1 }, { id: "b", homeId: "Y", awayId: "X", hg: 1, ag: 1, ts: 2 }];
+  const bl = blendCorners(fin, [{ m: { a: [8, 2] } }]);
+  const ratio = 2 / 10;
+  check("Corners : 70 % buts + 30 % corners convertis", Math.abs(bl.finished[0].hg - (0.7 * 2 + 0.3 * 8 * ratio)) < 1e-9 && Math.abs(bl.finished[0].ag - (0.3 * 2 * ratio)) < 1e-9 && bl.finished[1] === fin[1] && bl.n === 1);
+  check("Corners : sans corners, rien ne change", blendCorners(fin, [null, null]).finished === fin);
+  // Équipe introuvable : signalée, le reste continue
+  const r2 = matchCorners([[Date.UTC(2026, 0, 1), "Inconnu FC", "Autre", 1, 0, 5, 5]], [{ id: "z", homeId: "P", awayId: "Q", hg: 3, ag: 3, ts: Date.UTC(2026, 5, 1) }]);
+  check("Corners : équipe inconnue signalée, aucun faux rapprochement", Object.keys(r2.m).length === 0 && r2.inconnues.includes("Inconnu FC"));
+  SIM.csvDown = true; idx._corners = {};
+  const r3 = await refreshCorners(env, idx, 2026, SIM.now + DAYMS());
+  check("Corners : fichier indisponible → message, pas d'erreur", typeof r3 === "string" && /indisponible/.test(r3), String(r3));
+  SIM.csvDown = false;
+  const st = await get("/status");
+  check("Corners : visibles dans /status", st.corners && st.corners[61]?.saison > 0, JSON.stringify(st.corners?.[61]));
+}
+function DAYMS() { return 86400000; }
+
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;
 process.exit(ko ? 1 : 0);

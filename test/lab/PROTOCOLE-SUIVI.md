@@ -10,13 +10,14 @@ Figé le 20/11/2026, avant le premier match suivi. Toute modification de ce prot
 | **M7** | Moteur en production : M0 + promus (7 championnats) + Elo 25 % + corners 30 % (8 championnats, sans le Portugal) | fonctions du commit `8044a83` |
 
 - Les réglages des deux moteurs sont ceux de `src/config.js` au commit `8044a83`. Leur empreinte SHA-256 (`reglages`) est écrite sur chaque ligne du journal et publiée avec chaque empreinte. Si elle change, les lignes concernées sont exclues et le changement est signalé.
-- **Preuve de reproduction (condition 4)** : `node test/lab/check-suivi-moteurs.mjs` extrait les deux commits du dépôt et les fait tourner sur les mêmes données que le journal. Résultat au 20/11/2026 : M0 identique à `02509e8` sur 360/360 matchs, M7 identique à `8044a83` sur 360/360 matchs, y compris un passage avec des promus.
+- **Preuve de reproduction (condition 4)** : `node test/lab/check-suivi-moteurs.mjs` extrait les deux commits du dépôt et les fait tourner sur les mêmes données que le journal. Résultat au 20/11/2026 : M0 identique à `02509e8` sur 360/360 matchs, M7 identique à `8044a83` sur 360/360 matchs, y compris un passage avec des promus ; matchs notés au-delà des 10 publiés : 4/4 identiques pour M0 et pour M7.
 - Aucun réglage n'est modifié pendant le suivi. Aucun nouveau test de paramètres n'est lancé sur les matchs du suivi.
 
 ## 2. Enregistrement (avant chaque match)
 
 - **Où** : table `suivi` de la base D1 du site. Le robot l'alimente à chaque recalcul d'un des 9 championnats (code : `src/suivi.js`).
 - **Quoi** : pour chaque match pas encore commencé, les probabilités 1-N-2 de M7 telles que publiées sur le site et celles de M0, calculées au même moment avec les mêmes données. Plus l'heure d'enregistrement, l'heure du coup d'envoi, les équipes, la source des données et le nombre de promus et de matchs avec corners utilisés.
+- **Matchs non affichés** (ajout du 20/11/2026, avant le premier match suivi, accord de Kay) : le site ne calcule que les 10 prochains matchs de chaque championnat. Le journal note aussi les matchs des 7 prochains jours au-delà de ces 10 (Championship : 12 matchs le samedi), avec les mêmes fonctions et le même modèle. Ces lignes portent `publie: false` dans `infos` ; leurs probabilités M7 ne sont pas affichées sur le site. Le bilan donne le résultat avec et sans elles.
 - **Quand** : une nouvelle ligne seulement quand les probabilités ou l'heure du match changent. Rien n'est écrit pour un match déjà commencé.
 - **Impossible à remplacer** :
   1. La base refuse toute modification et toute suppression (déclencheurs `suivi_sans_modif` et `suivi_sans_suppr`).

@@ -1,6 +1,7 @@
 Matchs comparés : 360 (9 championnats × 3 dates + 1 passage avec promus)
 M0 du journal identique au moteur 02509e8 : 360/360
 M7 du journal identique au moteur 8044a83 : 360/360
+Matchs notés au-delà des 10 publiés (7 prochains jours) : M0 identique 4/4, M7 identique 4/4
 Matchs où M0 et M7 diffèrent : 360/360
 Données utilisées (1re date, puis passage avec promus) :
 61 : {"source":"principale","promus":0,"cornersMatchs":101}

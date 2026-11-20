@@ -148,7 +148,8 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const names = { ...extraNames, ...(prev?.teams || {}), ...cur.teams };
 
   const national = lg.national ? await nationalContext(env, finishedCur, cur.teams) : null;
-  const upcoming = toUpcoming(cur, provider).sort((a, b) => a.ts - b.ts).slice(0, 10);
+  const allUpcoming = toUpcoming(cur, provider).sort((a, b) => a.ts - b.ts);
+  const upcoming = allUpcoming.slice(0, 10);
   // Suivi M0 / M7 (validation de l'auditeur, 20/11/2026) : ancien moteur recalculé à côté, sans rien changer au moteur en production
   const model0 = SUIVI_LEAGUES.has(+leagueId) && env.DB ? buildModel(finishedAll) : null;
   const suivi = [];
@@ -174,6 +175,18 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     return p;
   });
 
+  // Suivi : matchs des 7 prochains jours au-delà des 10 publiés (ex. Championship, 12 matchs le samedi). Mêmes fonctions,
+  // même modèle que les matchs publiés ; ces probabilités ne sont pas affichées sur le site (infos.publie = false).
+  function suiviExtra() {
+    return allUpcoming.slice(10).filter((m) => m.ts <= now + 7 * 86400000).map((m) => {
+      const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+      const p0 = calculate_match_prediction(m, { model: model0, leagueId, season, domestic, national });
+      return { match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name,
+        m0: [p0.poisson.proba1, p0.poisson.probaN, p0.poisson.proba2], m7: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2],
+        infos: { source: secours ? "secours" : "principale", promus: newcomers ? newcomers.size : 0, cornersMatchs: model.cornersMatchs || 0, publie: false } };
+    });
+  }
+
   return {
     success: true,
     leagueId,
@@ -191,7 +204,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     },
     classement: table.map((r) => ({ rang: r.rang, id: r.id, nom: names[r.id]?.[0] || r.id, logo: names[r.id]?.[1] || null, joues: r.j, v: r.v, n: r.n, d: r.d, bp: r.bp, bc: r.bc, diff: r.diff, points: r.pts })),
     predictions,
-    ...(model0 ? { _suivi: suivi } : {}),
+    ...(model0 ? { _suivi: [...suivi, ...suiviExtra()] } : {}),
   };
 }
 

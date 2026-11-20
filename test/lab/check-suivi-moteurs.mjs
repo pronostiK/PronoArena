@@ -51,7 +51,7 @@ for (const at of [t, t + 2 * 86400000, t + 5 * 86400000, "promus"]) {
     if (at === t || at === "promus") infos.push(`${at === "promus" ? "promus " : ""}${id} : ${c?._suivi?.[0] ? JSON.stringify(c._suivi[0].infos) : "?"}`);
     if (!c?._suivi) { ecarts.push(`${id} : pas de journal`); continue; }
     const mo = Object.fromEntries(o.predictions.map((x) => [x.matchId, p3(x)])), mp = Object.fromEntries(p.predictions.map((x) => [x.matchId, p3(x)]));
-    for (const s of c._suivi) {
+    for (const s of c._suivi.filter((x) => x.infos.publie !== false)) {
       n++;
       if (JSON.stringify(s.m0) === mo[s.match]) ok0++; else ecarts.push(`${id}:${s.match} M0 ${JSON.stringify(s.m0)} ≠ ${OLD} ${mo[s.match]}`);
       if (JSON.stringify(s.m7) === mp[s.match]) ok7++; else ecarts.push(`${id}:${s.match} M7 ${JSON.stringify(s.m7)} ≠ ${PROD} ${mp[s.match]}`);
@@ -59,10 +59,32 @@ for (const at of [t, t + 2 * 86400000, t + 5 * 86400000, "promus"]) {
     }
   }
 }
+// 5e passage : matchs notés au-delà des 10 publiés (infos.publie = false). On retire du calendrier les 10 premiers
+// matchs pour que les anciens codes les calculent à leur tour, avec exactement les mêmes matchs terminés.
+let nx = 0, okx0 = 0, okx7 = 0;
+SIM.now = t;
+for (const id of SUIVI_LEAGUES) {
+  const c = await cur.buildLeague(E, id, 2026, t);
+  const extra = (c?._suivi || []).filter((x) => x.infos.publie === false);
+  if (!extra.length) continue;
+  const k = srcKey(LEAGUES[id].src, 2026), saved = env.store.get(k), src = JSON.parse(saved);
+  src.upcoming = src.upcoming.sort((a, b) => a[3] - b[3]).slice(10);
+  env.store.set(k, JSON.stringify(src));
+  const o = await old.buildLeague(env, id, 2026, t), p = await prod.buildLeague(env, id, 2026, t);
+  env.store.set(k, saved);
+  const mo = Object.fromEntries(o.predictions.map((x) => [x.matchId, p3(x)])), mp = Object.fromEntries(p.predictions.map((x) => [x.matchId, p3(x)]));
+  for (const s of extra) {
+    if (!(s.match in mp)) continue;
+    nx++;
+    if (JSON.stringify(s.m0) === mo[s.match]) okx0++; else ecarts.push(`${id}:${s.match} M0 (non publié) ≠ ${OLD}`);
+    if (JSON.stringify(s.m7) === mp[s.match]) okx7++; else ecarts.push(`${id}:${s.match} M7 (non publié) ≠ ${PROD}`);
+  }
+}
 console.log(`Matchs comparés : ${n} (9 championnats × 3 dates + 1 passage avec promus)`);
 console.log(`M0 du journal identique au moteur ${OLD} : ${ok0}/${n}`);
 console.log(`M7 du journal identique au moteur ${PROD} : ${ok7}/${n}`);
+console.log(`Matchs notés au-delà des 10 publiés (7 prochains jours) : M0 identique ${okx0}/${nx}, M7 identique ${okx7}/${nx}`);
 console.log(`Matchs où M0 et M7 diffèrent : ${diff}/${n}`);
 console.log("Données utilisées (1re date, puis passage avec promus) :\n" + infos.join("\n"));
 if (ecarts.length) console.log("Écarts :\n" + ecarts.slice(0, 20).join("\n"));
-process.exit(ok0 === n && ok7 === n && n > 0 ? 0 : 1);
+process.exit(ok0 === n && ok7 === n && n > 0 && okx0 === nx && okx7 === nx ? 0 : 1);

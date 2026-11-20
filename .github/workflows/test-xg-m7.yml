@@ -1,0 +1,48 @@
+name: Test xG sur M7 (hors ligne)
+
+# Test hors ligne, sans rien publier : apport des xG par-dessus le moteur en production (test/lab/run-xg-m7.mjs).
+# Les xG Bzzoiro viennent du cache GitHub de l'export (jamais versés dans le dépôt public) ; seuls les résultats
+# agrégés sortent (journal de l'exécution + fichier de résultats en « artifact »).
+# Se lance à chaque push du script sur la branche de travail, ou à la main.
+
+on:
+  push:
+    branches: [claude/project-thread-v0pkw3]
+    paths: [test/lab/run-xg-m7.mjs, .github/workflows/test-xg-m7.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: xG Bzzoiro (cache de l'export)
+        uses: actions/cache/restore@v4
+        with:
+          path: xg-bzz
+          key: xg-bzz-introuvable
+          restore-keys: xg-bzz-
+
+      - name: Historique football-data (dépôt public PronostiK)
+        run: curl -sf -o history.json https://raw.githubusercontent.com/pronostik/pronostik/main/data/history.json
+
+      - name: Test
+        run: |
+          ls -la xg-bzz/ | head
+          [ -f xg-bzz/xg_bzzoiro_resume.txt ] && cat xg-bzz/xg_bzzoiro_resume.txt
+          node test/lab/run-xg-m7.mjs history.json xg-bzz/xg_bzzoiro.csv resultats-xg-m7.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resultats-xg-m7
+          path: resultats-xg-m7.json
+          retention-days: 30

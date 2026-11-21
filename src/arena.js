@@ -406,6 +406,17 @@ export async function gradePicks(env, now = Date.now()) {
   return matchs;
 }
 
+// Sources à relire en priorité : celles des championnats où un pronostic de joueur attend son score
+// depuis plus de 100 min (même délai que gradePicks). Une seule petite requête, vide la plupart du temps.
+export async function sourcesToGrade(env, now = Date.now()) {
+  const keys = new Set();
+  if (!env.DB) return keys;
+  const { results } = await env.DB.prepare("SELECT DISTINCT ligue_id, saison FROM pronos WHERE points IS NULL AND coup_envoi < ?1 AND coup_envoi > ?2")
+    .bind(now - 100 * MIN, now - 10 * DAY).all();
+  for (const g of results) { const lg = LEAGUES[g.ligue_id]; if (lg?.src) keys.add(`${lg.src}@${g.saison}`); }
+  return keys;
+}
+
 // Ménage quotidien : sessions expirées et compteurs anti-abus périmés
 export async function cleanArena(env, now = Date.now()) {
   if (!env.DB) return;

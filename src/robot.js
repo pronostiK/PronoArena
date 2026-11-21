@@ -7,7 +7,7 @@ import { currentSeason, robotSources, leaguesUsing } from "./config.js";
 import { kvGet, srcKey, kvPutIfChanged, refreshSource, resetEspnBudget, espnBudgetLeft, takeEspnCall, giveBackEspnCalls, ESPN_RECENT_DAYS, ESPN_EXTRA_DAYS, refreshSportapi, resetSpBudget, spBudgetLeft } from "./sources.js";
 import { buildLeague, predsKey, archiveKey, mergeArchive, INDEX_KEY, buildUpcoming, allKey } from "./build.js";
 import { lastEvents, refreshOneCompo } from "./compos.js";
-import { gradePicks, cleanArena } from "./arena.js";
+import { gradePicks, cleanArena, sourcesToGrade } from "./arena.js";
 import { refreshXg } from "./xg.js";
 import { refreshXgBz, passCalls } from "./xgbz.js";
 import { refreshAbsents, bzPaused } from "./absents.js";
@@ -32,21 +32,24 @@ function targetDelay(meta, kind, now) {
   return 3 * HOUR;
 }
 
-export function pickDue(sources, index, now) {
+export function pickDue(sources, index, now, waiting = new Set()) {
   return sources
     .map((s) => {
       const k = `${s.src}@${s.season}`, meta = index[k];
       const overdue = (now - (meta?.updatedAt || 0)) - targetDelay(meta, s.kind, now);
       // priorité : match en cours ou imminent > saison en cours > historique
-      const urgent = s.kind === "live" && targetDelay(meta, s.kind, now) === 15 * MIN;
+      // Pronostics de joueurs qui attendent leur score : la source de ce championnat est relue toutes les 15 min au plus,
+      // même si d'autres championnats en direct occupent les places (sinon elle peut rester sans mise à jour pendant des heures)
+      const grading = s.kind === "live" && waiting.has(k) && (now - (meta?.updatedAt || 0)) >= 15 * MIN;
+      const urgent = grading || (s.kind === "live" && targetDelay(meta, s.kind, now) === 15 * MIN);
       // Premier chargement : les compétitions affichées passent avant les sources de secours
       const first = s.main && !meta?.error && (!meta || meta.complete === false);
       // SportAPI : le chargement de l'historique (saison précédente) passe avant tout, même avant les matchs en direct,
       // sinon il reste bloqué les soirs de matchs et la compétition n'est jamais publiée. Coût : 15 appels par passage, pendant ~4 h.
       const fill = s.src.startsWith("sp:") && !meta?.error && (!meta || meta.complete === false);
       // Les sources ESPN / football-data en direct sont revues à chaque passage ; SportAPI (quota d'appels par jour) toutes les 15 min seulement
-      const dueNow = overdue >= 0 || (urgent && !s.src.startsWith("sp:"));
-      return { ...s, k, urgent, dueNow, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) + (first && overdue >= 0 ? 1e12 : 0) + (fill ? 1e14 : 0) };
+      const dueNow = overdue >= 0 || grading || (urgent && !s.src.startsWith("sp:"));
+      return { ...s, k, urgent, dueNow, overdue: overdue + (s.kind === "live" ? 1 : 0) + (urgent ? 1e13 : 0) + (grading ? 2e13 : 0) + (first && overdue >= 0 ? 1e12 : 0) + (fill ? 1e14 : 0) };
     })
     .filter((s) => s.dueNow)
     .sort((a, b) => b.overdue - a.overdue);
@@ -110,7 +113,8 @@ export async function runRobot(env, now = Date.now()) {
   // Compositions : une équipe par passage (prend une des 3 places du passage s'il y a du travail)
   let compoDone = false;
   // Pas de composition tant que des données manquent (remplissage) ou qu'un match se joue
-  const pending = pickDue(robotSources(season), index, now);
+  const waiting = await sourcesToGrade(env, now).catch(() => new Set());
+  const pending = pickDue(robotSources(season), index, now, waiting);
   // (un match SportAPI en cours ne bloque pas les compositions : ses appels sont comptés à part et peu nombreux)
   const busy = pending.some((x) => (x.urgent && !x.src.startsWith("sp:")) || !index[x.k] || index[x.k].complete === false);
   if (!busy && !espnPaused) try { const r = await refreshOneCompo(env, index, season, now); if (r) { report.push(r); compoDone = true; } }
@@ -135,7 +139,7 @@ export async function runRobot(env, now = Date.now()) {
   // Matchs en cours : jusqu'à 6 compétitions par passage (mises à jour éclair, légères)
   // SportAPI : un seul appel alimente toutes ses compétitions d'une saison, donc une seule place par saison
   const spSeen = new Set();
-  const all = pickDue(robotSources(season), index, now).filter((x) => !x.src.startsWith("sp:") || (!spSeen.has(x.season) && spSeen.add(x.season)));
+  const all = pickDue(robotSources(season), index, now, waiting).filter((x) => !x.src.startsWith("sp:") || (!spSeen.has(x.season) && spSeen.add(x.season)));
   const nUrgent = all.filter((x) => x.urgent).length;
   const due = all.slice(0, Math.max(MAX_PER_RUN - (compoDone ? 1 : 0), Math.min(6, nUrgent)));
   const toRebuild = new Set();

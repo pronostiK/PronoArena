@@ -15,7 +15,7 @@ import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.
 import { refreshSeed } from "./nations.js";
 import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
 import { refreshCorners, cornersStatus } from "./corners.js";
-import { logSuivi, logSuiviX, SUIVI_LEAGUES } from "./suivi.js";
+import { logSuivi, logSuiviX, logSuiviV, SUIVI_LEAGUES } from "./suivi.js";
 import { refreshXgHist, xgHistStatus } from "./xghist.js";
 import { LEAGUES, BACKUP_AFTER_MS } from "./config.js";
 
@@ -72,6 +72,15 @@ export async function saveLeague(env, leagueId, season, now, index = null) {
       const n = await logSuiviX(env, leagueId, sx.entries, now);
       if (index) index._suiviX = { ...(index._suiviX || {}), [leagueId]: { at: now, lignes: n, ...(sx.entries[0] ? { couverture: sx.entries[0].infos.couverture, dernierXg: sx.entries[0].infos.dernierXg } : {}), ...(sx.raison ? { attente: sx.raison } : {}), ...(sx.erreur ? { erreur: sx.erreur } : {}) } };
     } catch (e) { if (index) index._suiviXErreur = `${new Date(now).toISOString()} ${leagueId} : ${e.message}`; }
+  }
+  // Variantes cachées (M7-40…) : journal séparé, après tout le reste
+  const sv = result._suiviV;
+  delete result._suiviV;
+  if (sv) {
+    try {
+      const n = await logSuiviV(env, leagueId, sv.entries, now);
+      if (index) index._suiviV = { ...(index._suiviV || {}), [leagueId]: { at: now, lignes: n, ...(sv.erreur ? { erreur: sv.erreur } : {}) } };
+    } catch (e) { if (index) index._suiviVErreur = `${new Date(now).toISOString()} ${leagueId} : ${e.message}`; }
   }
   if (index) {
     index[`count:${leagueId}`] = result.count; // pour /leagues, sans relire les pronostics
@@ -296,5 +305,5 @@ export async function robotStatus(env, now = Date.now()) {
   }
   const faceAFace = await h2hStatsStatus(env);
   const corners = await cornersStatus(env, season);
-  return { saison: season, faceAFace, corners, suivi: { parChampionnat: index._suivi || {}, ...(index._suiviErreur ? { derniereErreur: index._suiviErreur } : {}), m7x: { parChampionnat: index._suiviX || {}, ...(index._suiviXErreur ? { derniereErreur: index._suiviXErreur } : {}), xgHistorique: await xgHistStatus(env).catch((e) => ({ erreur: e.message })) } }, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  return { saison: season, faceAFace, corners, suivi: { parChampionnat: index._suivi || {}, ...(index._suiviErreur ? { derniereErreur: index._suiviErreur } : {}), m7x: { parChampionnat: index._suiviX || {}, ...(index._suiviXErreur ? { derniereErreur: index._suiviXErreur } : {}), xgHistorique: await xgHistStatus(env).catch((e) => ({ erreur: e.message })) }, variantes: { parChampionnat: index._suiviV || {}, ...(index._suiviVErreur ? { derniereErreur: index._suiviVErreur } : {}) } }, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

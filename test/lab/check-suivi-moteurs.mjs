@@ -80,11 +80,25 @@ for (const id of SUIVI_LEAGUES) {
     if (JSON.stringify(s.m7) === mp[s.match]) okx7++; else ecarts.push(`${id}:${s.match} M7 (non publié) ≠ ${PROD}`);
   }
 }
+// 6e passage : M7-40 (variante cachée) = code de production 8044a83 avec une fenêtre de 40 matchs
+const prodCfg = await import(pathToFileURL(join(tmp, PROD, "src/config.js")).href);
+let nv = 0, okv = 0;
+SIM.now = t;
+for (const id of SUIVI_LEAGUES) {
+  const c = await cur.buildLeague(E, id, 2026, t);
+  const v = (c?._suiviV?.entries || []).filter((x) => x.variante === "M7-40");
+  const w = prodCfg.MODEL.windowMatches; prodCfg.MODEL.windowMatches = 40;
+  const p = await prod.buildLeague(env, id, 2026, t);
+  prodCfg.MODEL.windowMatches = w;
+  const mp = Object.fromEntries(p.predictions.map((x) => [x.matchId, p3(x)]));
+  for (const s of v) { if (!(s.match in mp)) continue; nv++; if (JSON.stringify(s.p) === mp[s.match]) okv++; else ecarts.push(`${id}:${s.match} M7-40 ≠ ${PROD} fenêtre 40`); }
+}
 console.log(`Matchs comparés : ${n} (9 championnats × 3 dates + 1 passage avec promus)`);
 console.log(`M0 du journal identique au moteur ${OLD} : ${ok0}/${n}`);
 console.log(`M7 du journal identique au moteur ${PROD} : ${ok7}/${n}`);
 console.log(`Matchs notés au-delà des 10 publiés (7 prochains jours) : M0 identique ${okx0}/${nx}, M7 identique ${okx7}/${nx}`);
+console.log(`M7-40 du journal identique au moteur ${PROD} réglé sur 40 matchs : ${okv}/${nv}`);
 console.log(`Matchs où M0 et M7 diffèrent : ${diff}/${n}`);
 console.log("Données utilisées (1re date, puis passage avec promus) :\n" + infos.join("\n"));
 if (ecarts.length) console.log("Écarts :\n" + ecarts.slice(0, 20).join("\n"));
-process.exit(ok0 === n && ok7 === n && n > 0 && okx0 === nx && okx7 === nx ? 0 : 1);
+process.exit(ok0 === n && ok7 === n && n > 0 && okx0 === nx && okx7 === nx && okv === nv && nv > 0 ? 0 : 1);

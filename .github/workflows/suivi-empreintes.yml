@@ -55,6 +55,14 @@ jobs:
             echo "$rx" | jq -c --arg lu "$lu" '{lu: $lu, seq, lignes, derniere, empreinte, reglages, version}' >> suivi/empreintes-x.jsonl
             git add suivi/empreintes-x.jsonl; msg="$msg M7X $(echo "$ex" | cut -c1-12)"
           fi
+          # Variantes cachées (M7-40…), fichier séparé
+          rv=$(curl -sf --max-time 30 "https://api.duelprono.com/suivi/empreinte-v?n=$(date +%s)") || rv=""
+          ev=$(echo "$rv" | jq -r '.empreinte // empty' 2>/dev/null)
+          lastv=$(tail -n 1 suivi/empreintes-v.jsonl 2>/dev/null | jq -r '.empreinte // empty')
+          if [ -n "$ev" ] && [ "$ev" != "$lastv" ]; then
+            echo "$rv" | jq -c --arg lu "$lu" '{lu: $lu, seq, lignes, derniere, empreinte, reglages, version}' >> suivi/empreintes-v.jsonl
+            git add suivi/empreintes-v.jsonl; msg="$msg variantes $(echo "$ev" | cut -c1-12)"
+          fi
           if [ -z "$msg" ]; then echo "rien de nouveau"; exit 0; fi
           git commit -q -m "[skip ci] suivi : $msg"
           git push -q origin suivi-empreintes

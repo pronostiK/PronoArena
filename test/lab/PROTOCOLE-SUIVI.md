@@ -76,3 +76,17 @@ Figé le 20/11/2026, avant le premier match suivi. Toute modification de ce prot
   - critère final de fin de saison en 3 conditions ;
   - Serie A présentée à part ;
   - aucun réglage pendant l'évaluation.
+
+## Annexe — variante cachée M7-40 (choix de Kay le 21/11/2026, sous réserve de l'auditeur)
+
+- **Ce qu'est M7-40** : M7 identique (promus, Elo 25 %, corners 30 %), mais forces calculées sur les **40** derniers matchs par équipe au lieu de 80. 9 championnats. Non affiché.
+- **Origine** : test hors ligne du 21/11 (`test/lab/RESULTAT-FENETRES.md`) : +0,0004 (non significatif), légèrement moins bon sur chacune des 3 saisons ; petit mieux non significatif pour les promus et les clubs qui ont beaucoup changé.
+- **Code** : `src/suivi.js` (journal `suivi_v`, colonne `variante`, sa propre chaîne ; sceaux `suivi/empreintes-v.jsonl` ; adresses `/suivi/empreinte-v` et `/suivi/export-v`).
+  - M0, M7 et M7X ne changent pas : un test vérifie que le journal M0 / M7 est identique octet pour octet avec et sans la variante.
+  - Preuve de reproduction : M7-40 donne les mêmes chiffres que le code `8044a83` réglé sur 40 matchs, sur 90 matchs sur 90.
+- **Règles d'évaluation**, fixées avant le premier enregistrement :
+  - M7-40 − M7 sur les mêmes matchs, avec la même règle 3 (ancrage tardif à part, résultats avec et sans) ;
+  - Brier et log loss, IC 95 % par bootstrap regroupé par journée (10 000 tirages, graine 20261120) ;
+  - détail par championnat, avec la Bundesliga et le Portugal à part ;
+  - sous-groupes : matchs avec un promu ; matchs avec un club dont les points par match de la saison en cours (au moins 6 matchs, avant le match) s'écartent de plus de 0,5 de ceux de la saison précédente.
+- **Critère final, fin de saison 2026-27** : écart de Brier négatif avec un IC 95 % entièrement sous 0, et écart de log loss négatif. Sinon, le gain n'est pas démontré. Aucun réglage pendant l'évaluation.

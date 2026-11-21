@@ -1131,6 +1131,36 @@ console.log("\n— Suivi expérimental M7X —");
   check("M7X : pas de démarrage partiel (remplissage en cours → aucune ligne)", (() => { try { return dV.raw.prepare("SELECT COUNT(*) AS n FROM suivi_x").get().n; } catch { return 0; } })() === 0 && dV.raw.prepare("SELECT COUNT(*) AS n FROM suivi").get().n > 0);
 }
 
+console.log("\n— Variante cachée M7-40 —");
+{
+  const { saveLeague } = await import("../src/robot.js");
+  const { SUIVI_V, rowTextV } = await import("../src/suivi.js");
+  const { MODEL } = await import("../src/config.js");
+  const { createHash } = await import("node:crypto");
+  const h = (t) => createHash("sha256").update(t).digest("hex");
+  const idx = JSON.parse(await env.PRONO_CACHE.get("robot:index")) || {};
+  const run = async (withV) => {
+    const d = await makeD1(), E = { ...env, DB: d.DB };
+    const saved = SUIVI_V["M7-40"]; if (!withV) delete SUIVI_V["M7-40"];
+    const w0 = env.stats.writes;
+    for (const id of [61, 94]) { await env.PRONO_CACHE.delete(`preds:${id}@2026`); await saveLeague(E, id, 2026, NOW, idx); }
+    const kv = env.stats.writes - w0;
+    SUIVI_V["M7-40"] = saved;
+    const q = (t) => { try { return d.raw.prepare(`SELECT * FROM ${t} ORDER BY seq`).all(); } catch { return []; } };
+    return { suivi: q("suivi"), v: q("suivi_v"), kv };
+  };
+  const A = await run(true), B = await run(false);
+  check("M7-40 : journal M0 / M7 identique octet pour octet avec et sans la variante", A.suivi.length > 0 && JSON.stringify(A.suivi) === JSON.stringify(B.suivi));
+  check("M7-40 : aucune écriture KV en plus", A.kv === B.kv, `${A.kv} / ${B.kv}`);
+  check("M7-40 : fenêtre de production rétablie (80)", MODEL.windowMatches === 80);
+  check("M7-40 : une ligne par match noté en M0 / M7, Portugal compris", A.v.length === A.suivi.length && A.v.every((r, i) => r.variante === "M7-40" && r.match === A.suivi[i].match), `${A.v.length} / ${A.suivi.length}`);
+  check("M7-40 : probabilités différentes de M7 (fenêtre 40)", A.v.some((r, i) => r.p !== A.suivi[i].m7) && JSON.parse(A.v[0].infos).fenetre === 40);
+  let prec = "0".repeat(64), chain = true;
+  for (const r of A.v) { const c = h(rowTextV(r)); if (c !== r.contenu || r.prec !== prec || h(prec + "|" + c) !== r.empreinte) chain = false; prec = r.empreinte; }
+  check("M7-40 : chaîne d'empreintes séparée et vérifiable", chain);
+  check("M7-40 : rien sans la variante", B.v.length === 0);
+}
+
 console.log(`\n${ok} réussis, ${ko} échoués`);
 Date.now = realNow;
 process.exit(ko ? 1 : 0);

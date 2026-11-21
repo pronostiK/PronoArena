@@ -4,7 +4,7 @@
 // ============================================================
 import { LEAGUES, LEAGUE_COEF, MODEL, VERSION, BACKUP_AFTER_MS } from "./config.js";
 import { kvGet, srcKey, toFinished, toUpcoming } from "./sources.js";
-import { SUIVI_LEAGUES, SUIVI_X, blendXg } from "./suivi.js";
+import { SUIVI_LEAGUES, SUIVI_X, blendXg, SUIVI_V, withWindow } from "./suivi.js";
 import { XGX_LEAGUES, xgRows } from "./xghist.js";
 import { buildModel, computeTeamRatings, computeElo, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
@@ -208,6 +208,23 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     } catch (e) { return { entries: [], erreur: String(e.message).slice(0, 160) }; }
   }
 
+  // Variantes cachées (M7-40…) : mêmes matchs passés que M7, autre fenêtre ; calculées après tout le reste
+  function suiviV() {
+    try {
+      const targets = [...upcoming, ...allUpcoming.slice(10).filter((u) => u.ts <= now + 7 * 86400000)];
+      const out = [];
+      for (const [variante, v] of Object.entries(SUIVI_V)) {
+        const mv = { ...withWindow(v.windowMatches, () => computeTeamRatings(m7fin || finishedAll, { newcomers })), elo: model.elo };
+        const infos = { fenetre: v.windowMatches, source: secours ? "secours" : "principale", promus: newcomers ? newcomers.size : 0, cornersMatchs: model.cornersMatchs || 0 };
+        for (const u of targets) {
+          const p = calculate_match_prediction(u, { model: mv, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+          out.push({ variante, match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name, p: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2], infos });
+        }
+      }
+      return { entries: out };
+    } catch (e) { return { entries: [], erreur: String(e.message).slice(0, 160) }; }
+  }
+
   return {
     success: true,
     leagueId,
@@ -227,6 +244,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     predictions,
     ...(model0 ? { _suivi: [...suivi, ...suiviExtra()] } : {}),
     ...(model0 && SUIVI_X && XGX_LEAGUES[leagueId] ? { _suiviX: await suiviX() } : {}),
+    ...(model0 ? { _suiviV: suiviV() } : {}),
   };
 }
 

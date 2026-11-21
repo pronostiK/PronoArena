@@ -166,3 +166,76 @@ export async function suiviExportX(env, now = Date.now(), from = 0) {
   const lignes = (results || []).map((r) => (r.coup_envoi < now - 3 * 3600000 ? r : { seq: r.seq, cree_le: r.cree_le, ligue: r.ligue, coup_envoi: r.coup_envoi, contenu: r.contenu, prec: r.prec, empreinte: r.empreinte, masque: true }));
   return { actif: true, version: SUIVI_X_VERSION, reglages: SUIVI_X_PARAMS, lignes };
 }
+
+// ============================================================
+// SUIVI DES VARIANTES CACHÉES (choix de Kay le 21/11/2026, sous réserve de l'auditeur) — journal suivi_v, sa propre chaîne.
+// M7-40 = M7 identique, mais forces calculées sur les 40 derniers matchs par équipe au lieu de 80. 9 championnats, non affiché.
+// Rien ne change pour M0, M7, M7X, leurs tables ni leurs sceaux. Calculé après eux ; une erreur ici ne bloque rien.
+// ============================================================
+export const SUIVI_V = { "M7-40": { windowMatches: 40 } }; // retirer une entrée coupe la variante
+export const SUIVI_V_VERSION = "Variantes figées le 21/11/2026 : M7-40 (M7 8044a83, fenêtre 40 matchs)";
+export const SUIVI_V_PARAMS = JSON.stringify({ base: JSON.parse(SUIVI_PARAMS), variantes: SUIVI_V });
+
+// Forces d'une variante « fenêtre » : même calcul que M7 (computeTeamRatings), avec une autre fenêtre le temps du calcul.
+// Le calcul est synchrone : la fenêtre de production est rétablie avant toute autre instruction (finally).
+export function withWindow(n, fn) {
+  const w = MODEL.windowMatches;
+  MODEL.windowMatches = n;
+  try { return fn(); } finally { MODEL.windowMatches = w; }
+}
+
+const SCHEMA_V = [
+  `CREATE TABLE IF NOT EXISTS suivi_v (seq INTEGER PRIMARY KEY AUTOINCREMENT, cree_le INTEGER NOT NULL, variante TEXT NOT NULL, ligue INTEGER NOT NULL, match TEXT NOT NULL, coup_envoi INTEGER NOT NULL, dom TEXT, ext TEXT, p TEXT NOT NULL, infos TEXT, params TEXT NOT NULL, contenu TEXT NOT NULL, prec TEXT NOT NULL, empreinte TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS suivi_v_match ON suivi_v(variante, match, seq)`,
+  `CREATE TRIGGER IF NOT EXISTS suivi_v_sans_modif BEFORE UPDATE ON suivi_v BEGIN SELECT RAISE(ABORT, 'suivi_v : ajout seul'); END`,
+  `CREATE TRIGGER IF NOT EXISTS suivi_v_sans_suppr BEFORE DELETE ON suivi_v BEGIN SELECT RAISE(ABORT, 'suivi_v : ajout seul'); END`,
+];
+const schemaV = new WeakSet();
+async function ensureSuiviV(env) {
+  if (!env.DB) return false;
+  if (schemaV.has(env.DB)) return true;
+  for (const q of SCHEMA_V) await env.DB.prepare(q).run();
+  schemaV.add(env.DB);
+  return true;
+}
+export const rowTextV = (r) => [r.cree_le, r.variante, r.ligue, r.match, r.coup_envoi, r.dom, r.ext, r.p, r.infos, r.params].join("|");
+
+// entries : [{ variante, match, ts, dom, ext, p: [p1, pN, p2], infos }]
+export async function logSuiviV(env, leagueId, entries, now = Date.now()) {
+  if (!entries?.length || !(await ensureSuiviV(env))) return 0;
+  const todo = entries.filter((e) => e.ts > now && SUIVI_V[e.variante]);
+  if (!todo.length) return 0;
+  const keys = todo.map((e) => `${leagueId}:${e.match}`), last = new Map();
+  const uniq = [...new Set(keys)];
+  const { results } = await env.DB.prepare(`SELECT variante, match, coup_envoi, p FROM suivi_v WHERE seq IN (SELECT MAX(seq) FROM suivi_v WHERE match IN (${uniq.map(() => "?").join(",")}) GROUP BY variante, match)`).bind(...uniq).all();
+  for (const r of results || []) last.set(`${r.variante}|${r.match}`, r);
+  const head = await env.DB.prepare("SELECT empreinte FROM suivi_v ORDER BY seq DESC LIMIT 1").first();
+  let prec = head?.empreinte || "0".repeat(64);
+  const params = await sha256(SUIVI_V_PARAMS);
+  const stmts = [];
+  for (let i = 0; i < todo.length; i++) {
+    const e = todo[i], k = keys[i], p = JSON.stringify(e.p), old = last.get(`${e.variante}|${k}`);
+    if (old && old.p === p && old.coup_envoi === e.ts) continue;
+    const r = { cree_le: now, variante: e.variante, ligue: +leagueId, match: k, coup_envoi: e.ts, dom: e.dom || "", ext: e.ext || "", p, infos: JSON.stringify(e.infos || {}), params };
+    const contenu = await sha256(rowTextV(r)), empreinte = await sha256(prec + "|" + contenu);
+    stmts.push(env.DB.prepare("INSERT INTO suivi_v (cree_le, variante, ligue, match, coup_envoi, dom, ext, p, infos, params, contenu, prec, empreinte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .bind(r.cree_le, r.variante, r.ligue, r.match, r.coup_envoi, r.dom, r.ext, r.p, r.infos, r.params, contenu, prec, empreinte));
+    prec = empreinte;
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return stmts.length;
+}
+
+export async function suiviHeadV(env) {
+  if (!(await ensureSuiviV(env))) return { actif: false };
+  const h = await env.DB.prepare("SELECT seq, cree_le, empreinte FROM suivi_v ORDER BY seq DESC LIMIT 1").first();
+  const n = await env.DB.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT variante || match) AS m FROM suivi_v").first();
+  return { actif: true, version: SUIVI_V_VERSION, variantes: Object.keys(SUIVI_V), reglages: await sha256(SUIVI_V_PARAMS), lignes: n?.n || 0, matchs: n?.m || 0, seq: h?.seq || 0, derniere: h ? new Date(h.cree_le).toISOString() : null, empreinte: h?.empreinte || null };
+}
+
+export async function suiviExportV(env, now = Date.now(), from = 0) {
+  if (!(await ensureSuiviV(env))) return { actif: false, lignes: [] };
+  const { results } = await env.DB.prepare("SELECT * FROM suivi_v WHERE seq > ? ORDER BY seq LIMIT 5000").bind(from).all();
+  const lignes = (results || []).map((r) => (r.coup_envoi < now - 3 * 3600000 ? r : { seq: r.seq, cree_le: r.cree_le, variante: r.variante, ligue: r.ligue, coup_envoi: r.coup_envoi, contenu: r.contenu, prec: r.prec, empreinte: r.empreinte, masque: true }));
+  return { actif: true, version: SUIVI_V_VERSION, reglages: SUIVI_V_PARAMS, lignes };
+}

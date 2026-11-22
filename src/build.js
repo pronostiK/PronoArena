@@ -10,6 +10,7 @@ import { buildModel, computeTeamRatings, computeElo, teamStats, leagueTable, gro
 import { nationalContext } from "./nations.js";
 import { CORNERS_LEAGUES, cornersKey, blendCorners, matchCorners } from "./corners.js";
 import { keyPoints } from "./keypoints.js";
+import { COMPOS_KEY } from "./compos.js";
 import { flagTeams, flagUrl } from "./flags.js";
 import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
 
@@ -140,6 +141,26 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       const rt = computeTeamRatings(f);
       for (const [id, rating] of Object.entries(rt.ratings)) {
         if (!domestic.has(id)) domestic.set(id, { rating, coef: LEAGUE_COEF[d] ?? MODEL.unknownLeagueCoef, played: rating.played, league: d });
+      }
+    });
+  }
+
+  // Ligue des champions : équipes de championnats absents de football-data (Turquie, Belgique, Écosse). Leurs forces viennent des
+  // sources ESPN déjà tenues à jour par le robot (aucun appel de plus) ; l'identifiant football-data de l'équipe est retrouvé
+  // par la correspondance de compos.js. Sans correspondance pour une équipe, elle garde le calcul d'avant (coupe seule).
+  if (domestic && lg.domesticEspn?.length) {
+    const idmap = (await kvGet(env, COMPOS_KEY))?.idmap || {};
+    const fdOf = {}; for (const [fd, es] of Object.entries(idmap)) fdOf[es] = fd;
+    const srcs = await Promise.all(lg.domesticEspn.map((d) => kvGet(env, srcKey(d, season))));
+    lg.domesticEspn.forEach((d, i) => {
+      const s = srcs[i];
+      domesticStatus.push({ source: d, disponible: !!s, matchs: s?.finished?.length || 0, ...(s ? { equipesRetrouvees: 0 } : {}) });
+      if (!s) return;
+      const st = domesticStatus[domesticStatus.length - 1];
+      const rt = computeTeamRatings(toFinished(s));
+      for (const [espnId, rating] of Object.entries(rt.ratings)) {
+        const fdId = fdOf[espnId];
+        if (fdId && !domestic.has(fdId)) { domestic.set(fdId, { rating, coef: LEAGUE_COEF[d] ?? MODEL.unknownLeagueCoef, played: rating.played, league: d }); st.equipesRetrouvees++; }
       }
     });
   }

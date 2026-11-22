@@ -67,7 +67,9 @@ export const LEAGUES = {
   88: { name: "Eredivisie", logo: logo(11), country: "Pays-Bas", src: "fd:DED", backup: "espn:ned.1", promus: true },
   40: { name: "Championship", logo: logo(24), country: "Angleterre", src: "fd:ELC", backup: "espn:eng.2" },
   71: { name: "Brasileirão", logo: logo(85), country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
-  2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC },
+  // domesticEspn : championnats ESPN dont les équipes jouent aussi la Ligue des champions mais n'existent pas chez football-data
+  // (Turquie, Belgique, Écosse). Leurs forces sont retrouvées par la correspondance d'identifiants football-data -> ESPN (compos.js).
+  2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC, domesticEspn: ["espn:tur.1", "espn:bel.1", "espn:sco.1"] },
   // Arabie saoudite : ESPN (ksa.1) donne matchs, logos des clubs et direct ; 2 saisons d'historique vérifiées le 19/11/2026
   307: { name: "Saudi Pro League", logo: logo(2488), country: "Arabie saoudite", src: "espn:ksa.1" },
   // Italie, 2e division : ESPN (ita.2), matchs et logos vérifiés le 19/11/2026
@@ -110,7 +112,7 @@ export function robotSources(season) {
 // Ligues dont le calcul dépend d'une source (pour recalculer après une mise à jour)
 export function leaguesUsing(src) {
   return Object.entries(LEAGUES)
-    .filter(([, lg]) => lg.robot !== false && (lg.src === src || lg.backup === src || (lg.domestic || []).includes(src)))
+    .filter(([, lg]) => lg.robot !== false && (lg.src === src || lg.backup === src || (lg.domestic || []).includes(src) || (lg.domesticEspn || []).includes(src)))
     .map(([id]) => Number(id));
 }
 

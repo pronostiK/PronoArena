@@ -48,10 +48,12 @@ export const LEAGUE_COEF = {
   "fd:PPL": 0.84, "espn:por.1": 0.84,
   "fd:DED": 0.82, "espn:ned.1": 0.82,
   "espn:bel.1": 0.78, "espn:tur.1": 0.76, "espn:sco.1": 0.72,
+  // Ajoutés le 22/11/2026 pour la Ligue des champions (Bodø/Glimt, Viking, LASK, AEK, Slavia) : niveaux estimés, non testés
+  "espn:nor.1": 0.70, "espn:aut.1": 0.72, "espn:gre.1": 0.70, "espn:cze.1": 0.70,
 };
 
 const FD_DOMESTIC = ["fd:PL", "fd:PD", "fd:SA", "fd:BL1", "fd:FL1", "fd:PPL", "fd:DED"];
-const ESPN_DOMESTIC = ["espn:eng.1", "espn:esp.1", "espn:ita.1", "espn:ger.1", "espn:fra.1", "espn:por.1", "espn:ned.1", "espn:bel.1", "espn:tur.1", "espn:sco.1"];
+const ESPN_DOMESTIC = ["espn:eng.1", "espn:esp.1", "espn:ita.1", "espn:ger.1", "espn:fra.1", "espn:por.1", "espn:ned.1", "espn:bel.1", "espn:tur.1", "espn:sco.1", "espn:nor.1", "espn:aut.1", "espn:gre.1", "espn:cze.1"];
 
 // Logo officiel de chaque compétition (images ESPN, comme les logos des clubs)
 const logo = (n) => `https://a.espncdn.com/i/leaguelogos/soccer/500/${n}.png`;
@@ -68,8 +70,8 @@ export const LEAGUES = {
   40: { name: "Championship", logo: logo(24), country: "Angleterre", src: "fd:ELC", backup: "espn:eng.2" },
   71: { name: "Brasileirão", logo: logo(85), country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
   // domesticEspn : championnats ESPN dont les équipes jouent aussi la Ligue des champions mais n'existent pas chez football-data
-  // (Turquie, Belgique, Écosse). Leurs forces sont retrouvées par la correspondance d'identifiants football-data -> ESPN (compos.js).
-  2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC, domesticEspn: ["espn:tur.1", "espn:bel.1", "espn:sco.1"] },
+  // (Turquie, Belgique, Écosse, Norvège, Autriche, Grèce, Tchéquie). Leurs forces sont retrouvées par la correspondance d'identifiants football-data -> ESPN (compos.js).
+  2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC, domesticEspn: ["espn:tur.1", "espn:bel.1", "espn:sco.1", "espn:nor.1", "espn:aut.1", "espn:gre.1", "espn:cze.1"] },
   // Arabie saoudite : ESPN (ksa.1) donne matchs, logos des clubs et direct ; 2 saisons d'historique vérifiées le 19/11/2026
   307: { name: "Saudi Pro League", logo: logo(2488), country: "Arabie saoudite", src: "espn:ksa.1" },
   // Italie, 2e division : ESPN (ita.2), matchs et logos vérifiés le 19/11/2026

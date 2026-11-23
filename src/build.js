@@ -123,7 +123,9 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     model = { ...computeTeamRatings(bl.finished, { newcomers }), elo: computeElo(finishedAll), cornersMatchs: bl.n };
   } else model = buildModel(finishedAll, { newcomers });
 
-  // Coupes : forces en championnat de chaque équipe
+  // Coupes : forces en championnat de chaque équipe. Ligue des champions : écart de niveau entre championnats accentué
+  // (coefficient à la puissance lg.coefPower, 1,5) ; mesuré sur 420 matchs (test/lab/RESULTATS-CDC-COEF.md). Inconnu : inchangé.
+  const leagueCoef = (d) => (LEAGUE_COEF[d] !== undefined ? LEAGUE_COEF[d] ** (lg.coefPower ?? 1) : MODEL.unknownLeagueCoef);
   let domestic = null;
   const formePool = [...finishedCur];
   const domesticStatus = [];
@@ -140,7 +142,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       formePool.push(...f);
       const rt = computeTeamRatings(f);
       for (const [id, rating] of Object.entries(rt.ratings)) {
-        if (!domestic.has(id)) domestic.set(id, { rating, coef: LEAGUE_COEF[d] ?? MODEL.unknownLeagueCoef, played: rating.played, league: d });
+        if (!domestic.has(id)) domestic.set(id, { rating, coef: leagueCoef(d), played: rating.played, league: d });
       }
     });
   }
@@ -160,7 +162,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       const rt = computeTeamRatings(toFinished(s));
       for (const [espnId, rating] of Object.entries(rt.ratings)) {
         const fdId = fdOf[espnId];
-        if (fdId && !domestic.has(fdId)) { domestic.set(fdId, { rating, coef: LEAGUE_COEF[d] ?? MODEL.unknownLeagueCoef, played: rating.played, league: d }); st.equipesRetrouvees++; }
+        if (fdId && !domestic.has(fdId)) { domestic.set(fdId, { rating, coef: leagueCoef(d), played: rating.played, league: d }); st.equipesRetrouvees++; }
       }
     });
   }

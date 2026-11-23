@@ -71,7 +71,7 @@ export const LEAGUES = {
   71: { name: "Brasileirão", logo: logo(85), country: "Brésil", src: "fd:BSA", backup: "espn:bra.1" },
   // domesticEspn : championnats ESPN dont les équipes jouent aussi la Ligue des champions mais n'existent pas chez football-data
   // (Turquie, Belgique, Écosse, Norvège, Autriche, Grèce, Tchéquie). Leurs forces sont retrouvées par la correspondance d'identifiants football-data -> ESPN (compos.js).
-  2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, domestic: FD_DOMESTIC, domesticEspn: ["espn:tur.1", "espn:bel.1", "espn:sco.1", "espn:nor.1", "espn:aut.1", "espn:gre.1", "espn:cze.1"] },
+  2: { name: "Ligue des champions", logo: logo(2), country: "Europe", src: "fd:CL", backup: "espn:uefa.champions", cup: true, coefPower: 1.5, domestic: FD_DOMESTIC, domesticEspn: ["espn:tur.1", "espn:bel.1", "espn:sco.1", "espn:nor.1", "espn:aut.1", "espn:gre.1", "espn:cze.1"] },
   // Arabie saoudite : ESPN (ksa.1) donne matchs, logos des clubs et direct ; 2 saisons d'historique vérifiées le 19/11/2026
   307: { name: "Saudi Pro League", logo: logo(2488), country: "Arabie saoudite", src: "espn:ksa.1" },
   // Italie, 2e division : ESPN (ita.2), matchs et logos vérifiés le 19/11/2026

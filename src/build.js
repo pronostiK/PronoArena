@@ -125,13 +125,15 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
 
   // Coupes : forces en championnat de chaque équipe. Ligue des champions : écart de niveau entre championnats accentué
   // (coefficient à la puissance lg.coefPower, 1,5) ; mesuré sur 420 matchs (test/lab/RESULTATS-CDC-COEF.md). Inconnu : inchangé.
-  const leagueCoef = (d) => (LEAGUE_COEF[d] !== undefined ? LEAGUE_COEF[d] ** (lg.coefPower ?? 1) : MODEL.unknownLeagueCoef);
+  const unknownCoef = MODEL.unknownLeagueCoef ** (lg.coefPower ?? 1); // équipe sans championnat connu : même échelle que les autres
+  const leagueCoef = (d) => (LEAGUE_COEF[d] !== undefined ? LEAGUE_COEF[d] ** (lg.coefPower ?? 1) : unknownCoef);
   let domestic = null;
   const formePool = [...finishedCur];
   const domesticStatus = [];
   const extraNames = {};
   if (lg.domestic && !secours) {
     domestic = new Map();
+    domestic.unknownCoef = unknownCoef;
     const srcs = await Promise.all(lg.domestic.map((d) => kvGet(env, srcKey(d, season))));
     lg.domestic.forEach((d, i) => {
       const s = srcs[i];

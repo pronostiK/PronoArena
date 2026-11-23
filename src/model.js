@@ -235,7 +235,7 @@ export function calculate_match_prediction(match, ctx) {
   if (ctx.domestic) {
     const dd = ctx.domestic.get(match.teamDomId), de = ctx.domestic.get(match.teamExtId);
     if (dd || de) {
-      const u = { rating: NEUTRAL, coef: MODEL.unknownLeagueCoef, played: 0 };
+      const u = { rating: NEUTRAL, coef: ctx.domestic.unknownCoef ?? MODEL.unknownLeagueCoef, played: 0 };
       const A = dd || u, B = de || u;
       const lDdom = model.avgHome * A.rating.attAll * B.rating.defAll * (A.coef / B.coef);
       const lEdom = model.avgAway * B.rating.attAll * A.rating.defAll * (B.coef / A.coef);

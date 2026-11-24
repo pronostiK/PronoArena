@@ -1,0 +1,22 @@
+Sortie de test/lab/liaison/run.mjs sur GitHub Actions, run 45382405554 (24/11/2026 11:16 UTC, commit dedba93)
+https://github.com/pronostiK/PronoArena/actions/runs/45382405554
+
+ESPN Ligue 2 : 22 équipes, 423 matchs terminés ; noms de la table introuvables chez ESPN : aucun
+
+Saison 2025-26 : 306 matchs ESPN, 305 lignes avec corners
+  liaison stricte : {"lignes":305,"relies":305,"inconnues":[],"absents":0,"ambigus":0,"scores":0,"doublons":0,"equipesDouteuses":[],"ecartees":0}
+  méthode actuelle (dates seulement) : 305 matchs reliés ; désaccords avec la liaison stricte : 0
+
+Saison 2026-27 : 117 matchs ESPN, 117 lignes avec corners
+  liaison stricte : {"lignes":117,"relies":117,"inconnues":[],"absents":0,"ambigus":0,"scores":0,"doublons":0,"equipesDouteuses":[],"ecartees":0}
+  méthode actuelle (dates seulement) : 50 matchs reliés ; désaccords avec la liaison stricte : 0
+
+== xG : 5273 lignes de la source xG (dernière date 2026-05-29) ==
+  PL 2025-26 : 380 matchs football-data ; liaison stricte {"lignes":380,"relies":380,"inconnues":[],"absents":0,"ambigus":0,"scores":0,"doublons":0,"equipesDouteuses":[],"ecartees":0}
+  FL1 2025-26 : 306 matchs football-data ; liaison stricte {"lignes":309,"relies":305,"inconnues":["Red Star FC","Rodez AF","Saint-Étienne"],"absents":0,"ambigus":0,"scores":0,"doublons":0,"equipesDouteuses":[],"ecartees":0}
+  BL1 2025-26 : 306 matchs football-data ; liaison stricte {"lignes":308,"relies":306,"inconnues":[],"absents":2,"ambigus":0,"scores":0,"doublons":0,"equipesDouteuses":[],"ecartees":0}
+    non attribué : absent | 2026-05-21 | VfL Wolfsburg | SC Paderborn 07 | 0-0 |
+    non attribué : absent | 2026-05-25 | SC Paderborn 07 | VfL Wolfsburg | 1-1 |
+  SA 2025-26 : 380 matchs football-data ; liaison stricte {"lignes":380,"relies":380,"inconnues":[],"absents":0,"ambigus":0,"scores":0,"doublons":0,"equipesDouteuses":[],"ecartees":0}
+  PD 2025-26 : 380 matchs football-data ; liaison stricte {"lignes":380,"relies":380,"inconnues":[],"absents":0,"ambigus":0,"scores":0,"doublons":0,"equipesDouteuses":[],"ecartees":0}
+  (saison 2026-27 : la copie de la source xG gardée sur GitHub s'arrête au 29/05/2026 ; la saison en cours est contrôlée par les bilans d'équipes, verif-table.txt, contrôle 3)

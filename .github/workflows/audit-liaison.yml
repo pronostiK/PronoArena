@@ -22,12 +22,13 @@ jobs:
           node-version: 22
       - name: Données
         run: bash test/lab/liaison/fetch.sh
+      - name: Historique football-data.co.uk (dépôt public PronostiK)
+        run: curl -sf -o history.json https://raw.githubusercontent.com/pronostik/pronostik/main/data/history.json
       - name: Audit
-        run: node test/lab/liaison/run.mjs data-liaison > resultat-liaison.txt; cat resultat-liaison.txt
+        run: node test/lab/liaison/run.mjs data-liaison history.json > resultat-liaison.txt; cat resultat-liaison.txt
       - uses: actions/upload-artifact@v4
         with:
           name: resultat-liaison
           path: |
             resultat-liaison.txt
-            espn-fra2-resume.json
           retention-days: 30

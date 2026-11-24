@@ -1131,6 +1131,53 @@ console.log("\n— Suivi expérimental M7X —");
   check("M7X : pas de démarrage partiel (remplissage en cours → aucune ligne)", (() => { try { return dV.raw.prepare("SELECT COUNT(*) AS n FROM suivi_x").get().n; } catch { return 0; } })() === 0 && dV.raw.prepare("SELECT COUNT(*) AS n FROM suivi").get().n > 0);
 }
 
+// ---- M7C : liaison stricte des corners (24/11/2026), interrupteur ----
+console.log("\n— M7C : liaison stricte (interrupteur) —");
+{
+  const C = await import("../src/corners.js");
+  const { EQUIPES } = await import("../src/liaison-table.js");
+  const { controleLiaison } = await import("../src/liaison-controle.js");
+  const { MODEL } = await import("../src/config.js");
+  const { SUIVI_PARAMS } = await import("../src/suivi.js");
+  check("M7C : interrupteur éteint par défaut (comportement M7 inchangé)", C.LIAISON_STRICTE === false);
+  check("M7C : empreinte des réglages M0/M7 inchangée tant que l'interrupteur est éteint", !("liaison" in JSON.parse(SUIVI_PARAMS)));
+  const modelAvant = JSON.stringify(MODEL);
+  // Table de test : noms du robot simulé (« Équipe id ») → noms du fichier simulé (« Club id »)
+  const src = JSON.parse(await env.PRONO_CACHE.get("src:fd:FL1@2026")), srcP = JSON.parse(await env.PRONO_CACHE.get("src:fd:FL1@2025") || "null");
+  const savedEq = EQUIPES[61]; EQUIPES[61] = {};
+  for (const t of [src, srcP]) for (const [id, v] of Object.entries(t?.teams || {})) EQUIPES[61][v[0]] = { csv: [`Club ${id}`] };
+  const idx = JSON.parse(await env.PRONO_CACHE.get("robot:index")) || {}; idx._corners = {};
+  const runs = Object.keys(C.CORNERS_LEAGUES).length * 2 + 2;
+  for (let i = 0; i < runs; i++) await C.refreshCorners(env, idx, 2026, SIM.now + i * 1000); // méthode actuelle
+  const ancien = JSON.parse(await env.PRONO_CACHE.get(C.cornersKey(61, 2026)));
+  C._setLiaisonStricte(true);
+  const w0 = env.stats.writes;
+  let relus = 0;
+  for (let i = 0; i < runs; i++) { const r = await C.refreshCorners(env, idx, 2026, SIM.now + 5000 + i * 1000); if (r) relus++; }
+  const strict = JSON.parse(await env.PRONO_CACHE.get(C.cornersKey(61, 2026)));
+  check("M7C : au passage, chaque fichier est relu une fois avec la nouvelle méthode (sans attendre 6 h)", relus >= Object.keys(C.CORNERS_LEAGUES).length * 2 - 2 && strict?.liaison?.version === "stricte-v1", `${relus} relus`);
+  check("M7C : écritures KV limitées au passage (une par fichier au plus)", env.stats.writes - w0 <= Object.keys(C.CORNERS_LEAGUES).length * 2, `${env.stats.writes - w0}`);
+  check("M7C : Ligue 1 entièrement reliée par la table, mêmes corners que l'ancienne méthode", strict && Object.keys(strict.m).length === Object.keys(ancien.m).length && Object.entries(strict.m).every(([k, v]) => ancien.m[k]?.join() === v.join()), `${Object.keys(strict.m).length}/${Object.keys(ancien.m).length}`);
+  check("M7C : rapport de liaison enregistré (refus, équipes introuvables)", strict.liaison.relies === Object.keys(strict.m).length && Array.isArray(strict.liaison.introuvables) && strict.liaison.matchsRobot > 0);
+  const st = await get("/status");
+  check("M7C : couverture et anomalies visibles dans /status", st.corners?.[61]?.liaison?.methode === "stricte-v1" && typeof st.corners[61].liaison.saison.couverture === "number", JSON.stringify(st.corners?.[61]?.liaison).slice(0, 200));
+  // Championnat sans table de test (noms réels ≠ noms simulés) : rien n'est attribué, rien n'est faux
+  const pl = JSON.parse(await env.PRONO_CACHE.get(C.cornersKey(39, 2026)) || "null");
+  check("M7C : noms introuvables → aucun corner attribué (jamais de donnée fausse)", pl && Object.keys(pl.m).length === 0 && pl.liaison.introuvables.length > 0);
+  check("M7C : aucun coefficient du moteur modifié", JSON.stringify(MODEL) === modelAvant);
+  // Retour arrière : interrupteur éteint → chaque fichier relu une fois avec l'ancienne méthode
+  C._setLiaisonStricte(false);
+  for (let i = 0; i < runs; i++) await C.refreshCorners(env, idx, 2026, SIM.now + 60000 + i * 1000);
+  const retour = JSON.parse(await env.PRONO_CACHE.get(C.cornersKey(61, 2026))), retourPL = JSON.parse(await env.PRONO_CACHE.get(C.cornersKey(39, 2026)));
+  check("M7C : retour arrière complet (ancienne méthode, rapport retiré, PL de nouveau reliée)", !retour.liaison && Object.keys(retour.m).length === Object.keys(ancien.m).length && Object.keys(retourPL.m).length > 0);
+  // Contrôle en lecture seule : aucune écriture
+  const w1 = env.stats.writes;
+  const ctl = await controleLiaison(env, 61, SIM.now);
+  check("M7C : contrôle en lecture seule sans aucune écriture KV", env.stats.writes === w1 && ctl.saisons?.[2026]?.stricte?.relies > 50, `${env.stats.writes - w1} écritures ; ${ctl.saisons?.[2026]?.stricte?.relies} reliés`);
+  check("M7C : contrôle — aucun match non terminé ne reçoit de données", ctl.saisons[2026].stricte.matchsNonTerminesRecevantDesDonnees === 0);
+  EQUIPES[61] = savedEq;
+}
+
 console.log("\n— Variante cachée M7-40 —");
 {
   const { saveLeague } = await import("../src/robot.js");
@@ -1141,14 +1188,15 @@ console.log("\n— Variante cachée M7-40 —");
   const idx = JSON.parse(await env.PRONO_CACHE.get("robot:index")) || {};
   const run = async (withV) => {
     const d = await makeD1(), E = { ...env, DB: d.DB };
-    const saved = SUIVI_V["M7-40"]; if (!withV) delete SUIVI_V["M7-40"];
+    const saved = SUIVI_V["M7-40"]; if (withV) SUIVI_V["M7-40"] = { windowMatches: 40 }; else delete SUIVI_V["M7-40"]; // M7-40 non retenue : injectée pour tester le mécanisme
     const w0 = env.stats.writes;
     for (const id of [61, 94]) { await env.PRONO_CACHE.delete(`preds:${id}@2026`); await saveLeague(E, id, 2026, NOW, idx); }
     const kv = env.stats.writes - w0;
-    SUIVI_V["M7-40"] = saved;
+    if (saved) SUIVI_V["M7-40"] = saved; else delete SUIVI_V["M7-40"];
     const q = (t) => { try { return d.raw.prepare(`SELECT * FROM ${t} ORDER BY seq`).all(); } catch { return []; } };
     return { suivi: q("suivi"), v: q("suivi_v"), kv };
   };
+  await run(false); // amorçage : une éventuelle écriture unique (cache) ne doit pas fausser la comparaison
   const A = await run(true), B = await run(false);
   check("M7-40 : journal M0 / M7 identique octet pour octet avec et sans la variante", A.suivi.length > 0 && JSON.stringify(A.suivi) === JSON.stringify(B.suivi));
   check("M7-40 : aucune écriture KV en plus", A.kv === B.kv, `${A.kv} / ${B.kv}`);
@@ -1159,6 +1207,7 @@ console.log("\n— Variante cachée M7-40 —");
   for (const r of A.v) { const c = h(rowTextV(r)); if (c !== r.contenu || r.prec !== prec || h(prec + "|" + c) !== r.empreinte) chain = false; prec = r.empreinte; }
   check("M7-40 : chaîne d'empreintes séparée et vérifiable", chain);
   check("M7-40 : rien sans la variante", B.v.length === 0);
+  check("M7-40 : non retenue, aucune variante active en production", Object.keys(SUIVI_V).length === 0);
 }
 
 console.log(`\n${ok} réussis, ${ko} échoués`);

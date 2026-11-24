@@ -10,16 +10,18 @@
 // Charge : aucun appel extérieur ; une lecture et au plus quelques écritures D1 par championnat recalculé.
 // ============================================================
 import { MODEL } from "./config.js";
-import { CORNERS_LEAGUES, CORNERS_SHARE } from "./corners.js";
+import { CORNERS_LEAGUES, CORNERS_SHARE, LIAISON_STRICTE, LIAISON_VERSION } from "./corners.js";
 
 // Les 9 championnats de l'audit (football-data.co.uk) ; Portugal (94) suivi à part dans le bilan
 export const SUIVI_LEAGUES = new Set([61, 39, 140, 135, 78, 94, 88, 40, 62]);
-export const SUIVI_VERSION = "M0/M7 figés le 20/11/2026 (moteur 8044a83)";
+// M7C : même journal (chaîne d'empreintes conservée) ; la rupture se lit sur la version et sur l'empreinte des réglages
+export const SUIVI_VERSION = LIAISON_STRICTE ? "M0/M7C : M7 + liaison stricte des corners (rupture documentée dans test/lab/liaison/RUPTURE-M7C.md)" : "M0/M7 figés le 20/11/2026 (moteur 8044a83)";
 // Réglages figés : toute différence change l'empreinte des réglages enregistrée sur chaque ligne
 export const SUIVI_PARAMS = JSON.stringify({
   windowMatches: MODEL.windowMatches, recentMatches: MODEL.recentMatches, recentWeight: MODEL.recentWeight, priorMatches: MODEL.priorMatches,
   specificWeight: MODEL.specificWeight, rho: MODEL.rho, promoted: MODEL.promoted, promotedMaxTeams: MODEL.promotedMaxTeams, eloMix: MODEL.eloMix,
   eloK: MODEL.eloK, eloHomeAdv: MODEL.eloHomeAdv, eloSeasonCarry: MODEL.eloSeasonCarry, cornersShare: CORNERS_SHARE, cornersLeagues: Object.keys(CORNERS_LEAGUES).sort(),
+  ...(LIAISON_STRICTE ? { liaison: LIAISON_VERSION } : {}), // absent tant que l'interrupteur est éteint : empreinte M0/M7 inchangée
 });
 
 async function sha256(text) {
@@ -172,7 +174,8 @@ export async function suiviExportX(env, now = Date.now(), from = 0) {
 // M7-40 = M7 identique, mais forces calculées sur les 40 derniers matchs par équipe au lieu de 80. 9 championnats, non affiché.
 // Rien ne change pour M0, M7, M7X, leurs tables ni leurs sceaux. Calculé après eux ; une erreur ici ne bloque rien.
 // ============================================================
-export const SUIVI_V = { "M7-40": { windowMatches: 40 } }; // retirer une entrée coupe la variante
+// M7-40 non retenue par l'auditeur (24/11/2026) : aucune variante active. Ajouter une entrée relance une variante.
+export const SUIVI_V = {}; // ex. { "M7-40": { windowMatches: 40 } }
 export const SUIVI_V_VERSION = "Variantes figées le 21/11/2026 : M7-40 (M7 8044a83, fenêtre 40 matchs)";
 export const SUIVI_V_PARAMS = JSON.stringify({ base: JSON.parse(SUIVI_PARAMS), variantes: SUIVI_V });
 

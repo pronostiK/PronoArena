@@ -17,6 +17,7 @@
 //   POST /picks/cancel  annuler mon pronostic (refusé après le coup d'envoi)
 //   GET  /arena[?semaine=precedente]                classement hebdomadaire
 // ============================================================
+import { controleLiaison } from "./liaison-controle.js";
 import { LEAGUES, currentSeason, VERSION } from "./config.js";
 import { kvGet, refreshSource, srcKey, resetEspnBudget, ESPN_HEADERS } from "./sources.js";
 import { predsKey, getH2H, buildVerdict, buildUpcoming, allKey, INDEX_KEY, freeKey, lockPrediction } from "./build.js";
@@ -187,6 +188,9 @@ export default {
       if (path === "/suivi/empreinte-v") return json(await suiviHeadV(env), 200, { "Cache-Control": "no-store" });
       if (path === "/suivi/export-v") return json(await suiviExportV(env, Date.now(), parseInt(q("depuis")) || 0), 200, { "Cache-Control": "no-store" });
       if (path === "/suivi/export") return json(await suiviExport(env, Date.now(), parseInt(q("depuis")) || 0), 200, { "Cache-Control": "no-store" });
+
+      // Contrôle en lecture seule de la liaison stricte (M7C) : aucune écriture, aucun effet sur les pronostics
+      if (path === "/liaison-controle") return json(await controleLiaison(env, q("ligue")), 200, { "Cache-Control": "no-store" });
 
       if (path === "/status") {
         const xs = await kvGet(env, XG_KEY), xb = await kvGet(env, XGB_KEY), names = {};

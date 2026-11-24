@@ -8,7 +8,9 @@ import { SUIVI_LEAGUES, SUIVI_X, blendXg, SUIVI_V, withWindow } from "./suivi.js
 import { XGX_LEAGUES, xgRows } from "./xghist.js";
 import { buildModel, computeTeamRatings, computeElo, teamStats, leagueTable, groupTables, calculate_match_prediction } from "./model.js";
 import { nationalContext } from "./nations.js";
-import { CORNERS_LEAGUES, cornersKey, blendCorners, matchCorners } from "./corners.js";
+import { CORNERS_LEAGUES, cornersKey, blendCorners, matchCorners, LIAISON_STRICTE } from "./corners.js";
+import { linkStrict, buildTable } from "./liaison.js";
+import { EQUIPES } from "./liaison-table.js";
 import { keyPoints } from "./keypoints.js";
 import { flagTeams, flagUrl } from "./flags.js";
 import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
@@ -196,7 +198,8 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       if (secours || !m7fin) return { entries: [], raison: "source de secours ou sans corners" };
       const { rows, complet } = await xgRows(env, leagueId, season);
       if (!complet) return { entries: [], raison: "historique des xG en cours de remplissage" };
-      const { m } = matchCorners(rows, finishedAll);
+      // M7C : liaison stricte des xG (table explicite, équipes de la saison en cours et précédente)
+      const { m } = LIAISON_STRICTE ? linkStrict(rows, finishedAll, buildTable(EQUIPES[leagueId] || {}, { ...(prev?.teams || {}), ...(cur.teams || {}) }, "xg").table, now) : matchCorners(rows, finishedAll);
       const xg = {}; let last = 0;
       for (const f of finishedAll) { const x = m[f.id]; if (x && x[0] !== null && x[1] !== null) { xg[f.id] = x; if (f.ts > last) last = f.ts; } }
       const n = Object.keys(xg).length, couverture = finishedAll.length ? n / finishedAll.length : 0;

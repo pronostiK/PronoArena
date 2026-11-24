@@ -10,6 +10,16 @@
 // ============================================================
 import { kvGet, srcKey, toFinished } from "./sources.js";
 import { LEAGUES } from "./config.js";
+import { linkStrict, buildTable } from "./liaison.js";
+import { EQUIPES } from "./liaison-table.js";
+
+// M7C (24/11/2026, validé sous conditions par l'auditeur) : liaison STRICTE par la table explicite des équipes
+// (src/liaison.js) au lieu de la reconnaissance par les dates. INTERRUPTEUR : false = comportement M7 inchangé.
+// Retour arrière : remettre false et publier ; les fichiers sont alors relus avec l'ancienne méthode (clés d'état distinctes).
+export let LIAISON_STRICTE = false;
+export const LIAISON_VERSION = "stricte-v1";
+export function _setLiaisonStricte(v) { LIAISON_STRICTE = !!v; } // tests seulement
+const methode = () => (LIAISON_STRICTE ? LIAISON_VERSION : "dates");
 
 // leagueId → code du fichier football-data.co.uk
 export const CORNERS_LEAGUES = { 61: "F1", 39: "E0", 140: "SP1", 135: "I1", 78: "D1", 88: "N1", 40: "E1", 62: "F2" };
@@ -17,7 +27,7 @@ export const CORNERS_SHARE = 0.3;
 const HOUR = 3600000, DAY = 24 * HOUR;
 const CUR_MS = 6 * HOUR;
 export const cornersKey = (id, season) => `corners:${id}@${season}`;
-const csvUrl = (code, season) => `https://www.football-data.co.uk/mmz4281/${String(season).slice(2)}${String(season + 1).slice(2)}/${code}.csv`;
+export const csvUrl = (code, season) => `https://www.football-data.co.uk/mmz4281/${String(season).slice(2)}${String(season + 1).slice(2)}/${code}.csv`;
 
 function parseDate(s) {
   const p = String(s || "").trim().split(/[\/.-]/);
@@ -84,8 +94,10 @@ export async function refreshCorners(env, index, season, now = Date.now()) {
     const lg = LEAGUES[id]; if (!lg || lg.robot === false) continue;
     for (const s of [season - 1, season]) {
       const k = `${id}@${s}`, at = st[k] || 0;
-      const due = s < season ? !at || (st[k + ":n"] === 0 && now - at > DAY) : now - at > CUR_MS;
-      if (due && (!pick || at < pick.at)) pick = { id: +id, code, s, k, at };
+      // Changement de méthode (passage à M7C ou retour arrière) : chaque fichier est relu une fois avec la méthode en vigueur
+      const autreMethode = (st[k + ":v"] || "dates") !== methode();
+      const due = autreMethode || (s < season ? !at || (st[k + ":n"] === 0 && now - at > DAY) : now - at > CUR_MS);
+      if (due && (!pick || (autreMethode ? -1 : at) < pick.at)) pick = { id: +id, code, s, k, at: autreMethode ? -1 : at };
     }
   }
   if (!pick) return null;
@@ -95,12 +107,20 @@ export async function refreshCorners(env, index, season, now = Date.now()) {
   const r = await fetch(csvUrl(pick.code, pick.s), { headers: { "User-Agent": "DuelProno/1.0 (+https://duelprono.com)" } });
   if (!r.ok) return `corners ${pick.id}@${pick.s} : fichier indisponible [${r.status}]`;
   const rows = parseCornersCsv(await r.text());
-  const { m, inconnues } = matchCorners(rows, toFinished(src));
+  let m, inconnues, liaison = null;
+  if (LIAISON_STRICTE) {
+    const { table, introuvables } = buildTable(EQUIPES[pick.id] || {}, src.teams || {}, "csv");
+    const r = linkStrict(rows, toFinished(src), table, now);
+    m = r.m; inconnues = r.rapport.inconnues;
+    const { problemes, ...rep } = r.rapport;
+    liaison = { version: LIAISON_VERSION, ...rep, introuvables, matchsRobot: toFinished(src).length, problemes: problemes.slice(0, 20) };
+  } else ({ m, inconnues } = matchCorners(rows, toFinished(src)));
   const n = Object.keys(m).length;
   st[pick.k + ":n"] = n;
+  st[pick.k + ":v"] = methode();
   const old = await kvGet(env, cornersKey(pick.id, pick.s));
-  const changed = !old || Object.keys(old.m || {}).length !== n;
-  if (changed) await env.PRONO_CACHE.put(cornersKey(pick.id, pick.s), JSON.stringify({ at: now, m, lignes: rows.length, inconnues }));
+  const changed = !old || Object.keys(old.m || {}).length !== n || (old.liaison?.version || null) !== (liaison?.version || null);
+  if (changed) await env.PRONO_CACHE.put(cornersKey(pick.id, pick.s), JSON.stringify({ at: now, m, lignes: rows.length, inconnues, ...(liaison ? { liaison } : {}) }));
   return { report: `corners ${pick.id}@${pick.s} : ${n}/${rows.length} matchs reliés${inconnues.length ? `, équipes non reconnues : ${inconnues.join(", ")}` : ""}${changed ? ", mis à jour" : ""}`, changed, leagueId: pick.id };
 }
 
@@ -120,7 +140,9 @@ export async function cornersStatus(env, season) {
   const out = {};
   for (const id of Object.keys(CORNERS_LEAGUES)) {
     const [cur, prev] = await Promise.all([kvGet(env, cornersKey(id, season)), kvGet(env, cornersKey(id, season - 1))]);
-    out[id] = { saison: cur ? Object.keys(cur.m).length : 0, precedente: prev ? Object.keys(prev.m).length : 0, ...(cur?.inconnues?.length ? { inconnues: cur.inconnues } : {}) };
+    const lien = (x) => (x?.liaison ? (({ problemes, ...r }) => ({ ...r, couverture: r.matchsRobot ? Math.round((1000 * r.relies) / r.matchsRobot) / 10 : null, problemes }))(x.liaison) : undefined);
+    out[id] = { saison: cur ? Object.keys(cur.m).length : 0, precedente: prev ? Object.keys(prev.m).length : 0, ...(cur?.inconnues?.length ? { inconnues: cur.inconnues } : {}),
+      ...(LIAISON_STRICTE ? { liaison: { methode: LIAISON_VERSION, saison: lien(cur) || "en attente de relecture", precedente: lien(prev) || "en attente de relecture" } } : {}) };
   }
   return out;
 }

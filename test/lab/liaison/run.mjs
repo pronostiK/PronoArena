@@ -35,3 +35,29 @@ for (const S of [2025, 2026]) {
   for (const p of problemes) console.log(`    non attribué : ${p.join(" | ")}`);
   console.log(`  méthode actuelle (dates seulement) : ${Object.keys(old).length} matchs reliés ; désaccords avec la liaison stricte : ${desaccord}`);
 }
+
+// ---------- xG (M7X) : lignes de la source xG reliées aux matchs football-data, via la table explicite ----------
+// Les matchs football-data servent de référence : leurs bilans par équipe sont identiques à ceux du robot (verif-table.mjs).
+const XGF = process.argv[4];
+if (XGF && fs.existsSync(XGF)) {
+  const BZ = { "Ligue 1": 61, "Premier League": 39, "La Liga": 140, "Serie A": 135, "Bundesliga": 78 };
+  const FDC = { 61: "FL1", 39: "PL", 140: "PD", 135: "SA", 78: "BL1" };
+  const lines = fs.readFileSync(XGF, "utf8").trim().split(/\r?\n/), head = lines[0].split(",");
+  const xr = lines.slice(1).map((l) => Object.fromEntries(l.split(",").map((c, i) => [head[i], c]))).filter((r) => BZ[r.championnat]);
+  const all = JSON.parse(fs.readFileSync(HIST, "utf8")).filter((m) => (m.division || "L1") === "L1");
+  console.log(`\n== xG : ${xr.length} lignes de la source xG (dernière date ${xr.map((r) => r.date).sort().at(-1)}) ==`);
+  for (const [lid, code] of Object.entries(FDC)) {
+    const eq = EQUIPES[lid], csvT = {}, xgT = {};
+    for (const [nom, e] of Object.entries(eq)) { for (const c of e.csv || []) csvT[c] = nom; for (const c of e.xg || []) xgT[c] = nom; }
+    for (const S of [2025, 2026]) {
+      const F = all.filter((m) => m.lg === code && seasonOf(Date.parse(m.date)) === S).map((m, i) => ({ id: `${code}${S}-${i}`, ts: Date.parse(m.date + "T15:00:00Z"), homeId: csvT[m.home], awayId: csvT[m.away], hg: m.hg, ag: m.ag }));
+      // doublons de l'historique PronostiK (même affiche à un jour d'écart, fichier + résultat ajouté) : on garde la première
+      const seen = new Set(), Fu = F.filter((f) => { const k = `${f.homeId}|${f.awayId}|${f.hg}-${f.ag}|${Math.floor(f.ts / 864e5 / 3)}`; if (seen.has(k)) return false; seen.add(k); return true; });
+      const rows = xr.filter((r) => BZ[r.championnat] === +lid && seasonOf(Date.parse(r.date)) === S && r.buts_domicile !== "").map((r) => [Date.parse(r.date), r.domicile, r.exterieur, +r.buts_domicile, +r.buts_exterieur, r.xg_domicile, r.xg_exterieur]);
+      const { m, rapport } = linkStrict(rows, Fu, xgT);
+      const { problemes, ...r } = rapport;
+      console.log(`  ${code} ${S}-${S + 1 - 2000} : ${Fu.length} matchs football-data ; liaison stricte ${JSON.stringify(r)}`);
+      for (const p of problemes) console.log(`    non attribué : ${p.join(" | ")}`);
+    }
+  }
+}

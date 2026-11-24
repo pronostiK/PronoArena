@@ -1,7 +1,7 @@
 // ============================================================
 // VÉRIFICATION DE LA CORRESPONDANCE EXPLICITE DES ÉQUIPES (24/11/2026) — hors ligne, rien n'est modifié.
 // Contrôles :
-//   1. Structure : chaque nom du robot existe chez le robot (classements publics) ou est marqué « prec » ; chaque nom
+//   1. Structure : chaque nom du robot existe chez le robot (classements publics ; Ligue 2 : équipes ESPN des 2 saisons) ou est marqué « prec » ; chaque nom
 //      football-data.co.uk des deux saisons est relié exactement une fois ; chaque nom xG est relié ou listé à part.
 //   2. Saison en cours, fichier corners contre robot : bilan de chaque équipe (J, V, N, D, BP, BC) recalculé à partir du
 //      fichier avec la table, comparé au classement du robot (même date d'arrêt).
@@ -17,6 +17,7 @@ const H = JSON.parse(fs.readFileSync(process.argv[2], "utf8")).filter((m) => (m.
 const LG = { 39: "PL", 40: "ELC", 61: "FL1", 62: "FL2", 78: "BL1", 88: "DED", 135: "SA", 140: "PD" };
 const FDSPACE = [39, 40, 61, 78, 88, 135, 140];
 const CL = Object.fromEntries(Object.keys(LG).map((id) => [id, JSON.parse(fs.readFileSync(`${DIR}robot/classement-${id}.json`, "utf8"))]));
+const ESPN62 = JSON.parse(fs.readFileSync(`${DIR}robot/espn-fra2-equipes.json`, "utf8"));
 const XG = {};
 for (const x of fs.readFileSync(`${DIR}xg-bilans-equipes.txt`, "utf8").trim().split(";")) { const [l, s, eq, ...v] = x.split("|"); ((XG[l] ||= {})[s] ||= {})[eq] = v.map(Number); }
 const seasonOf = (d) => (+d.slice(5, 7) >= 7 ? +d.slice(0, 4) : +d.slice(0, 4) - 1);
@@ -30,6 +31,7 @@ for (const [id, eqs] of Object.entries(EQUIPES)) {
   const idOf = {};
   for (const nom of Object.keys(eqs)) {
     const hits = space.flatMap((l) => CL[l].classement.filter((t) => t.nom === nom).map((t) => t.id));
+    if (+id === 62) for (const [eid, n] of Object.entries(ESPN62)) if (n === nom) hits.push(eid); // équipes ESPN des deux saisons
     if (hits.length === 1) idOf[nom] = hits[0];
     else if (hits.length > 1 && new Set(hits).size === 1) idOf[nom] = hits[0];
     else if (!eqs[nom].prec) err(`nom robot introuvable : ${nom}`);

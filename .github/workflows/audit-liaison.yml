@@ -24,8 +24,14 @@ jobs:
         run: bash test/lab/liaison/fetch.sh
       - name: Historique football-data.co.uk (dépôt public PronostiK)
         run: curl -sf -o history.json https://raw.githubusercontent.com/pronostik/pronostik/main/data/history.json
+      - name: xG (cache de l'export, jamais versé dans le dépôt)
+        uses: actions/cache/restore@v4
+        with:
+          path: xg-bzz
+          key: xg-bzz-introuvable
+          restore-keys: xg-bzz-
       - name: Audit
-        run: node test/lab/liaison/run.mjs data-liaison history.json > resultat-liaison.txt; cat resultat-liaison.txt
+        run: node test/lab/liaison/run.mjs data-liaison history.json xg-bzz/xg_bzzoiro.csv > resultat-liaison.txt; cat resultat-liaison.txt
       - uses: actions/upload-artifact@v4
         with:
           name: resultat-liaison

@@ -1,0 +1,46 @@
+Vérification de la table de correspondance — erreurs bloquantes : 0
+== 39 PL ==
+  1. 23 équipes ; 23 retrouvées chez le robot (identifiant), 0 « prec » non lisibles hors ligne ; 23 noms du fichier tous reliés ; 23 noms xG reliés
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-23) : 20/20 bilans identiques (J, V, N, D, BP, BC)
+  3. saison en cours, source xG / robot : 20/20 bilans identiques
+  4. saison précédente, fichier corners / source xG : 20/20 bilans identiques (J, V, N, D, BP, BC, matchs et buts à domicile)
+
+== 40 ELC ==
+  1. 30 équipes ; 27 retrouvées chez le robot (identifiant), 3 « prec » non lisibles hors ligne : Leicester City FC, Oxford United FC, Sheffield Wednesday FC ; 30 noms du fichier tous reliés
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-23) : 24/24 bilans identiques (J, V, N, D, BP, BC)
+
+== 61 FL1 ==
+  1. 20 équipes ; 18 retrouvées chez le robot (identifiant), 2 « prec » non lisibles hors ligne : FC Metz, FC Nantes ; 20 noms du fichier tous reliés ; 23 noms xG reliés, non reliés volontairement : Red Star FC, Rodez AF, Saint-Étienne
+  ? fichier ≠ robot : OGC Nice robot 11/5/2/4/17/15 fichier 12/5/2/5/17/16
+  ? fichier ≠ robot : AJ Auxerre robot 11/3/2/6/14/25 fichier 12/4/2/6/15/25
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-23) : 16/18 bilans identiques (J, V, N, D, BP, BC)
+  3. saison en cours, source xG / robot : 18/18 bilans identiques
+  4. saison précédente, fichier corners / source xG : 15/18 bilans identiques (J, V, N, D, BP, BC, matchs et buts à domicile) ; différents : OGC Nice fichier 34/7/11/16/37/60/17/19 xG 36/8/12/16/41/61/18/23 | Toulouse FC fichier 34/12/9/13/47/46/17/25 xG 33/12/8/13/47/46/17/25 | FC Nantes fichier 34/5/9/20/29/52/17/18 xG 33/5/8/20/29/52/16/18
+
+== 62 FL2 ==
+  1. 22 équipes ; 22 retrouvées chez le robot (identifiant), 0 « prec » non lisibles hors ligne ; 22 noms du fichier tous reliés
+  ? fichier ≠ robot : Nantes robot 13/4/3/6/15/18 fichier 14/5/3/6/16/18
+  ? fichier ≠ robot : Grenoble robot 13/3/2/8/13/23 fichier 14/3/2/9/13/24
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-23) : 16/18 bilans identiques (J, V, N, D, BP, BC)
+
+== 78 BL1 ==
+  1. 21 équipes ; 18 retrouvées chez le robot (identifiant), 3 « prec » non lisibles hors ligne : 1. FC Heidenheim 1846, FC St. Pauli 1910, VfL Wolfsburg ; 21 noms du fichier tous reliés ; 21 noms xG reliés
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-22) : 18/18 bilans identiques (J, V, N, D, BP, BC)
+  3. saison en cours, source xG / robot : 18/18 bilans identiques
+  4. saison précédente, fichier corners / source xG : 17/18 bilans identiques (J, V, N, D, BP, BC, matchs et buts à domicile) ; différents : VfL Wolfsburg fichier 34/7/8/19/45/69/17/21 xG 36/7/10/19/46/70/18/21
+
+== 88 DED ==
+  1. 21 équipes ; 18 retrouvées chez le robot (identifiant), 3 « prec » non lisibles hors ligne : Heracles Almelo, NAC Breda, FC Volendam ; 21 noms du fichier tous reliés
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-22) : 18/18 bilans identiques (J, V, N, D, BP, BC)
+
+== 135 SA ==
+  1. 23 équipes ; 20 retrouvées chez le robot (identifiant), 3 « prec » non lisibles hors ligne : US Cremonese, AC Pisa 1909, Hellas Verona FC ; 23 noms du fichier tous reliés ; 23 noms xG reliés
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-23) : 20/20 bilans identiques (J, V, N, D, BP, BC)
+  3. saison en cours, source xG / robot : 20/20 bilans identiques
+  4. saison précédente, fichier corners / source xG : 20/20 bilans identiques (J, V, N, D, BP, BC, matchs et buts à domicile)
+
+== 140 PD ==
+  1. 23 équipes ; 20 retrouvées chez le robot (identifiant), 3 « prec » non lisibles hors ligne : Girona FC, RCD Mallorca, Real Oviedo ; 23 noms du fichier tous reliés ; 23 noms xG reliés
+  2. saison en cours, fichier corners / robot (arrêt au 2026-11-23) : 20/20 bilans identiques (J, V, N, D, BP, BC)
+  3. saison en cours, source xG / robot : 20/20 bilans identiques
+  4. saison précédente, fichier corners / source xG : 20/20 bilans identiques (J, V, N, D, BP, BC, matchs et buts à domicile)

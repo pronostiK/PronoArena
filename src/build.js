@@ -11,6 +11,7 @@ import { nationalContext } from "./nations.js";
 import { CORNERS_LEAGUES, cornersKey, blendCorners, matchCorners } from "./corners.js";
 import { keyPoints } from "./keypoints.js";
 import { COMPOS_KEY } from "./compos.js";
+import { cupEloFor } from "./elo-cup.js";
 import { flagTeams, flagUrl } from "./flags.js";
 import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
 
@@ -169,6 +170,14 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     });
   }
 
+  // Coupes d'Europe : Elo commun des clubs (src/elo-cup.js). Équipe sans Elo : calcul d'avant, signalé dans le statut.
+  let cupElo = null;
+  if (lg.cupElo && !secours) {
+    const ce = cupEloFor(cur.teams, finishedCur);
+    cupElo = ce.elo;
+    domesticStatus.push({ source: "elo-commun", equipes: ce.elo.size, ...(ce.inconnus.length ? { sansElo: ce.inconnus } : {}) });
+  }
+
   const table = leagueTable(finishedCur);
   // Sélections : rang dans le groupe (ou rien si les groupes ne se lisent pas) ; ailleurs : rang au classement général
   const rank = lg.national ? groupTables(finishedCur, (cur.upcoming || []).map((u) => [u[1], u[2]])) || new Map() : new Map(table.map((r) => [r.id, r]));
@@ -181,7 +190,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const model0 = SUIVI_LEAGUES.has(+leagueId) && env.DB ? buildModel(finishedAll) : null;
   const suivi = [];
   const predictions = upcoming.map((m) => {
-    const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+    const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, cupElo, eloMix: !lg.cup && !lg.national });
     if (model0) {
       const p0 = calculate_match_prediction(m, { model: model0, leagueId, season, domestic, national });
       suivi.push({ match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name,
@@ -206,7 +215,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   // même modèle que les matchs publiés ; ces probabilités ne sont pas affichées sur le site (infos.publie = false).
   function suiviExtra() {
     return allUpcoming.slice(10).filter((m) => m.ts <= now + 7 * 86400000).map((m) => {
-      const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+      const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, cupElo, eloMix: !lg.cup && !lg.national });
       const p0 = calculate_match_prediction(m, { model: model0, leagueId, season, domestic, national });
       return { match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name,
         m0: [p0.poisson.proba1, p0.poisson.probaN, p0.poisson.proba2], m7: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2],
@@ -228,7 +237,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       const modelX = { ...computeTeamRatings(blendXg(finishedAll, m7fin, xg), { newcomers }), elo: model.elo };
       const targets = [...upcoming, ...allUpcoming.slice(10).filter((u) => u.ts <= now + 7 * 86400000)];
       const infos = { couverture: Math.round(couverture * 1000) / 1000, xg: n, matchs: finishedAll.length, dernierXg: last ? new Date(last).toISOString().slice(0, 10) : null, promus: newcomers ? newcomers.size : 0, cornersMatchs: model.cornersMatchs || 0 };
-      return { entries: targets.map((u) => { const p = calculate_match_prediction(u, { model: modelX, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+      return { entries: targets.map((u) => { const p = calculate_match_prediction(u, { model: modelX, leagueId, season, domestic, national, cupElo, eloMix: !lg.cup && !lg.national });
         return { match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name, m7x: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2], infos }; }) };
     } catch (e) { return { entries: [], erreur: String(e.message).slice(0, 160) }; }
   }

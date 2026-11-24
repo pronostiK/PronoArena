@@ -317,3 +317,8 @@ Objectif conservé : abonnement à **5 €/mois**. Aucun paiement, aucun abonnem
 
 ## 23/11/2026 — Ligue des champions : niveau des championnats
 `coefPower: 1.5` (coefficient inconnu compris : 0,72^1,5) sur la Ligue des champions (config.js) : les coefficients LEAGUE_COEF sont mis à la puissance 1,5 pour les coupes (build.js `leagueCoef`). Mesuré sur 420 matchs réels, voir test/lab/RESULTATS-CDC-COEF.md. `_modelRev` 14. Vérifier après déploiement : Real–PSV, Arsenal–Dortmund, Bodø–LASK vs marché.
+
+## Elo commun C1 (_modelRev 15)
+- src/elo-cup.js + src/elo-cup-seed.js (asOf 04/11/2026), α = MODEL.cupElo.alpha (0,4), Ligue des champions seulement.
+- /status → championnatsUtilises contient "elo-commun" ; `sansElo` liste les clubs sans Elo (calcul d'avant conservé pour eux).
+- Rafraîchir le seed : scripts dans test/lab/cdc-elo/, résultats dans test/lab/RESULTATS-CDC-ELO.md.

@@ -270,6 +270,14 @@ export function calculate_match_prediction(match, ctx) {
     const base = [poisson.proba1, poisson.probaN, poisson.proba2], tb = base.reduce((a, b) => a + b, 0);
     poisson = calculate_poisson_match(lambdaDom, lambdaExt, MODEL.rho, base.map((p, i) => (1 - E.alpha) * (p / tb) + E.alpha * e[i]));
   }
+  // Coupes d'Europe : mélange avec l'Elo commun des clubs, seulement si les deux équipes en ont un (sinon calcul d'avant)
+  if (ctx.cupElo?.has(String(match.teamDomId)) && ctx.cupElo.has(String(match.teamExtId)) && sourceCalc !== "elo-selections") {
+    const E = MODEL.cupElo, x = (ctx.cupElo.get(String(match.teamDomId)) - ctx.cupElo.get(String(match.teamExtId)) + E.home) / 100;
+    const pA = sig(E.cut1 - E.slope * x), pAD = sig(E.cut2 - E.slope * x), e = [1 - pAD, Math.max(pAD - pA, 1e-9), pA];
+    const base = [poisson.proba1, poisson.probaN, poisson.proba2], tb = base.reduce((a, b) => a + b, 0);
+    poisson = calculate_poisson_match(lambdaDom, lambdaExt, MODEL.rho, base.map((p, i) => (1 - E.alpha) * (p / tb) + E.alpha * e[i]));
+    eloD = ctx.cupElo.get(String(match.teamDomId)); eloE = ctx.cupElo.get(String(match.teamExtId)); sourceCalc += "+elo";
+  }
   const cote = (p) => (p > 0 ? Math.round((1 / p) * 100) / 100 : null);
 
   return {

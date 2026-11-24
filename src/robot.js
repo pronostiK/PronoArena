@@ -227,7 +227,7 @@ export async function runRobot(env, now = Date.now()) {
 
   // Changement de méthode pour les sélections : leurs pronostics sont recalculés une fois, sans attendre de nouvelles données
   // Nouveaux réglages du modèle (12/11/2026) puis rang dans le groupe pour les sélections (12/11/2026, rév. 3) : toutes les compétitions sont recalculées une fois
-  if (index._modelRev !== 14) { index._modelRev = 14; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.robot !== false) toRebuild.add(Number(id)); }
+  if (index._modelRev !== 15) { index._modelRev = 15; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.robot !== false) toRebuild.add(Number(id)); }
   // Suivi M0 / M7 : un recalcul unique des 9 championnats pour que chaque match à venir ait sa première ligne (même moteur)
   if (index._suiviRev !== 1) { index._suiviRev = 1; for (const id of SUIVI_LEAGUES) if (LEAGUES[id]?.robot !== false) toRebuild.add(id); }
   if (index._natRev !== 2) { index._natRev = 2; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.national && lg.robot !== false) toRebuild.add(Number(id)); }

@@ -2,6 +2,10 @@
 
 Ce bilan sert seulement à informer. On ne tire aucune conclusion et on ne change aucun réglage. Le moteur reste figé.
 
+## Correction du 24/11
+
+Wolverhampton–Charlton (Championship, 2-1) avait été écarté à tort. Le bilan corrigé porte sur 65 matchs : M7 0,5793 contre M0 0,5847, soit −0,0054. Les chiffres ci-dessous restent valables pour les 64 matchs affichés. L'intervalle de confiance, calculé sur deux journées seulement, est très fragile. Détails dans `AUDIT-BILAN-1.md`.
+
 ## En bref
 
 - **64 matchs comptés** et 1 écarté (Wolverhampton–Charlton, Championship, samedi 21/11 à 16 h : aucun résultat publié par notre source).

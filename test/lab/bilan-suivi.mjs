@@ -4,14 +4,15 @@
 //   - journal : https://api.duelprono.com/suivi/export (probabilités visibles 3 h après le coup d'envoi) ;
 //   - sceaux : branche GitHub suivi-empreintes (heure du commit = heure d'ancrage) ;
 //   - résultats : ceux du robot (/verdict, par championnat), contrôlés par l'historique football-data.co.uk si fourni.
-// Usage : node test/lab/bilan-suivi.mjs <début ISO> <fin ISO> [history.json]
+//   - matchs non affichés (hors des 10 publiés) : leur score vient de l'historique football-data.co.uk (noms rapprochés).
+// Usage : node test/lab/bilan-suivi.mjs <début ISO> <fin ISO> [history.json] [predictions.csv]
 // ============================================================
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { rowText } from "../../src/suivi.js";
 
-const [FROM, TO, HIST] = process.argv.slice(2);
+const [FROM, TO, HIST, CSV] = process.argv.slice(2);
 const t0 = Date.parse(FROM), t1 = Date.parse(TO);
 const API = "https://api.duelprono.com";
 const get = async (p) => (await fetch(`${API}${p}${p.includes("?") ? "&" : "?"}n=${Date.now()}`)).json();
@@ -42,9 +43,10 @@ for (const l of execSync("git log FETCH_HEAD --reverse --format=%H%x20%ct").toSt
   if (seals.length && seals.at(-1).empreinte === s.empreinte) continue;
   const r = bySeq.get(s.seq);
   if (!r || r.empreinte !== s.empreinte) { incidents.push(`Sceau du ${new Date(+ct * 1000).toISOString()} (ligne ${s.seq}) absent ou différent dans le journal`); continue; }
-  seals.push({ seq: s.seq, empreinte: s.empreinte, at: +ct * 1000 });
+  seals.push({ seq: s.seq, empreinte: s.empreinte, at: +ct * 1000, commit: h });
 }
-const anchoredBy = (seq, limit) => seals.some((s) => s.seq >= seq && s.at < limit);
+const sealFor = (seq, limit) => seals.find((s) => s.seq >= seq && s.at < limit);
+const anchoredBy = (seq, limit) => !!sealFor(seq, limit);
 
 // 3. Résultats du robot (matchs publiés et terminés) + matchs attendus
 const results = new Map(), attendus = new Map();
@@ -63,6 +65,15 @@ if (HIST) {
   controle.fd = h; controle.FD = FD;
 }
 
+// Score d'un match non affiché : même championnat, même jour, noms rapprochés (mots de 4 lettres ou plus en commun)
+const norm = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\b(fc|afc|cf|sc|ac|as|ss|us|rc|sv|vfb|vfl|tsg|1\.)\b/g, " ").split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+const proche = (a, b) => { const A = norm(a), B = norm(b); return A.some((x) => B.some((y) => x.slice(0, 4) === y.slice(0, 4))); };
+function scoreFd(pick, ke) {
+  const d = new Date(ke).toISOString().slice(0, 10);
+  const c = controle.fd.filter((m) => m.lg === controle.FD[pick.ligue] && m.date === d && proche(m.home, pick.dom) && proche(m.away, pick.ext));
+  return c.length === 1 ? [c[0].hg, c[0].ag] : null;
+}
+
 // 5. Prédiction retenue pour chaque match (règle 3)
 const parMatch = new Map();
 for (const r of lignes) if (r.coup_envoi >= t0 && r.coup_envoi < t1) (parMatch.get(r.ligue + "|" + (r.match || r.seq)) || parMatch.set(r.ligue + "|" + (r.match || r.seq), []).get(r.ligue + "|" + (r.match || r.seq))).push(r);
@@ -75,10 +86,11 @@ for (const [, rows] of parMatch) {
   if (!pick) { pick = [...avant].reverse().find((r) => anchoredBy(r.seq, ke + 3600000)); tardif = !!pick; }
   if (!pick) { exclus.push({ k, raison: "aucune ligne scellée à temps" }); continue; }
   if (pick.masque) { exclus.push({ k, raison: "probabilités encore masquées" }); continue; }
-  const sc = results.get(k);
+  let sc = results.get(k), source = "robot (match affiché)";
+  if (!sc && controle) { sc = scoreFd(pick, ke); source = "football-data.co.uk (match non affiché)"; }
   if (!sc) { exclus.push({ k, raison: "pas de résultat (reporté, annulé ou pas encore connu)" }); continue; }
   const infos = JSON.parse(pick.infos || "{}");
-  retenus.push({ k, ligue: pick.ligue, date: new Date(ke).toISOString().slice(0, 10), m0: JSON.parse(pick.m0), m7: JSON.parse(pick.m7), res: sc[0] > sc[1] ? 0 : sc[0] === sc[1] ? 1 : 2, sc, tardif, publie: infos.publie !== false, corners: infos.cornersMatchs, nom: `${pick.dom} – ${pick.ext}` });
+  retenus.push({ k, ligue: pick.ligue, date: new Date(ke).toISOString().slice(0, 10), m0: JSON.parse(pick.m0), m7: JSON.parse(pick.m7), res: sc[0] > sc[1] ? 0 : sc[0] === sc[1] ? 1 : 2, sc, tardif, publie: infos.publie !== false, corners: infos.cornersMatchs, nom: `${pick.dom} – ${pick.ext}`, pick, ke, source, sceau: sealFor(pick.seq, tardif ? ke + 3600000 : ke) });
 }
 for (const [k, nom] of attendus) if (!parMatch.has(k.split(":")[0] + "|" + k)) exclus.push({ k, raison: `match publié sans aucune ligne au journal (${nom})` });
 const manquants = exclus.filter((e) => /sans aucune ligne/.test(e.raison));
@@ -89,7 +101,7 @@ if (controle) {
   for (const id of Object.keys(NAMES)) {
     const days = [...new Set(retenus.filter((r) => r.ligue === +id).map((r) => r.date))];
     for (const d of days) {
-      const a = retenus.filter((r) => r.ligue === +id && r.date === d).map((r) => r.sc.join("-")).sort();
+      const a = retenus.filter((r) => r.ligue === +id && r.date === d && r.publie).map((r) => r.sc.join("-")).sort();
       const b = controle.fd.filter((m) => m.lg === controle.FD[id] && m.date === d).map((m) => `${m.hg}-${m.ag}`).sort();
       if (!b.length) continue;
       controle.compares += a.length;
@@ -119,3 +131,14 @@ const out = {
   exclus, incidents, controleFootballData: controle,
 };
 console.log(JSON.stringify(out, null, 1));
+
+// CSV des prédictions retenues (une ligne par match)
+if (CSV) {
+  const iso = (t) => new Date(t).toISOString().replace(".000", "");
+  const f3 = (x) => x.toFixed(4);
+  const head = ["championnat", "match", "domicile", "exterieur", "coup_envoi_utc", "ligne_journal", "enregistree_utc", "empreinte", "sceau_commit", "sceau_utc", "affiche", "ancrage_tardif", "score", "resultat", "source_score", "m0_dom", "m0_nul", "m0_ext", "m7_dom", "m7_nul", "m7_ext", "brier_m0", "brier_m7", "logloss_m0", "logloss_m7"];
+  const q = (v) => (/[",]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v);
+  const lines = [head.join(",")];
+  for (const r of [...retenus].sort((a, b) => a.ke - b.ke || a.ligue - b.ligue)) lines.push([NAMES[r.ligue], r.k, r.pick.dom, r.pick.ext, iso(r.ke), r.pick.seq, iso(r.pick.cree_le), r.pick.empreinte, r.sceau.commit, iso(r.sceau.at), r.publie ? "oui" : "non", r.tardif ? "oui" : "non", r.sc.join("-"), ["1", "N", "2"][r.res], r.source, ...r.m0, ...r.m7, f3(brier(r.m0, r.res)), f3(brier(r.m7, r.res)), f3(logl(r.m0, r.res)), f3(logl(r.m7, r.res))].map(q).join(","));
+  fs.writeFileSync(CSV, lines.join("\n") + "\n");
+}

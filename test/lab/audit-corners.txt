@@ -1,0 +1,16 @@
+PL@2026 matchs=110 avecCorners=100 actuel: min 1 max 31 faux max 1 | V2: 100/0
+PL@2025 matchs=380 avecCorners=380 actuel: min 380 max 380 faux max 0 | V2: 380/0
+ELC@2026 matchs=192 avecCorners=180 actuel: min 0 max 14 faux max 1 | V2: 180/0
+ELC@2025 matchs=552 avecCorners=552 actuel: min 342 max 552 faux max 0 | V2: 552/0
+FL1@2026 matchs=100 avecCorners=90 actuel: min 4 max 23 faux max 1 | V2: 90/0 90/1
+FL1@2025 matchs=306 avecCorners=306 actuel: min 182 max 306 faux max 0 | V2: 306/0
+FL2@2026 matchs=118 avecCorners=117 actuel: min 50 max 92 faux max 0 | V2: 117/0
+FL2@2025 matchs=305 avecCorners=305 actuel: min 239 max 305 faux max 0 | V2: 305/0
+BL1@2026 matchs=90 avecCorners=81 actuel: min 0 max 4 faux max 1 | V2: 81/0
+BL1@2025 matchs=306 avecCorners=306 actuel: min 42 max 240 faux max 0 | V2: 306/0
+DED@2026 matchs=117 avecCorners=108 actuel: min 2 max 57 faux max 0 | V2: 108/0
+DED@2025 matchs=306 avecCorners=306 actuel: min 240 max 306 faux max 0 | V2: 306/0
+SA@2026 matchs=120 avecCorners=110 actuel: min 9 max 70 faux max 1 | V2: 110/0
+SA@2025 matchs=380 avecCorners=380 actuel: min 380 max 380 faux max 0 | V2: 380/0
+PD@2026 matchs=129 avecCorners=119 actuel: min 76 max 119 faux max 0 | V2: 119/0
+PD@2025 matchs=380 avecCorners=380 actuel: min 306 max 380 faux max 0 | V2: 380/0

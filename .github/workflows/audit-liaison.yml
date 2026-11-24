@@ -1,0 +1,33 @@
+name: Audit liaison corners/xG (hors ligne)
+
+# Hors ligne, rien n'est publié : télécharge les données publiques nécessaires à l'audit de la liaison des équipes
+# (football-data.org sans clé si possible, ESPN, football-data.co.uk) et lance test/lab/liaison/run.mjs.
+on:
+  push:
+    branches: [claude/project-thread-v0pkw3]
+    paths: [test/lab/liaison/**, .github/workflows/audit-liaison.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Données
+        run: bash test/lab/liaison/fetch.sh
+      - name: Audit
+        run: node test/lab/liaison/run.mjs data-liaison > resultat-liaison.txt; cat resultat-liaison.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resultat-liaison
+          path: |
+            resultat-liaison.txt
+            data-liaison/
+          retention-days: 30

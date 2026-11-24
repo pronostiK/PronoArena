@@ -1,0 +1,42 @@
+7437 matchs (avant le 2026-11-20)
+
+TOTAL            n=7437  M7P 0.5970  M7C 0.5963  écart Brier -0.0007 [-0.0011 ; -0.0003]  LL -0.0010 [-0.0016 ; -0.0004]  proba : écart moyen 0.55 pt, max 8.8 pt
+Saison 2024      n=3222  M7P 0.5916  M7C 0.5910  écart Brier -0.0006 [-0.0013 ; -0.0000]  LL -0.0009 [-0.0019 ; +0.0000]  proba : écart moyen 0.56 pt, max 8.8 pt
+Saison 2025      n=3221  M7P 0.6035  M7C 0.6027  écart Brier -0.0008 [-0.0013 ; -0.0002]  LL -0.0011 [-0.0019 ; -0.0003]  proba : écart moyen 0.52 pt, max 7.1 pt
+Saison 2026      n= 994  M7P 0.5931  M7C 0.5924  écart Brier -0.0007 [-0.0021 ; +0.0007]  LL -0.0010 [-0.0030 ; +0.0009]  proba : écart moyen 0.65 pt, max 7.2 pt
+
+FL1              n= 702  M7P 0.5883  M7C 0.5869  écart Brier -0.0014 [-0.0025 ; -0.0003]  LL -0.0018 [-0.0034 ; -0.0003]  proba : écart moyen 0.40 pt, max 7.2 pt
+PL               n= 860  M7P 0.6013  M7C 0.6014  écart Brier +0.0001 [-0.0012 ; +0.0013]  LL +0.0001 [-0.0017 ; +0.0018]  proba : écart moyen 0.60 pt, max 4.7 pt
+PD               n= 879  M7P 0.5795  M7C 0.5793  écart Brier -0.0002 [-0.0008 ; +0.0004]  LL -0.0004 [-0.0013 ; +0.0006]  proba : écart moyen 0.19 pt, max 3.5 pt
+SA               n= 870  M7P 0.5817  M7C 0.5819  écart Brier +0.0002 [-0.0007 ; +0.0010]  LL +0.0003 [-0.0009 ; +0.0015]  proba : écart moyen 0.33 pt, max 3.6 pt
+BL1              n= 693  M7P 0.5933  M7C 0.5920  écart Brier -0.0013 [-0.0035 ; +0.0010]  LL -0.0021 [-0.0055 ; +0.0013]  proba : écart moyen 1.15 pt, max 7.1 pt
+PPL              n= 710  M7P 0.5516  M7C 0.5516  écart Brier +0.0000 [+0.0000 ; +0.0000]  LL +0.0000 [+0.0000 ; +0.0000]  proba : écart moyen 0.00 pt, max 0.0 pt
+DED              n= 720  M7P 0.5829  M7C 0.5826  écart Brier -0.0003 [-0.0015 ; +0.0009]  LL -0.0009 [-0.0026 ; +0.0010]  proba : écart moyen 0.58 pt, max 4.2 pt
+ELC              n=1284  M7P 0.6316  M7C 0.6304  écart Brier -0.0012 [-0.0025 ; -0.0001]  LL -0.0015 [-0.0033 ; +0.0001]  proba : écart moyen 0.91 pt, max 8.8 pt
+FL2              n= 719  M7P 0.6404  M7C 0.6385  écart Brier -0.0020 [-0.0036 ; -0.0004]  LL -0.0030 [-0.0054 ; -0.0006]  proba : écart moyen 0.67 pt, max 6.8 pt
+
+Couverture moyenne des corners au moment des prédictions (part des matchs passés utilisés) :
+  BL1@2024  production  33 %   correctif 100 %
+  BL1@2025  production  11 %   correctif 100 %
+  BL1@2026  production  16 %   correctif 100 %
+  DED@2024  production  74 %   correctif 100 %
+  DED@2025  production  87 %   correctif 100 %
+  DED@2026  production  71 %   correctif 100 %
+  ELC@2024  production  36 %   correctif 100 %
+  ELC@2025  production  84 %   correctif 100 %
+  ELC@2026  production  73 %   correctif 100 %
+  FL1@2024  production  95 %   correctif 100 %
+  FL1@2025  production  89 %   correctif 100 %
+  FL1@2026  production  88 %   correctif 100 %
+  FL2@2024  production  90 %   correctif 100 %
+  FL2@2025  production  87 %   correctif 100 %
+  FL2@2026  production  70 %   correctif 100 %
+  PD@2024   production  97 %   correctif 100 %
+  PD@2025   production  97 %   correctif 100 %
+  PD@2026   production  98 %   correctif 100 %
+  PL@2024   production  79 %   correctif 100 %
+  PL@2025   production  74 %   correctif 100 %
+  PL@2026   production  89 %   correctif 100 %
+  SA@2024   production  96 %   correctif 100 %
+  SA@2025   production  91 %   correctif 100 %
+  SA@2026   production  91 %   correctif 100 %

@@ -29,5 +29,5 @@ jobs:
           name: resultat-liaison
           path: |
             resultat-liaison.txt
-            data-liaison/
+            espn-fra2-resume.json
           retention-days: 30

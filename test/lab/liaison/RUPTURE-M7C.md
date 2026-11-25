@@ -50,12 +50,16 @@ refus détaillés, matchs non terminés recevant des données (doit être 0), co
 
 | Élément | Valeur |
 |---|---|
-| Date et heure (UTC) de la publication | … |
-| Commit publié | … |
-| Dernière ligne M0/M7 du journal (seq, empreinte) | … |
-| Première ligne M0/M7C (seq, empreinte) | … |
-| Empreinte des réglages M0/M7 | … |
-| Empreinte des réglages M0/M7C | … |
+| Accord du chef de projet | 25/11/2026 17:02 UTC |
+| Date et heure (UTC) de la publication | 25/11/2026 17:13 UTC (push main) ; en ligne vers 17:16 UTC (constaté sur /liaison-controle) |
+| Commit publié | 97163b6 |
+| Dernière ligne M0/M7 du journal (seq, empreinte) | 1129 · 313db27b96b73c6a7c5cb9d0ad6208e1959f382eb670abb8045ffd777f293e32 (24/11 22:00 UTC, scellée sur GitHub) |
+| Première ligne M0/M7C comptée (seq, empreinte) | … |
+| Empreinte des réglages M0/M7 | 2ef4a8150d2ea249198f699ace4aacf9d08976d4443d9e8e2511477419cd088d |
+| Empreinte des réglages M0/M7C | b1c31e33255aecf0dba1757d3229b9f313573952c615d93a79aefa917482c48e |
+| Empreinte des réglages M7X sur M7C | 93726f9a89e15871431b7bf17031fb6c05d29f52469d784ac1ce830f44a6da09 (avant : c709d68f…, 10 lignes M7X du 25/11 conservées) |
+| Lignes de transition (non comptées) | à partir de seq 1130 (17:20 UTC) jusqu'au départ |
+| Départ de l'évaluation M0/M7C (/status suivi.m7c.depart) | … (attendu vers 20 h-21 h UTC le 25/11) |
 | Version de la liaison | stricte-v1 |
 
 ## Retour arrière (en cas d'incident)

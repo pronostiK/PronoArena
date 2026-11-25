@@ -54,12 +54,13 @@ refus détaillés, matchs non terminés recevant des données (doit être 0), co
 | Date et heure (UTC) de la publication | 25/11/2026 17:13 UTC (push main) ; en ligne vers 17:16 UTC (constaté sur /liaison-controle) |
 | Commit publié | 97163b6 |
 | Dernière ligne M0/M7 du journal (seq, empreinte) | 1129 · 313db27b96b73c6a7c5cb9d0ad6208e1959f382eb670abb8045ffd777f293e32 (24/11 22:00 UTC, scellée sur GitHub) |
-| Première ligne M0/M7C comptée (seq, empreinte) | … |
+| Première ligne écrite après le départ (seq, empreinte) | 1293 · da182f4c9d13bc4e4e7fa9b78d528e33b9a9076ce14acdaa8f34af3883615096 |
 | Empreinte des réglages M0/M7 | 2ef4a8150d2ea249198f699ace4aacf9d08976d4443d9e8e2511477419cd088d |
 | Empreinte des réglages M0/M7C | b1c31e33255aecf0dba1757d3229b9f313573952c615d93a79aefa917482c48e |
 | Empreinte des réglages M7X sur M7C | 93726f9a89e15871431b7bf17031fb6c05d29f52469d784ac1ce830f44a6da09 (avant : c709d68f…, 10 lignes M7X du 25/11 conservées) |
-| Lignes de transition (non comptées) | à partir de seq 1130 (17:20 UTC) jusqu'au départ |
-| Départ de l'évaluation M0/M7C (/status suivi.m7c.depart) | … (attendu vers 20 h-21 h UTC le 25/11) |
+| Lignes de transition | seq 1130 à 1292 (17:20 → 19:40 UTC), 163 lignes |
+| Départ de l'évaluation M0/M7C (/status suivi.m7c.depart) | 25/11/2026 19:50:02 UTC (16 fichiers relus, 0 anomalie de liaison) |
+| Matchs déjà couverts au départ | 98 matchs à venir, 9 championnats |
 | Version de la liaison | stricte-v1 |
 
 ## Retour arrière (en cas d'incident)
@@ -76,3 +77,14 @@ Délai : une publication (quelques minutes) + un passage du robot (10 min).
 - Couverture d'un championnat qui chute sous 90 % : nom changé à la source → compléter la table, ne rien deviner.
 - Un match non terminé qui reçoit des données : arrêt immédiat (retour arrière).
 - Une équipe écartée par le garde-fou : la signaler, pas de correction automatique.
+
+### Règle de comptage retenue (précision du 25/11 au soir)
+
+Au passage du départ, les 9 championnats sont recalculés. Le journal n'écrit une nouvelle ligne que si la prédiction diffère de la dernière ligne
+portant la même empreinte : seules 14 lignes ont donc été écrites à 19:50. Pour les autres matchs, la prédiction recalculée avec tous les corners
+relus était identique à la ligne de transition déjà écrite, ce qui confirme cette ligne.
+
+Règle de l'évaluation M0/M7C :
+- matchs dont le coup d'envoi est postérieur au départ (19:50:02 UTC) ;
+- pour chacun, la dernière ligne portant l'empreinte M0/M7C (b1c31e33…) écrite avant le coup d'envoi ;
+- 3 matchs joués pendant la transition (coup d'envoi entre 17:16 et 19:50 UTC) sont exclus de M0/M7C ; ils restent évalués avec leur dernière ligne M0/M7.

@@ -1,7 +1,6 @@
 # M7C : activation, rupture et retour arrière
 
-Statut au 24/11/2026 : **code prêt, interrupteur ÉTEINT, rien en ligne.**
-Activation soumise à : (1) passage en lecture seule sur les vraies données du robot, (2) accord explicite du chef de projet.
+Statut : contrôle en lecture seule réussi le 25/11/2026 (CONTROLE-LECTURE-SEULE-25-11.md). **Activation accordée par le chef de projet le 25/11/2026 à 17:02 UTC.**
 
 ## Ce qui change avec M7C
 
@@ -38,7 +37,13 @@ refus détaillés, matchs non terminés recevant des données (doit être 0), co
 2. Au premier passage du robot, chaque fichier de corners est relu une fois avec la nouvelle méthode (au plus 16 écritures KV).
 3. Le journal change de version (`SUIVI_VERSION` = M0/M7C) et d'empreinte de réglages (`SUIVI_PARAMS` gagne `liaison: "stricte-v1"`).
    Les lignes M0/M7 déjà écrites ne sont **ni modifiées ni supprimées** (journal en ajout seul, chaîne SHA-256 et sceaux GitHub conservés).
-4. L'évaluation M0/M7C repart de zéro : on ne retient que les lignes portant la nouvelle empreinte. Jamais fusionnée avec M0/M7.
+4. Transition : le robot relit un fichier de corners par passage (16 fichiers, environ 3 h). Pendant ce temps, une ligne peut porter
+   la nouvelle empreinte alors que son championnat n'a pas encore ses corners relus. Ces lignes de transition ne sont PAS comptées.
+5. Départ de l'évaluation M0/M7C = `suivi.m7c.depart` dans `/status` : premier passage où les 16 fichiers sont relus en liaison stricte.
+   À ce passage, les 9 championnats sont recalculés une fois, si bien que chaque match à venir reçoit une ligne M0/M7C.
+   Une ligne est aussi écrite quand seule l'empreinte des réglages change (même probabilités).
+6. L'évaluation M0/M7C ne retient que les lignes avec la nouvelle empreinte ET créées à partir du départ. Jamais fusionnée avec M0/M7.
+7. M7X (non affiché) suit la même rupture : sa base devient M7C (corners et xG en liaison stricte), nouvelle version et nouvelle empreinte.
 5. `/status` publie, par championnat, la méthode, la couverture et les anomalies de liaison.
 
 ### Fiche de rupture (à remplir au moment de l'activation)

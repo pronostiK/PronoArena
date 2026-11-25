@@ -16,7 +16,7 @@ import { EQUIPES } from "./liaison-table.js";
 // M7C (24/11/2026, validé sous conditions par l'auditeur) : liaison STRICTE par la table explicite des équipes
 // (src/liaison.js) au lieu de la reconnaissance par les dates. INTERRUPTEUR : false = comportement M7 inchangé.
 // Retour arrière : remettre false et publier ; les fichiers sont alors relus avec l'ancienne méthode (clés d'état distinctes).
-export let LIAISON_STRICTE = false;
+export let LIAISON_STRICTE = true; // M7C allumée le 25/11/2026 avec l'accord du chef de projet (retour arrière : false, voir test/lab/liaison/RUPTURE-M7C.md)
 export const LIAISON_VERSION = "stricte-v1";
 export function _setLiaisonStricte(v) { LIAISON_STRICTE = !!v; } // tests seulement
 const methode = () => (LIAISON_STRICTE ? LIAISON_VERSION : "dates");
@@ -85,6 +85,12 @@ export function matchCorners(rows, finished) {
   return { m, inconnues: Object.keys(csvDays).filter((n) => !map[n]) };
 }
 
+// Tous les fichiers de corners (2 saisons) ont-ils été relus avec la méthode en vigueur ?
+export function liaisonComplete(index, season) {
+  const st = index?._corners || {};
+  return Object.keys(CORNERS_LEAGUES).every((id) => LEAGUES[id]?.robot === false || [season - 1, season].every((s) => (st[`${id}@${s}:v`] || "dates") === methode()));
+}
+
 // Un fichier par passage au plus : la saison précédente manquante d'abord, sinon la saison en cours la plus ancienne (6 h)
 export async function refreshCorners(env, index, season, now = Date.now()) {
   if (!env.PRONO_CACHE) return null;
@@ -97,7 +103,9 @@ export async function refreshCorners(env, index, season, now = Date.now()) {
       // Changement de méthode (passage à M7C ou retour arrière) : chaque fichier est relu une fois avec la méthode en vigueur
       const autreMethode = (st[k + ":v"] || "dates") !== methode();
       const due = autreMethode || (s < season ? !at || (st[k + ":n"] === 0 && now - at > DAY) : now - at > CUR_MS);
-      if (due && (!pick || (autreMethode ? -1 : at) < pick.at)) pick = { id: +id, code, s, k, at: autreMethode ? -1 : at };
+      // relectures d'abord, la moins récemment essayée en tête (un fichier indisponible ne bloque pas les autres)
+      const prio = autreMethode ? at - 1e15 : at;
+      if (due && (!pick || prio < pick.at)) pick = { id: +id, code, s, k, at: prio };
     }
   }
   if (!pick) return null;

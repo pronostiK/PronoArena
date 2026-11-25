@@ -14,7 +14,7 @@ import { refreshAbsents, bzPaused } from "./absents.js";
 import { refreshClubLogos, usesClubLogos, logoKey, clubLogo } from "./clublogos.js";
 import { refreshSeed } from "./nations.js";
 import { refreshH2HStats, h2hStatsStatus } from "./h2hstats.js";
-import { refreshCorners, cornersStatus } from "./corners.js";
+import { refreshCorners, cornersStatus, liaisonComplete, LIAISON_STRICTE } from "./corners.js";
 import { logSuivi, logSuiviX, logSuiviV, SUIVI_LEAGUES } from "./suivi.js";
 import { refreshXgHist, xgHistStatus } from "./xghist.js";
 import { LEAGUES, BACKUP_AFTER_MS } from "./config.js";
@@ -239,6 +239,10 @@ export async function runRobot(env, now = Date.now()) {
   if (index._modelRev !== 15) { index._modelRev = 15; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.robot !== false) toRebuild.add(Number(id)); }
   // Suivi M0 / M7 : un recalcul unique des 9 championnats pour que chaque match à venir ait sa première ligne (même moteur)
   if (index._suiviRev !== 1) { index._suiviRev = 1; for (const id of SUIVI_LEAGUES) if (LEAGUES[id]?.robot !== false) toRebuild.add(id); }
+  // M7C : dès que TOUS les fichiers de corners sont relus avec la liaison stricte, recalcul unique des 9 championnats.
+  // Ce moment (index._m7cDepart) est le départ de l'évaluation M0/M7C : les lignes antérieures sont une transition, non comptée.
+  if (LIAISON_STRICTE && !index._m7cDepart && liaisonComplete(index, season)) { index._m7cDepart = now; for (const id of SUIVI_LEAGUES) if (LEAGUES[id]?.robot !== false) toRebuild.add(id); }
+  if (!LIAISON_STRICTE && index._m7cDepart) { index._m7cRetour = now; delete index._m7cDepart; }
   if (index._natRev !== 2) { index._natRev = 2; for (const [id, lg] of Object.entries(LEAGUES)) if (lg.national && lg.robot !== false) toRebuild.add(Number(id)); }
   // Sélections : notes Elo rafraîchies une fois par semaine (tous les matchs internationaux)
   if (now - (index._nationsAt || 0) > 7 * DAY) {
@@ -309,5 +313,5 @@ export async function robotStatus(env, now = Date.now()) {
   }
   const faceAFace = await h2hStatsStatus(env);
   const corners = await cornersStatus(env, season);
-  return { saison: season, faceAFace, corners, suivi: { parChampionnat: index._suivi || {}, ...(index._suiviErreur ? { derniereErreur: index._suiviErreur } : {}), m7x: { parChampionnat: index._suiviX || {}, ...(index._suiviXErreur ? { derniereErreur: index._suiviXErreur } : {}), xgHistorique: await xgHistStatus(env).catch((e) => ({ erreur: e.message })) }, variantes: { parChampionnat: index._suiviV || {}, ...(index._suiviVErreur ? { derniereErreur: index._suiviVErreur } : {}) } }, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
+  return { saison: season, faceAFace, corners, suivi: { parChampionnat: index._suivi || {}, ...(LIAISON_STRICTE ? { m7c: { depart: index._m7cDepart ? new Date(index._m7cDepart).toISOString() : null, attente: index._m7cDepart ? null : "relecture des fichiers de corners en cours" } } : {}), ...(index._m7cRetour ? { m7cRetourArriere: new Date(index._m7cRetour).toISOString() } : {}), ...(index._suiviErreur ? { derniereErreur: index._suiviErreur } : {}), m7x: { parChampionnat: index._suiviX || {}, ...(index._suiviXErreur ? { derniereErreur: index._suiviXErreur } : {}), xgHistorique: await xgHistStatus(env).catch((e) => ({ erreur: e.message })) }, variantes: { parChampionnat: index._suiviV || {}, ...(index._suiviVErreur ? { derniereErreur: index._suiviVErreur } : {}) } }, logos, selections, matchsOfferts: index._free || null, progression: `${ok}/${total} sources à jour`, espn: pause ? { etat: "en pause", ...pause } : { etat: "ok" }, dernierPassage: index._lastRun ? { date: new Date(index._lastRun.at).toISOString(), rapport: index._lastRun.report } : null, sources };
 }

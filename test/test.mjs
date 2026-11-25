@@ -9,6 +9,11 @@ import { nationName, nationsPredict, fitLambdas, applyResults } from "../src/nat
 import SEED from "../src/nations-seed.js";
 import { dropBareLogos, applyClubLogos, clubLogo } from "../src/clublogos.js";
 import { keyPoints } from "../src/keypoints.js";
+import { LIAISON_STRICTE as LIAISON_PROD, _setLiaisonStricte } from "../src/corners.js";
+// Le monde simulé a des noms fictifs (« Équipe 12 », « Club 12 ») absents de la vraie table : la mécanique des corners
+// est testée avec l'ancienne méthode, puis la liaison stricte avec une table de test (section M7C).
+const LIAISON_EN_PROD = LIAISON_PROD; // valeur publiée, lue avant de forcer l'ancienne méthode
+_setLiaisonStricte(false);
 
 let ok = 0, ko = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : ko++; console.log(`${cond ? "OK   " : "ÉCHEC"} ${name}${info ? "  → " + info : ""}`); };
@@ -1139,8 +1144,8 @@ console.log("\n— M7C : liaison stricte (interrupteur) —");
   const { controleLiaison } = await import("../src/liaison-controle.js");
   const { MODEL } = await import("../src/config.js");
   const { SUIVI_PARAMS } = await import("../src/suivi.js");
-  check("M7C : interrupteur éteint par défaut (comportement M7 inchangé)", C.LIAISON_STRICTE === false);
-  check("M7C : empreinte des réglages M0/M7 inchangée tant que l'interrupteur est éteint", !("liaison" in JSON.parse(SUIVI_PARAMS)));
+  check("M7C : interrupteur ALLUMÉ en production (25/11/2026)", LIAISON_EN_PROD === true);
+  check("M7C : rupture marquée dans l'empreinte des réglages (liaison stricte-v1), reste identique à M0/M7", (() => { const p = JSON.parse(SUIVI_PARAMS); const { liaison, ...rest } = p; return liaison === "stricte-v1" && Object.keys(rest).length > 0; })());
   const modelAvant = JSON.stringify(MODEL);
   // Table de test : noms du robot simulé (« Équipe id ») → noms du fichier simulé (« Club id »)
   const src = JSON.parse(await env.PRONO_CACHE.get("src:fd:FL1@2026")), srcP = JSON.parse(await env.PRONO_CACHE.get("src:fd:FL1@2025") || "null");
@@ -1175,6 +1180,22 @@ console.log("\n— M7C : liaison stricte (interrupteur) —");
   const ctl = await controleLiaison(env, 61, SIM.now);
   check("M7C : contrôle en lecture seule sans aucune écriture KV", env.stats.writes === w1 && ctl.saisons?.[2026]?.stricte?.relies > 50, `${env.stats.writes - w1} écritures ; ${ctl.saisons?.[2026]?.stricte?.relies} reliés`);
   check("M7C : contrôle — aucun match non terminé ne reçoit de données", ctl.saisons[2026].stricte.matchsNonTerminesRecevantDesDonnees === 0);
+  // Robot réel : départ de l'évaluation M0/M7C seulement quand TOUS les fichiers sont relus, puis recalcul unique des 9
+  {
+    const ix0 = JSON.parse(await env.PRONO_CACHE.get("robot:index"));
+    check("M7C : avant relecture, départ de l'évaluation non fixé", !ix0._m7cDepart);
+    C._setLiaisonStricte(true);
+    let t = SIM.now + 3600000, depart = null, rapports = [];
+    for (let i = 0; i < 30 && !depart; i++) { const r = await tick(env, t); rapports.push(r); t += 600000; depart = JSON.parse(await env.PRONO_CACHE.get("robot:index"))._m7cDepart || null; }
+    const ix1 = JSON.parse(await env.PRONO_CACHE.get("robot:index"));
+    check("M7C : départ fixé une fois tous les fichiers relus (liaison stricte)", !!depart && C.liaisonComplete(ix1, 2026), `${depart}`);
+    const st = await get("/status");
+    check("M7C : départ de l'évaluation visible dans /status", st.suivi?.m7c?.depart === new Date(depart).toISOString(), JSON.stringify(st.suivi?.m7c));
+    C._setLiaisonStricte(false);
+    await tick(env, t);
+    const ix2 = JSON.parse(await env.PRONO_CACHE.get("robot:index"));
+    check("M7C : retour arrière noté (départ retiré, date du retour)", !ix2._m7cDepart && ix2._m7cRetour > 0);
+  }
   EQUIPES[61] = savedEq;
 }
 

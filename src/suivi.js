@@ -54,7 +54,7 @@ export async function logSuivi(env, leagueId, entries, now = Date.now()) {
   const keys = todo.map((e) => `${leagueId}:${e.match}`);
   const last = new Map();
   const ph = keys.map(() => "?").join(",");
-  const { results } = await env.DB.prepare(`SELECT match, coup_envoi, m0, m7 FROM suivi WHERE seq IN (SELECT MAX(seq) FROM suivi WHERE match IN (${ph}) GROUP BY match)`).bind(...keys).all();
+  const { results } = await env.DB.prepare(`SELECT match, coup_envoi, m0, m7, params FROM suivi WHERE seq IN (SELECT MAX(seq) FROM suivi WHERE match IN (${ph}) GROUP BY match)`).bind(...keys).all();
   for (const r of results || []) last.set(r.match, r);
   const head = await env.DB.prepare("SELECT empreinte FROM suivi ORDER BY seq DESC LIMIT 1").first();
   let prec = head?.empreinte || "0".repeat(64);
@@ -62,7 +62,7 @@ export async function logSuivi(env, leagueId, entries, now = Date.now()) {
   const stmts = [];
   for (let i = 0; i < todo.length; i++) {
     const e = todo[i], k = keys[i], m0 = JSON.stringify(e.m0), m7 = JSON.stringify(e.m7), old = last.get(k);
-    if (old && old.m0 === m0 && old.m7 === m7 && old.coup_envoi === e.ts) continue; // rien de nouveau
+    if (old && old.m0 === m0 && old.m7 === m7 && old.coup_envoi === e.ts && old.params === params) continue; // rien de nouveau (nouveaux réglages = nouvelle ligne)
     const r = { cree_le: now, ligue: +leagueId, match: k, coup_envoi: e.ts, dom: e.dom || "", ext: e.ext || "", m0, m7, infos: JSON.stringify(e.infos || {}), params };
     const contenu = await sha256(rowText(r)), empreinte = await sha256(prec + "|" + contenu);
     stmts.push(env.DB.prepare("INSERT INTO suivi (cree_le, ligue, match, coup_envoi, dom, ext, m0, m7, infos, params, contenu, prec, empreinte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
@@ -99,7 +99,7 @@ export async function suiviExport(env, now = Date.now(), from = 0) {
 export const SUIVI_X = true; // interrupteur : false coupe M7X sans rien changer d'autre
 export const SUIVI_X_SHARE = 0.5;
 export const SUIVI_X_MIN_COVERAGE = 0.8;
-export const SUIVI_X_VERSION = "M7X figé le 20/11/2026 (M7 8044a83 + 50 % xG mesurés dans la part buts)";
+export const SUIVI_X_VERSION = LIAISON_STRICTE ? "M7X sur M7C (liaison stricte des corners et des xG, rupture du 25/11/2026) + 50 % xG mesurés dans la part buts" : "M7X figé le 20/11/2026 (M7 8044a83 + 50 % xG mesurés dans la part buts)";
 export const SUIVI_X_PARAMS = JSON.stringify({ base: JSON.parse(SUIVI_PARAMS), xgShare: SUIVI_X_SHARE, xgMesuresSeulement: true });
 
 // Matchs passés « M7X » : à partir des matchs de M7 (déjà mêlés aux corners), la part buts réels est remplacée par
@@ -136,7 +136,7 @@ export async function logSuiviX(env, leagueId, entries, now = Date.now()) {
   const todo = entries.filter((e) => e.ts > now);
   if (!todo.length) return 0;
   const keys = todo.map((e) => `${leagueId}:${e.match}`), last = new Map();
-  const { results } = await env.DB.prepare(`SELECT match, coup_envoi, m7x FROM suivi_x WHERE seq IN (SELECT MAX(seq) FROM suivi_x WHERE match IN (${keys.map(() => "?").join(",")}) GROUP BY match)`).bind(...keys).all();
+  const { results } = await env.DB.prepare(`SELECT match, coup_envoi, m7x, params FROM suivi_x WHERE seq IN (SELECT MAX(seq) FROM suivi_x WHERE match IN (${keys.map(() => "?").join(",")}) GROUP BY match)`).bind(...keys).all();
   for (const r of results || []) last.set(r.match, r);
   const head = await env.DB.prepare("SELECT empreinte FROM suivi_x ORDER BY seq DESC LIMIT 1").first();
   let prec = head?.empreinte || "0".repeat(64);
@@ -144,7 +144,7 @@ export async function logSuiviX(env, leagueId, entries, now = Date.now()) {
   const stmts = [];
   for (let i = 0; i < todo.length; i++) {
     const e = todo[i], k = keys[i], m7x = JSON.stringify(e.m7x), old = last.get(k);
-    if (old && old.m7x === m7x && old.coup_envoi === e.ts) continue;
+    if (old && old.m7x === m7x && old.coup_envoi === e.ts && old.params === params) continue; // nouveaux réglages = nouvelle ligne
     const r = { cree_le: now, ligue: +leagueId, match: k, coup_envoi: e.ts, dom: e.dom || "", ext: e.ext || "", m7x, infos: JSON.stringify(e.infos || {}), params };
     const contenu = await sha256(rowTextX(r)), empreinte = await sha256(prec + "|" + contenu);
     stmts.push(env.DB.prepare("INSERT INTO suivi_x (cree_le, ligue, match, coup_envoi, dom, ext, m7x, infos, params, contenu, prec, empreinte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")

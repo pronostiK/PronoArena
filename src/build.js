@@ -12,6 +12,8 @@ import { CORNERS_LEAGUES, cornersKey, blendCorners, matchCorners, LIAISON_STRICT
 import { linkStrict, buildTable } from "./liaison.js";
 import { EQUIPES } from "./liaison-table.js";
 import { keyPoints } from "./keypoints.js";
+import { COMPOS_KEY } from "./compos.js";
+import { cupEloFor } from "./elo-cup.js";
 import { flagTeams, flagUrl } from "./flags.js";
 import { usesClubLogos, logoKey, applyClubLogos, clubLogo, dropBareLogos } from "./clublogos.js";
 
@@ -124,13 +126,17 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
     model = { ...computeTeamRatings(bl.finished, { newcomers }), elo: computeElo(finishedAll), cornersMatchs: bl.n };
   } else model = buildModel(finishedAll, { newcomers });
 
-  // Coupes : forces en championnat de chaque équipe
+  // Coupes : forces en championnat de chaque équipe. Ligue des champions : écart de niveau entre championnats accentué
+  // (coefficient à la puissance lg.coefPower, 1,5) ; mesuré sur 420 matchs (test/lab/RESULTATS-CDC-COEF.md). Inconnu : inchangé.
+  const unknownCoef = MODEL.unknownLeagueCoef ** (lg.coefPower ?? 1); // équipe sans championnat connu : même échelle que les autres
+  const leagueCoef = (d) => (LEAGUE_COEF[d] !== undefined ? LEAGUE_COEF[d] ** (lg.coefPower ?? 1) : unknownCoef);
   let domestic = null;
   const formePool = [...finishedCur];
   const domesticStatus = [];
   const extraNames = {};
   if (lg.domestic && !secours) {
     domestic = new Map();
+    domestic.unknownCoef = unknownCoef;
     const srcs = await Promise.all(lg.domestic.map((d) => kvGet(env, srcKey(d, season))));
     lg.domestic.forEach((d, i) => {
       const s = srcs[i];
@@ -141,9 +147,37 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       formePool.push(...f);
       const rt = computeTeamRatings(f);
       for (const [id, rating] of Object.entries(rt.ratings)) {
-        if (!domestic.has(id)) domestic.set(id, { rating, coef: LEAGUE_COEF[d] ?? MODEL.unknownLeagueCoef, played: rating.played, league: d });
+        if (!domestic.has(id)) domestic.set(id, { rating, coef: leagueCoef(d), played: rating.played, league: d });
       }
     });
+  }
+
+  // Ligue des champions : équipes de championnats absents de football-data (Turquie, Belgique, Écosse). Leurs forces viennent des
+  // sources ESPN déjà tenues à jour par le robot (aucun appel de plus) ; l'identifiant football-data de l'équipe est retrouvé
+  // par la correspondance de compos.js. Sans correspondance pour une équipe, elle garde le calcul d'avant (coupe seule).
+  if (domestic && lg.domesticEspn?.length) {
+    const idmap = (await kvGet(env, COMPOS_KEY))?.idmap || {};
+    const fdOf = {}; for (const [fd, es] of Object.entries(idmap)) fdOf[es] = fd;
+    const srcs = await Promise.all(lg.domesticEspn.map((d) => kvGet(env, srcKey(d, season))));
+    lg.domesticEspn.forEach((d, i) => {
+      const s = srcs[i];
+      domesticStatus.push({ source: d, disponible: !!s, matchs: s?.finished?.length || 0, ...(s ? { equipesRetrouvees: 0 } : {}) });
+      if (!s) return;
+      const st = domesticStatus[domesticStatus.length - 1];
+      const rt = computeTeamRatings(toFinished(s));
+      for (const [espnId, rating] of Object.entries(rt.ratings)) {
+        const fdId = fdOf[espnId];
+        if (fdId && !domestic.has(fdId)) { domestic.set(fdId, { rating, coef: leagueCoef(d), played: rating.played, league: d }); st.equipesRetrouvees++; }
+      }
+    });
+  }
+
+  // Coupes d'Europe : Elo commun des clubs (src/elo-cup.js). Équipe sans Elo : calcul d'avant, signalé dans le statut.
+  let cupElo = null;
+  if (lg.cupElo && !secours) {
+    const ce = cupEloFor(cur.teams, finishedCur);
+    cupElo = ce.elo;
+    domesticStatus.push({ source: "elo-commun", equipes: ce.elo.size, ...(ce.inconnus.length ? { sansElo: ce.inconnus } : {}) });
   }
 
   const table = leagueTable(finishedCur);
@@ -158,7 +192,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   const model0 = SUIVI_LEAGUES.has(+leagueId) && env.DB ? buildModel(finishedAll) : null;
   const suivi = [];
   const predictions = upcoming.map((m) => {
-    const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+    const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, cupElo, eloMix: !lg.cup && !lg.national });
     if (model0) {
       const p0 = calculate_match_prediction(m, { model: model0, leagueId, season, domestic, national });
       suivi.push({ match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name,
@@ -183,7 +217,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
   // même modèle que les matchs publiés ; ces probabilités ne sont pas affichées sur le site (infos.publie = false).
   function suiviExtra() {
     return allUpcoming.slice(10).filter((m) => m.ts <= now + 7 * 86400000).map((m) => {
-      const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+      const p = calculate_match_prediction(m, { model, leagueId, season, domestic, national, cupElo, eloMix: !lg.cup && !lg.national });
       const p0 = calculate_match_prediction(m, { model: model0, leagueId, season, domestic, national });
       return { match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name,
         m0: [p0.poisson.proba1, p0.poisson.probaN, p0.poisson.proba2], m7: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2],
@@ -206,7 +240,7 @@ export async function buildLeague(env, leagueId, season, now = Date.now(), index
       const modelX = { ...computeTeamRatings(blendXg(finishedAll, m7fin, xg), { newcomers }), elo: model.elo };
       const targets = [...upcoming, ...allUpcoming.slice(10).filter((u) => u.ts <= now + 7 * 86400000)];
       const infos = { couverture: Math.round(couverture * 1000) / 1000, xg: n, matchs: finishedAll.length, dernierXg: last ? new Date(last).toISOString().slice(0, 10) : null, promus: newcomers ? newcomers.size : 0, cornersMatchs: model.cornersMatchs || 0 };
-      return { entries: targets.map((u) => { const p = calculate_match_prediction(u, { model: modelX, leagueId, season, domestic, national, eloMix: !lg.cup && !lg.national });
+      return { entries: targets.map((u) => { const p = calculate_match_prediction(u, { model: modelX, leagueId, season, domestic, national, cupElo, eloMix: !lg.cup && !lg.national });
         return { match: p.matchId, ts: Date.parse(p.date), dom: p.teams.domicile.name, ext: p.teams.exterieur.name, m7x: [p.poisson.proba1, p.poisson.probaN, p.poisson.proba2], infos }; }) };
     } catch (e) { return { entries: [], erreur: String(e.message).slice(0, 160) }; }
   }

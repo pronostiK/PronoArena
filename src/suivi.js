@@ -230,6 +230,7 @@ export async function logSuiviV(env, leagueId, entries, now = Date.now()) {
 }
 
 export async function suiviHeadV(env) {
+  if (!Object.keys(SUIVI_V).length) return { actif: false, raison: "aucune variante active" }; // M7-40 non retenue : pas de table créée
   if (!(await ensureSuiviV(env))) return { actif: false };
   const h = await env.DB.prepare("SELECT seq, cree_le, empreinte FROM suivi_v ORDER BY seq DESC LIMIT 1").first();
   const n = await env.DB.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT variante || match) AS m FROM suivi_v").first();
@@ -237,6 +238,7 @@ export async function suiviHeadV(env) {
 }
 
 export async function suiviExportV(env, now = Date.now(), from = 0) {
+  if (!Object.keys(SUIVI_V).length) return { actif: false, lignes: [] };
   if (!(await ensureSuiviV(env))) return { actif: false, lignes: [] };
   const { results } = await env.DB.prepare("SELECT * FROM suivi_v WHERE seq > ? ORDER BY seq LIMIT 5000").bind(from).all();
   const lignes = (results || []).map((r) => (r.coup_envoi < now - 3 * 3600000 ? r : { seq: r.seq, cree_le: r.cree_le, variante: r.variante, ligue: r.ligue, coup_envoi: r.coup_envoi, contenu: r.contenu, prec: r.prec, empreinte: r.empreinte, masque: true }));
